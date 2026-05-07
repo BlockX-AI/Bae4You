@@ -19,7 +19,10 @@
     "worker:ranking": "tsx src/workers/ranking.worker.ts",
     "cdp-smoke": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/cdp-smoke.ts",
     "pimlico-e2e": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/pimlico-e2e.ts",
-    "prod-health": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/production-health.ts"
+    "prod-health": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/production-health.ts",
+    "migrate:fantasy": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-fantasy.ts",
+    "fantasy-e2e": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/fantasy-e2e.ts",
+    "gameflow-v2": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/gameflow-v2-e2e.ts"
   },
   "dependencies": {
     "@coinbase/cdp-sdk": "^1.48.2",

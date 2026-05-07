@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * @title PetsRegistry
- * @notice Mints a unique ERC-1155 SFT for every new Bae4U user profile.
+ * @notice Mints a unique ERC-721 NFT for every new Bae4U user profile.
  *         Each token ID maps permanently to one wallet address.
+ *         Converted from ERC-1155 SFT to ERC-721 for true non-fungibility
+ *         and better marketplace / wallet compatibility.
  *         Ghost status is set when a user deactivates (price frozen on market).
  */
-contract PetsRegistry is ERC1155, AccessControl {
+contract PetsRegistry is ERC721Enumerable, AccessControl {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
+    string private _baseTokenURI;
 
     enum PetStatus { Active, Ghost, Burned }
 
@@ -19,6 +24,7 @@ contract PetsRegistry is ERC1155, AccessControl {
         address userAddress;
         uint256 startingPrice;
         PetStatus status;
+        uint256 mintedAt;
     }
 
     uint256 private _nextId = 1;
@@ -30,14 +36,15 @@ contract PetsRegistry is ERC1155, AccessControl {
     event ProfileGhosted(address indexed user, uint256 indexed tokenId);
 
     constructor(address admin)
-        ERC1155("https://api.bae4u.com/metadata/{id}.json")
+        ERC721("Bae4U Profile", "BAE")
     {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(MINTER_ROLE, admin);
+        _baseTokenURI = "https://api.bae4u.com/metadata/";
     }
 
     /**
-     * @notice Called by backend on new user signup. Mints the user's profile SFT.
+     * @notice Called by backend on new user signup. Mints the user's profile NFT.
      * @return tokenId the new token ID
      */
     function mintProfile(address user, uint256 startingPrice)
@@ -48,10 +55,10 @@ contract PetsRegistry is ERC1155, AccessControl {
         require(addressToToken[user] == 0, "PetsRegistry: already minted");
 
         uint256 tokenId = _nextId++;
-        profiles[tokenId] = Profile(user, startingPrice, PetStatus.Active);
+        profiles[tokenId] = Profile(user, startingPrice, PetStatus.Active, block.timestamp);
         addressToToken[user] = tokenId;
 
-        _mint(user, tokenId, 1, "");
+        _safeMint(user, tokenId);
         emit ProfileMinted(user, tokenId, startingPrice);
         return tokenId;
     }
@@ -78,8 +85,30 @@ contract PetsRegistry is ERC1155, AccessControl {
         return profiles[tokenId].status;
     }
 
+    function tokenURI(uint256 tokenId)
+        public view override
+        returns (string memory)
+    {
+        require(_exists(tokenId), "PetsRegistry: nonexistent token");
+        return string(abi.encodePacked(_baseTokenURI, _toString(tokenId), ".json"));
+    }
+
+    function setBaseURI(string calldata uri) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _baseTokenURI = uri;
+    }
+
+    function _toString(uint256 value) internal pure returns (string memory) {
+        if (value == 0) return "0";
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) { digits++; temp /= 10; }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) { digits--; buffer[digits] = bytes1(uint8(48 + value % 10)); value /= 10; }
+        return string(buffer);
+    }
+
     function supportsInterface(bytes4 iface)
-        public view override(ERC1155, AccessControl)
+        public view override(ERC721Enumerable, AccessControl)
         returns (bool)
     {
         return super.supportsInterface(iface);

@@ -5,6 +5,71 @@ import { querySimilar } from "../services/pinecone-match";
 import { sendPushToUser } from "../services/push";
 
 const matchesRoutes: FastifyPluginAsync = async (fastify) => {
+  async function likeSomeone(
+    _fapp: unknown,
+    myId: string,
+    targetId: string,
+    reply: any
+  ) {
+    if (myId === targetId) return reply.code(400).send({ error: "Cannot like yourself" });
+
+    const { rows: targetRows } = await db.query(
+      "SELECT id FROM users WHERE id = $1 AND status = 'active'",
+      [targetId]
+    );
+    if (!targetRows[0]) return reply.code(404).send({ error: "User not found" });
+
+    const { rows: existing } = await db.query(
+      `SELECT id, status FROM matches
+       WHERE (user_a_id = $1 AND user_b_id = $2) OR (user_a_id = $2 AND user_b_id = $1)`,
+      [myId, targetId]
+    );
+
+    if (existing[0]?.status === "matched") return reply.code(409).send({ error: "Already matched" });
+
+    if (existing[0]?.status === "pending") {
+      const { rows: matchRows } = await db.query(
+        `UPDATE matches SET status = 'matched', matched_at = NOW() WHERE id = $1 RETURNING *`,
+        [existing[0].id]
+      );
+      const { rows: names } = await db.query(
+        "SELECT id, COALESCE(display_name, username, wallet_address) AS name FROM users WHERE id = ANY($1::uuid[])",
+        [[myId, targetId]]
+      );
+      const nameMap = new Map(names.map((n: { id: string; name: string }) => [n.id, n.name]));
+      notifyNewMatch(matchRows[0].id, myId, targetId, nameMap.get(myId) ?? "Someone", nameMap.get(targetId) ?? "Someone").catch(() => {});
+      return { match: matchRows[0], isNewMatch: true };
+    }
+
+    const { rows } = await db.query(
+      `INSERT INTO matches (user_a_id, user_b_id, status) VALUES ($1, $2, 'pending')
+       ON CONFLICT DO NOTHING RETURNING *`,
+      [myId, targetId]
+    );
+    return { match: rows[0] ?? null, isNewMatch: false };
+  }
+
+  async function passSomeone(
+    myId: string,
+    targetId: string,
+    reply: any
+  ) {
+    if (myId === targetId) return reply.code(400).send({ error: "Cannot pass yourself" });
+
+    const { rows: targetRows } = await db.query(
+      "SELECT id FROM users WHERE id = $1 AND status = 'active'",
+      [targetId]
+    );
+    if (!targetRows[0]) return reply.code(404).send({ error: "User not found" });
+
+    await db.query(
+      `INSERT INTO swipe_passes (user_id, target_id) VALUES ($1, $2)
+       ON CONFLICT (user_id, target_id) DO NOTHING`,
+      [myId, targetId]
+    );
+    return { passed: true };
+  }
+
   // GET /matches — get all my active matches
   fastify.get(
     "/",
@@ -28,68 +93,37 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // POST /matches/like/:targetUserId — like someone
+  // POST /matches/like — like someone (body: { targetUserId })
+  fastify.post<{ Body: { targetUserId: string } }>(
+    "/like",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload  = req.user as JwtPayload;
+      const targetId = (req.body as { targetUserId?: string }).targetUserId;
+      if (!targetId) return reply.code(400).send({ error: "targetUserId required" });
+      return likeSomeone(fastify, payload.userId, targetId, reply);
+    }
+  );
+
+  // POST /matches/pass — pass (body: { targetUserId })
+  fastify.post<{ Body: { targetUserId: string } }>(
+    "/pass",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload  = req.user as JwtPayload;
+      const targetId = (req.body as { targetUserId?: string }).targetUserId;
+      if (!targetId) return reply.code(400).send({ error: "targetUserId required" });
+      return passSomeone(payload.userId, targetId, reply);
+    }
+  );
+
+  // POST /matches/like/:targetUserId — like someone (param-based, delegates to helper)
   fastify.post<{ Params: { targetUserId: string } }>(
     "/like/:targetUserId",
     { preHandler: fastify.authenticate },
     async (req, reply) => {
-      const payload  = req.user as JwtPayload;
-      const targetId = req.params.targetUserId;
-
-      if (payload.userId === targetId) {
-        return reply.code(400).send({ error: "Cannot like yourself" });
-      }
-
-      // Check if target user exists
-      const { rows: targetRows } = await db.query(
-        "SELECT id FROM users WHERE id = $1 AND status = 'active'",
-        [targetId]
-      );
-      if (!targetRows[0]) return reply.code(404).send({ error: "User not found" });
-
-      // Check if already matched
-      const { rows: existing } = await db.query(
-        `SELECT id, status FROM matches
-         WHERE (user_a_id = $1 AND user_b_id = $2) OR (user_a_id = $2 AND user_b_id = $1)`,
-        [payload.userId, targetId]
-      );
-
-      if (existing[0]?.status === "matched") {
-        return reply.code(409).send({ error: "Already matched" });
-      }
-
-      if (existing[0]?.status === "pending") {
-        // The other person already liked us — it's a match!
-        const { rows: matchRows } = await db.query(
-          `UPDATE matches SET status = 'matched', matched_at = NOW()
-           WHERE id = $1 RETURNING *`,
-          [existing[0].id]
-        );
-        // Notify both users via push (fire and forget)
-        const { rows: names } = await db.query(
-          "SELECT id, COALESCE(display_name, username, wallet_address) AS name FROM users WHERE id = ANY($1::uuid[])",
-          [[payload.userId, targetId]]
-        );
-        const nameMap = new Map(names.map((n: { id: string; name: string }) => [n.id, n.name]));
-        notifyNewMatch(
-          matchRows[0].id,
-          payload.userId,
-          targetId,
-          nameMap.get(payload.userId) ?? "Someone",
-          nameMap.get(targetId)       ?? "Someone"
-        ).catch(() => {});
-        return { match: matchRows[0], isNewMatch: true };
-      }
-
-      // Create pending like
-      const { rows } = await db.query(
-        `INSERT INTO matches (user_a_id, user_b_id, status)
-         VALUES ($1, $2, 'pending')
-         ON CONFLICT DO NOTHING
-         RETURNING *`,
-        [payload.userId, targetId]
-      );
-      return { match: rows[0] ?? null, isNewMatch: false };
+      const payload = req.user as JwtPayload;
+      return likeSomeone(null, payload.userId, req.params.targetUserId, reply);
     }
   );
 
@@ -192,31 +226,13 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // POST /matches/pass/:targetUserId — swipe left / skip
+  // POST /matches/pass/:targetUserId — swipe left / skip (param-based, delegates to helper)
   fastify.post<{ Params: { targetUserId: string } }>(
     "/pass/:targetUserId",
     { preHandler: fastify.authenticate },
     async (req, reply) => {
-      const payload  = req.user as JwtPayload;
-      const targetId = req.params.targetUserId;
-
-      if (payload.userId === targetId) {
-        return reply.code(400).send({ error: "Cannot pass yourself" });
-      }
-
-      const { rows: targetRows } = await db.query(
-        "SELECT id FROM users WHERE id = $1 AND status = 'active'",
-        [targetId]
-      );
-      if (!targetRows[0]) return reply.code(404).send({ error: "User not found" });
-
-      await db.query(
-        `INSERT INTO swipe_passes (user_id, target_id)
-         VALUES ($1, $2)
-         ON CONFLICT (user_id, target_id) DO NOTHING`,
-        [payload.userId, targetId]
-      );
-      return { passed: true };
+      const payload = req.user as JwtPayload;
+      return passSomeone(payload.userId, req.params.targetUserId, reply);
     }
   );
 };

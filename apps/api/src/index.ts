@@ -20,7 +20,12 @@ import messagesRoutes from "./routes/messages";
 import rankingsRoutes from "./routes/rankings";
 import fiatRoutes     from "./routes/fiat";
 import adminRoutes    from "./routes/admin";
-import actionsRoutes  from "./routes/actions";
+import actionsRoutes     from "./routes/actions";
+import walletRoutes      from "./routes/wallet";
+import heroesRoutes      from "./routes/heroes";
+import cardsRoutes       from "./routes/cards";
+import tournamentsRoutes from "./routes/tournaments";
+import couplesRoutes     from "./routes/couples";
 
 import { config } from "./config";
 
@@ -48,7 +53,7 @@ async function bootstrap() {
       info: {
         title: "Bae4U API",
         description: "SocialFi dating app — blockchain as backend. Custodial wallets, ERC-4337 gas sponsorship, EIP-712 signatures. All blockchain complexity is invisible to the user.",
-        version: "1.0.0",
+        version: "2.0.0",
         contact: { name: "Bae4U Team", url: "https://bae4u.com" },
       },
       servers: [
@@ -71,8 +76,13 @@ async function bootstrap() {
         { name: "matches",  description: "Swipe queue and match management" },
         { name: "messages", description: "In-match messaging" },
         { name: "rankings", description: "Leaderboard and badge proofs" },
-        { name: "fiat",     description: "Transak / MoonPay on-ramp hooks" },
-        { name: "admin",    description: "Internal admin endpoints" },
+        { name: "wallet",     description: "Wallet balance and transaction history" },
+        { name: "fiat",        description: "Transak / MoonPay on-ramp hooks" },
+        { name: "admin",       description: "Internal admin endpoints" },
+        { name: "heroes",      description: "Fantasy Bae — hero score oracle & leaderboard" },
+        { name: "cards",       description: "Fantasy Bae — Bae Card NFT market" },
+        { name: "tournaments", description: "Fantasy Bae — weekly tournament engine" },
+        { name: "couples",     description: "Fantasy Bae — Couple Card co-minting" },
       ],
     },
   });
@@ -121,7 +131,7 @@ async function bootstrap() {
     status: "ok",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    version: "1.0.0",
+    version: "2.0.0",
     tlsPins: TLS_PINS,
   }));
 
@@ -135,7 +145,12 @@ async function bootstrap() {
   await app.register(rankingsRoutes, { prefix: "/rankings" });
   await app.register(fiatRoutes,     { prefix: "/fiat"     });
   await app.register(adminRoutes,    { prefix: "/admin"    });
-  await app.register(actionsRoutes,  { prefix: "/actions"  });
+  await app.register(walletRoutes,      { prefix: "/wallet"      });
+  await app.register(actionsRoutes,     { prefix: "/actions"     });
+  await app.register(heroesRoutes,      { prefix: "/heroes"      });
+  await app.register(cardsRoutes,       { prefix: "/cards"       });
+  await app.register(tournamentsRoutes, { prefix: "/tournaments" });
+  await app.register(couplesRoutes,     { prefix: "/couples"     });
 
   // Global error handler
   app.setErrorHandler((error, req, reply) => {

@@ -7,9 +7,8 @@ WORKDIR /app
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 
 COPY apps/api/package.json apps/api/
-COPY packages/contracts/package.json packages/contracts/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter=api...
 
 COPY apps/api/src apps/api/src
 COPY apps/api/tsconfig.json apps/api/

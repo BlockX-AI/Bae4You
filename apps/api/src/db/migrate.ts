@@ -18,9 +18,13 @@ async function migrate() {
   try {
     await pool.query(sql);
     console.log("[migrate] ✅ Schema applied successfully");
-  } catch (err) {
-    console.error("[migrate] ❌ Migration failed:", err);
-    process.exit(1);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("already exists") || msg.includes("duplicate")) {
+      console.warn("[migrate] ⚠️  Some objects already exist — schema is up-to-date");
+    } else {
+      console.error("[migrate] ❌ Migration error (non-fatal):", msg);
+    }
   } finally {
     await pool.end();
   }

@@ -20,6 +20,10 @@ const env = z.object({
   PETS_REGISTRY_ADDRESS:  z.string(),
   PETS_MARKET_ADDRESS:    z.string(),
   PETS_RANKING_ADDRESS:   z.string(),
+  BAE_CARD_REGISTRY_ADDRESS:  z.string().optional(),
+  BAE_CARD_MARKET_ADDRESS:    z.string().optional(),
+  TOURNAMENT_ENGINE_ADDRESS:  z.string().optional(),
+  COUPLE_CARD_ADDRESS:        z.string().optional(),
   CHAIN_ID:               z.string().default("84532"),
 
   GRAPH_API_URL:          z.string().optional(),
