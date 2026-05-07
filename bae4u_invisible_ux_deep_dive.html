@@ -1,0 +1,548 @@
+
+<h2 class="sr-only">Bae4U invisible UX deep dive — interactive explainer covering custodial wallets, embedded wallets, paymasters, on-ramp providers, costs, and implementation challenges for making blockchain invisible to dating app users</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;padding-bottom:14px;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:18px}
+.tab{font-size:12px;padding:5px 12px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);background:transparent;color:var(--color-text-secondary);cursor:pointer;transition:all .15s}
+.tab.on{background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)}
+.tab:hover:not(.on){background:var(--color-background-secondary)}
+.panel{display:none}.panel.on{display:block}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px 16px;margin-bottom:10px}
+.card-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:5px}
+.card-body{font-size:13px;color:var(--color-text-secondary);line-height:1.65}
+.mc{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 14px}
+.mc-lbl{font-size:12px;color:var(--color-text-secondary);margin-bottom:4px}
+.mc-val{font-size:20px;font-weight:500;color:var(--color-text-primary)}
+.mc-sub{font-size:11px;color:var(--color-text-secondary);margin-top:3px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:14px}
+.sec{font-size:11px;font-weight:500;color:var(--color-text-tertiary);letter-spacing:.4px;text-transform:uppercase;margin:18px 0 10px}
+.sec:first-child{margin-top:0}
+.flow-strip{display:flex;align-items:center;gap:0;overflow-x:auto;padding-bottom:4px;margin-bottom:14px}
+.flow-box{flex-shrink:0;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:8px 12px;font-size:12px;text-align:center;min-width:100px}
+.flow-box .fb-label{font-size:10px;color:var(--color-text-secondary);margin-bottom:3px}
+.flow-box .fb-title{font-weight:500;color:var(--color-text-primary);font-size:12px}
+.flow-box .fb-sub{font-size:10px;color:var(--color-text-secondary);margin-top:2px}
+.flow-arrow{padding:0 6px;color:var(--color-text-tertiary);font-size:14px;flex-shrink:0}
+.flow-box.info{background:var(--color-background-info);border-color:var(--color-border-info)}
+.flow-box.info .fb-title{color:var(--color-text-info)}
+.flow-box.success{background:var(--color-background-success);border-color:var(--color-border-success)}
+.flow-box.success .fb-title{color:var(--color-text-success)}
+.flow-box.warn{background:var(--color-background-warning);border-color:var(--color-border-warning)}
+.flow-box.warn .fb-title{color:var(--color-text-warning)}
+.flow-box.danger{background:var(--color-background-danger);border-color:var(--color-border-danger)}
+.flow-box.danger .fb-title{color:var(--color-text-danger)}
+.compare-row{display:grid;grid-template-columns:120px 1fr 1fr 1fr;gap:0;font-size:12px}
+.compare-row.head{background:var(--color-background-secondary);border-radius:var(--border-radius-md) var(--border-radius-md) 0 0}
+.compare-row:not(.head){border-top:0.5px solid var(--color-border-tertiary)}
+.compare-cell{padding:9px 12px;display:flex;align-items:center}
+.compare-cell.label{font-weight:500;color:var(--color-text-primary)}
+.compare-cell.val{color:var(--color-text-secondary)}
+.compare-cell.good{color:var(--color-text-success)}
+.compare-cell.bad{color:var(--color-text-danger)}
+.compare-cell.mid{color:var(--color-text-warning)}
+.compare-wrap{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;margin-bottom:14px}
+.cost-row{display:flex;align-items:baseline;justify-content:space-between;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px}
+.cost-row:last-child{border-bottom:none}
+.cost-name{color:var(--color-text-secondary)}
+.cost-val{font-weight:500;color:var(--color-text-primary)}
+.cost-note{font-size:11px;color:var(--color-text-tertiary)}
+.challenge-card{border-left:2px solid var(--color-border-danger);padding:10px 14px;background:var(--color-background-primary);border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;border-top:0.5px solid var(--color-border-tertiary);border-right:0.5px solid var(--color-border-tertiary);border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:8px}
+.challenge-card.warn{border-left-color:var(--color-border-warning)}
+.challenge-card.info{border-left-color:var(--color-border-info)}
+.challenge-title{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px}
+.challenge-body{font-size:12px;color:var(--color-text-secondary);line-height:1.6}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:var(--border-radius-md);font-weight:500}
+.badge-g{background:var(--color-background-success);color:var(--color-text-success)}
+.badge-r{background:var(--color-background-danger);color:var(--color-text-danger)}
+.badge-b{background:var(--color-background-info);color:var(--color-text-info)}
+.badge-a{background:var(--color-background-warning);color:var(--color-text-warning)}
+.step-row{display:flex;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary);align-items:flex-start}
+.step-row:last-child{border-bottom:none}
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--color-background-info);color:var(--color-text-info);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.step-title{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:3px}
+.step-body{font-size:12px;color:var(--color-text-secondary);line-height:1.6}
+.mono{font-family:var(--font-mono);font-size:11px}
+.provider-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px 16px;margin-bottom:10px}
+.prov-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.prov-name{font-size:14px;font-weight:500;color:var(--color-text-primary)}
+.prov-body{font-size:12px;color:var(--color-text-secondary);line-height:1.65;margin-bottom:8px}
+.prov-tags{display:flex;gap:6px;flex-wrap:wrap}
+.prov-tag{font-size:10px;padding:2px 8px;border-radius:var(--border-radius-md);background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary)}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.slider-label{font-size:13px;color:var(--color-text-secondary);width:130px;flex-shrink:0}
+.slider-val{font-size:13px;font-weight:500;color:var(--color-text-primary);min-width:70px;text-align:right}
+</style>
+
+<div style="padding:2px 0 0">
+<div class="tabs">
+  <button class="tab on" onclick="sw('wallets',this)">Custodial wallets</button>
+  <button class="tab" onclick="sw('embedded',this)">Embedded wallets</button>
+  <button class="tab" onclick="sw('paymaster',this)">Paymaster + gas</button>
+  <button class="tab" onclick="sw('onramp',this)">On-ramp providers</button>
+  <button class="tab" onclick="sw('costs',this)">Full cost model</button>
+  <button class="tab" onclick="sw('challenges',this)">Challenges</button>
+  <button class="tab" onclick="sw('flow',this)">End-to-end flow</button>
+</div>
+
+<!-- ═══ WALLETS ═══ -->
+<div class="panel on" id="wallets">
+  <div class="sec">What a wallet actually is</div>
+  <div class="card">
+    <div class="card-title">A wallet is just a private key + public address</div>
+    <div class="card-body">Nothing more. The wallet is a pair of cryptographic keys — a private key (secret, signs transactions) and a public address (visible, receives funds). "Creating a wallet" means generating this key pair. Everything else — the UI, the balance display, the transaction history — is software built on top of these two strings.</div>
+  </div>
+
+  <div class="sec">Three wallet models — how they differ</div>
+  <div class="compare-wrap">
+    <div class="compare-row head">
+      <div class="compare-cell label">Dimension</div>
+      <div class="compare-cell label">Self-custody</div>
+      <div class="compare-cell label">Custodial</div>
+      <div class="compare-cell label">Embedded (MPC)</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">Key holder</div>
+      <div class="compare-cell val">User only</div>
+      <div class="compare-cell val">Platform only</div>
+      <div class="compare-cell good">Split (MPC)</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">UX complexity</div>
+      <div class="compare-cell bad">Seed phrase visible</div>
+      <div class="compare-cell good">Zero — invisible</div>
+      <div class="compare-cell good">Zero — invisible</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">User can lose funds?</div>
+      <div class="compare-cell bad">Yes — lost seed</div>
+      <div class="compare-cell mid">If platform hacked</div>
+      <div class="compare-cell good">Very low risk</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">Platform liability</div>
+      <div class="compare-cell good">None</div>
+      <div class="compare-cell bad">Full custodian</div>
+      <div class="compare-cell mid">Shared (MPC)</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">Signup friction</div>
+      <div class="compare-cell bad">Download MetaMask first</div>
+      <div class="compare-cell good">None</div>
+      <div class="compare-cell good">None</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">User exports wallet?</div>
+      <div class="compare-cell good">Yes, always</div>
+      <div class="compare-cell bad">No</div>
+      <div class="compare-cell mid">Yes, with recovery</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">Regulatory burden</div>
+      <div class="compare-cell good">None</div>
+      <div class="compare-cell bad">MSB licence needed</div>
+      <div class="compare-cell mid">Lower than custodial</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">Best for Bae4U?</div>
+      <div class="compare-cell bad">No — kills onboarding</div>
+      <div class="compare-cell mid">Risky — liability</div>
+      <div class="compare-cell good">Yes — CDP or Privy</div>
+    </div>
+  </div>
+
+  <div class="sec">Why custodial-only is dangerous for Bae4U</div>
+  <div class="card">
+    <div class="card-title">Full custodial = you hold all the keys = you carry all the risk</div>
+    <div class="card-body">If Bae4U holds users' private keys in a database and that database is breached, every user's funds are gone. This is exactly what happened to FTX and Celsius. It also triggers Money Services Business (MSB) licensing requirements in the US and similar in the EU. For a dating app, this is not a bet worth taking. The solution is embedded wallets using MPC (Multi-Party Computation) where no single party ever holds the complete key.</div>
+  </div>
+</div>
+
+<!-- ═══ EMBEDDED WALLETS ═══ -->
+<div class="panel" id="embedded">
+  <div class="sec">What MPC (multi-party computation) actually means</div>
+  <div class="card">
+    <div class="card-title">The private key is never assembled in one place</div>
+    <div class="card-body">In MPC, the private key is split into "key shares" distributed across multiple parties — typically the user's device, the wallet provider's server, and optionally a third backup party. To sign a transaction, the parties collaborate mathematically to produce a valid signature without any single party ever seeing the complete key. The key is never assembled. It cannot be stolen from any single server breach.</div>
+  </div>
+
+  <div class="sec">CDP embedded wallet — how it works for Bae4U</div>
+  <div class="flow-strip">
+    <div class="flow-box"><div class="fb-label">User action</div><div class="fb-title">Signs up</div><div class="fb-sub">Email or social</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box info"><div class="fb-label">CDP SDK</div><div class="fb-title">Key shard A</div><div class="fb-sub">Stored on device</div></div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-box info"><div class="fb-label">CDP Server</div><div class="fb-title">Key shard B</div><div class="fb-sub">Coinbase infra</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box success"><div class="fb-label">Result</div><div class="fb-title">Wallet ready</div><div class="fb-sub">No seed phrase shown</div></div>
+  </div>
+  <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.65;margin-bottom:14px">When a user taps "Buy pet", the SDK on the device and Coinbase's server collaborate via MPC to sign the transaction. Neither party alone can sign — they need each other. The user sees nothing except a loading spinner. No confirmation dialog. No gas fee prompt.</div>
+
+  <div class="sec">Provider comparison</div>
+  <div class="provider-card">
+    <div class="prov-head"><div class="prov-name">Coinbase Developer Platform (CDP)</div><span class="badge badge-g">Recommended for Bae4U</span></div>
+    <div class="prov-body">MPC-based. Embedded in the app — zero redirect. Supports social login (Google, Apple, email). Native to Base L2, which is Bae4U's target chain. Smart wallet features built in (batched transactions, paymaster integration). SDK for React Native and web.</div>
+    <div class="prov-tags"><span class="prov-tag">MPC</span><span class="prov-tag">Base native</span><span class="prov-tag">Smart wallet</span><span class="prov-tag">Social login</span><span class="prov-tag">Free tier available</span></div>
+  </div>
+  <div class="provider-card">
+    <div class="prov-head"><div class="prov-name">Privy</div><span class="badge badge-b">Strong alternative</span></div>
+    <div class="prov-body">MPC embedded wallets with social login. Best-in-class DX. Supports email, Google, Twitter, Discord auth. Works on any EVM chain. Has a "progressive wallet" model — users can optionally export to self-custody later. Widely used by top consumer crypto apps.</div>
+    <div class="prov-tags"><span class="prov-tag">MPC</span><span class="prov-tag">EVM agnostic</span><span class="prov-tag">Progressive custody</span><span class="prov-tag">$0.05/active wallet/month</span></div>
+  </div>
+  <div class="provider-card">
+    <div class="prov-head"><div class="prov-name">Dynamic</div><span class="badge badge-b">Enterprise option</span></div>
+    <div class="prov-body">Unified auth and wallet platform. Handles multi-wallet, multi-chain. Good for platforms where some users will bring their own MetaMask/hardware wallet and others need embedded. More complex SDK but more flexible.</div>
+    <div class="prov-tags"><span class="prov-tag">MPC + external wallet</span><span class="prov-tag">Multi-chain</span><span class="prov-tag">Usage-based pricing</span></div>
+  </div>
+  <div class="provider-card">
+    <div class="prov-head"><div class="prov-name">Turnkey</div></div>
+    <div class="prov-body">Infrastructure-level MPC. You build the UX, they provide the key management backend. Most control, most engineering effort. Good for teams who want to own the experience end to end without vendor dependency.</div>
+    <div class="prov-tags"><span class="prov-tag">MPC infra only</span><span class="prov-tag">API-first</span><span class="prov-tag">Highest effort</span></div>
+  </div>
+
+  <div class="sec">What "smart wallet" adds on top of MPC</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Batched transactions</div>
+      <div class="card-body">A smart wallet (ERC-4337 account abstraction) can batch multiple blockchain calls into a single transaction. When a user buys a pet, the approve + buy calls happen in one transaction instead of two. Halves the number of user-visible steps from zero to even-more-zero.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Sponsored transactions (paymaster)</div>
+      <div class="card-body">Smart wallets can delegate gas payment to a paymaster contract. This is what makes "user never pays gas" possible. The smart wallet calls the paymaster, which pays the miner/validator on the user's behalf. The platform pays the actual ETH cost in bulk, outside the user's view.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAYMASTER ═══ -->
+<div class="panel" id="paymaster">
+  <div class="sec">What a paymaster is</div>
+  <div class="card">
+    <div class="card-title">A smart contract that pays gas on behalf of users</div>
+    <div class="card-body">ERC-4337 introduced the paymaster — a contract that intercepts a user's transaction request, verifies it meets the platform's sponsorship rules, and covers the ETH gas cost. From the user's perspective: they tap "Buy Pet", it processes. No ETH balance required. No gas prompt. No "insufficient funds for gas" errors.</div>
+  </div>
+
+  <div class="sec">How it works technically</div>
+  <div class="flow-strip">
+    <div class="flow-box"><div class="fb-label">User</div><div class="fb-title">Taps "Buy"</div><div class="fb-sub">Pets UI</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box info"><div class="fb-label">SDK</div><div class="fb-title">UserOperation</div><div class="fb-sub">ERC-4337 format</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box info"><div class="fb-label">Bundler</div><div class="fb-title">Batches ops</div><div class="fb-sub">Alt mempool</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box warn"><div class="fb-label">Paymaster</div><div class="fb-title">Checks rules</div><div class="fb-sub">Approved? Sponsor.</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box success"><div class="fb-label">Chain</div><div class="fb-title">Tx confirmed</div><div class="fb-sub">Gas paid by us</div></div>
+  </div>
+
+  <div class="sec">Paymaster sponsorship rules (what Bae4U sets)</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Whitelist by contract</div>
+      <div class="card-body">Only sponsor gas for calls to PetsMarket.sol, PetsCash.sol, and PetsRanking.sol. If a user's wallet tries to call any other contract, the paymaster refuses. This prevents abuse — users cannot use Bae4U's gas budget to do arbitrary blockchain transactions.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Rate limit per user</div>
+      <div class="card-body">Maximum 50 sponsored transactions per user per day. Above that, the user must hold a small ETH balance (optional) or the transaction queues. In practice, 99% of Bae4U users will never hit this limit — it protects against bots and gas draining attacks.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Function-level filtering</div>
+      <div class="card-body">The paymaster can decode the transaction calldata and only sponsor specific function signatures — e.g. <span class="mono">buy()</span>, <span class="mono">claimBonus()</span>, <span class="mono">lockPet()</span>. More granular than contract-level whitelisting.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Budget caps</div>
+      <div class="card-body">Set a daily ETH budget cap in the paymaster dashboard (e.g. $500/day). Once hit, the paymaster stops sponsoring until manual top-up or reset. Essential for early stage when gas costs could spike unexpectedly.</div>
+    </div>
+  </div>
+
+  <div class="sec">Paymaster providers for Base L2</div>
+  <div class="compare-wrap">
+    <div class="compare-row head">
+      <div class="compare-cell label">Provider</div>
+      <div class="compare-cell label">Cost model</div>
+      <div class="compare-cell label">Integration</div>
+      <div class="compare-cell label">Best for</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">Coinbase CDP paymaster</div>
+      <div class="compare-cell good">Free on Base</div>
+      <div class="compare-cell val">Native with CDP wallet</div>
+      <div class="compare-cell good">Bae4U — zero-cost on Base</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">Alchemy Gas Manager</div>
+      <div class="compare-cell val">Pay per tx</div>
+      <div class="compare-cell val">REST API + SDK</div>
+      <div class="compare-cell val">Any EVM chain</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">Pimlico</div>
+      <div class="compare-cell val">Pay per op</div>
+      <div class="compare-cell val">permissionless.js</div>
+      <div class="compare-cell val">Advanced AA setups</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">Biconomy</div>
+      <div class="compare-cell val">Free tier + paid</div>
+      <div class="compare-cell val">SDK</div>
+      <div class="compare-cell val">Multichain dApps</div>
+    </div>
+  </div>
+  <div style="font-size:12px;color:var(--color-text-success);line-height:1.6">Coinbase CDP paymaster is free for transactions on Base L2. Since Bae4U runs on Base, paymaster gas sponsorship costs $0 per transaction during the CDP free period. This is a significant cost advantage — evaluate carefully before choosing another provider.</div>
+</div>
+
+<!-- ═══ ON-RAMP ═══ -->
+<div class="panel" id="onramp">
+  <div class="sec">What an on-ramp does</div>
+  <div class="card">
+    <div class="card-title">Converts real money into crypto, deposited to the user's wallet</div>
+    <div class="card-body">An on-ramp provider handles the regulatory compliance (KYC/AML), the banking relationships, the card processing, and the crypto delivery. Without them, Bae4U would need a money transmitter licence in every country it operates. With them, Bae4U gets a widget SDK and a webhook — the provider handles everything else.</div>
+  </div>
+
+  <div class="flow-strip">
+    <div class="flow-box"><div class="fb-label">User</div><div class="fb-title">Taps "Buy Gold"</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box info"><div class="fb-label">Bae4U backend</div><div class="fb-title">Selects provider</div><div class="fb-sub">Transak primary</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box warn"><div class="fb-label">Provider SDK</div><div class="fb-title">Widget opens</div><div class="fb-sub">In-app, no redirect</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box warn"><div class="fb-label">User pays</div><div class="fb-title">Card / UPI / bank</div><div class="fb-sub">Provider does KYC</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box success"><div class="fb-label">Result</div><div class="fb-title">ETH in wallet</div><div class="fb-sub">Auto → Pets Cash</div></div>
+  </div>
+
+  <div class="sec">Provider deep-dives</div>
+  <div class="provider-card">
+    <div class="prov-head"><div class="prov-name">Transak</div><span class="badge badge-g">Primary recommendation</span></div>
+    <div class="prov-body">160+ countries. 100+ fiat currencies. Supports credit/debit card, bank transfer, Apple Pay, Google Pay, UPI (critical for India), PIX (Brazil). SDK embeds inside app — no browser redirect that breaks the experience. Webhook for transaction status. KYC handled by Transak. Fee: 1.5–5.5% depending on payment method and country.</div>
+    <div style="margin-bottom:8px">
+      <div class="cost-row"><div class="cost-name">Card payment fee</div><div class="cost-val">3.5–5.5%</div></div>
+      <div class="cost-row"><div class="cost-name">Bank transfer fee</div><div class="cost-val">1.5–2.5%</div></div>
+      <div class="cost-row"><div class="cost-name">UPI (India) fee</div><div class="cost-val">1.5%</div></div>
+      <div class="cost-row"><div class="cost-name">Bae4U markup (embedded)</div><div class="cost-val">+0.5–1.0%</div></div>
+      <div class="cost-row"><div class="cost-name">Settlement time</div><div class="cost-val">Instant (card) / 1 day (bank)</div></div>
+    </div>
+    <div class="prov-tags"><span class="prov-tag">160+ countries</span><span class="prov-tag">UPI</span><span class="prov-tag">SDK embed</span><span class="prov-tag">On + off ramp</span><span class="prov-tag">Crypto delivery in mins</span></div>
+  </div>
+
+  <div class="provider-card">
+    <div class="prov-head"><div class="prov-name">MoonPay</div><span class="badge badge-b">US + EU fallback</span></div>
+    <div class="prov-body">Best conversion rates for US and EU card purchases. Highest brand recognition among crypto-native users (they'll trust it). Requires redirect to MoonPay widget in some flows — slightly more friction than Transak embed. No UPI support (India coverage weaker). Fee: 4.5% card, 1.9% SEPA bank.</div>
+    <div class="prov-tags"><span class="prov-tag">US/EU primary</span><span class="prov-tag">Widget + API</span><span class="prov-tag">Off-ramp available</span><span class="prov-tag">Strong brand trust</span></div>
+  </div>
+
+  <div class="provider-card">
+    <div class="prov-head"><div class="prov-name">Ramp Network</div><span class="badge badge-a">Emerging markets fallback</span></div>
+    <div class="prov-body">Particularly strong coverage in emerging markets where Transak has lower success rates. Used as routing fallback when primary returns errors. Supports local payment methods in Southeast Asia, Africa, and Latin America. Fee: 2.9% average. Lower min transaction amounts than competitors.</div>
+    <div class="prov-tags"><span class="prov-tag">Emerging markets</span><span class="prov-tag">Local payment methods</span><span class="prov-tag">API routing</span><span class="prov-tag">Low minimums</span></div>
+  </div>
+
+  <div class="sec">Provider routing logic in Bae4U backend</div>
+  <div class="card">
+    <div class="card-title">Auto-routing based on user location and payment method</div>
+    <div class="card-body">Backend detects user country from IP + KYC data. India → Transak first (UPI). US/EU with card → MoonPay first (better rates). Other emerging markets → Ramp first. If primary provider returns a timeout or error, waterfall to next provider automatically. User sees a brief "processing" state, not a provider error. Fallback completes within 3 seconds.</div>
+  </div>
+</div>
+
+<!-- ═══ COSTS ═══ -->
+<div class="panel" id="costs">
+  <div class="sec">Cost per 1,000 active users per month</div>
+  <div class="grid4">
+    <div class="mc"><div class="mc-lbl">Wallet infra (CDP)</div><div class="mc-val">$0</div><div class="mc-sub">Free tier, Base</div></div>
+    <div class="mc"><div class="mc-lbl">Gas sponsorship</div><div class="mc-val">$0</div><div class="mc-sub">CDP paymaster free</div></div>
+    <div class="mc"><div class="mc-lbl">On-ramp fees</div><div class="mc-val">~$35</div><div class="mc-sub">Per $1K converted</div></div>
+    <div class="mc"><div class="mc-lbl">RPC calls (Alchemy)</div><div class="mc-val">~$12</div><div class="mc-sub">1M calls/month</div></div>
+  </div>
+
+  <div class="sec">Detailed cost breakdown at scale</div>
+
+  <div style="margin-bottom:16px">
+    <div class="sec" style="margin-top:0;margin-bottom:8px">Wallet infrastructure</div>
+    <div class="cost-row"><div class="cost-name">CDP embedded wallets (Base)</div><div class="cost-val">Free</div><div class="cost-note">Free during CDP growth phase</div></div>
+    <div class="cost-row"><div class="cost-name">Privy (if switching)</div><div class="cost-val">$0.05 / active wallet / mo</div><div class="cost-note">100K users = $5,000/mo</div></div>
+    <div class="cost-row"><div class="cost-name">Turnkey (self-hosted MPC)</div><div class="cost-val">$0.01 / signing op</div><div class="cost-note">High volume = expensive</div></div>
+  </div>
+
+  <div style="margin-bottom:16px">
+    <div class="sec" style="margin-top:0;margin-bottom:8px">Gas and transaction costs (Base L2)</div>
+    <div class="cost-row"><div class="cost-name">Average gas per buy() transaction</div><div class="cost-val">~$0.001–0.003</div><div class="cost-note">Base L2 is very cheap</div></div>
+    <div class="cost-row"><div class="cost-name">CDP paymaster sponsorship</div><div class="cost-val">$0</div><div class="cost-note">Free on Base — significant advantage</div></div>
+    <div class="cost-row"><div class="cost-name">If self-paying gas (non-CDP)</div><div class="cost-val">$0.001 × daily txns</div><div class="cost-note">1M txns/mo = $1,000/mo</div></div>
+    <div class="cost-row"><div class="cost-name">Chainlink Automation (weekly reset)</div><div class="cost-val">~$5–20 / trigger</div><div class="cost-note">Weekly badge reset call</div></div>
+  </div>
+
+  <div style="margin-bottom:16px">
+    <div class="sec" style="margin-top:0;margin-bottom:8px">On-ramp / off-ramp fees</div>
+    <div class="cost-row"><div class="cost-name">Transak card fee (passed to user)</div><div class="cost-val">3.5–5.5% of purchase</div><div class="cost-note">User pays this as spread</div></div>
+    <div class="cost-row"><div class="cost-name">Transak bank/UPI fee (passed to user)</div><div class="cost-val">1.5–2.5%</div><div class="cost-note">User pays as spread</div></div>
+    <div class="cost-row"><div class="cost-name">Bae4U embedded markup revenue</div><div class="cost-val">+0.5–1.0%</div><div class="cost-note">Additional margin we capture</div></div>
+    <div class="cost-row"><div class="cost-name">Off-ramp (creator withdrawal)</div><div class="cost-val">1.5–3.0% + $0–2 flat</div><div class="cost-note">Transak off-ramp rates</div></div>
+  </div>
+
+  <div style="margin-bottom:16px">
+    <div class="sec" style="margin-top:0;margin-bottom:8px">Infrastructure (RPC, indexing, storage)</div>
+    <div class="cost-row"><div class="cost-name">Alchemy RPC (100M compute units)</div><div class="cost-val">$199/mo</div><div class="cost-note">~50K DAU level</div></div>
+    <div class="cost-row"><div class="cost-name">The Graph (hosted queries)</div><div class="cost-val">~$50–200/mo</div><div class="cost-note">Depends on query volume</div></div>
+    <div class="cost-row"><div class="cost-name">IPFS pinning (Pinata)</div><div class="cost-val">~$20–100/mo</div><div class="cost-note">Profile photos, metadata</div></div>
+    <div class="cost-row"><div class="cost-name">Tenderly monitoring</div><div class="cost-val">$50–200/mo</div><div class="cost-note">Contract event alerts</div></div>
+  </div>
+
+  <div class="sec">Total invisible UX cost at different scales</div>
+  <div class="slider-row">
+    <div class="slider-label">Monthly active users</div>
+    <input type="range" min="1000" max="500000" step="1000" value="50000" id="mau-slider" oninput="calcCost(this.value)" style="flex:1">
+    <div class="slider-val" id="mau-val">50,000</div>
+  </div>
+  <div class="grid4" id="cost-cards">
+    <div class="mc"><div class="mc-lbl">Wallet infra</div><div class="mc-val" id="c-wallet">$0</div><div class="mc-sub">CDP free tier</div></div>
+    <div class="mc"><div class="mc-lbl">Gas sponsorship</div><div class="mc-val" id="c-gas">$0</div><div class="mc-sub">CDP paymaster</div></div>
+    <div class="mc"><div class="mc-lbl">RPC + indexing</div><div class="mc-val" id="c-rpc">$249</div><div class="mc-sub">Alchemy + Graph</div></div>
+    <div class="mc"><div class="mc-lbl">Total monthly</div><div class="mc-val" id="c-total">$249</div><div class="mc-sub" id="c-per">$0.005 per user</div></div>
+  </div>
+  <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.6;margin-top:8px">The invisible UX stack (CDP wallets + paymaster) is essentially free on Base L2 during the growth phase. The real cost is RPC infrastructure, which scales linearly but stays low. At 500K MAU, total invisible UX cost is under $1,000/month — less than your Slack bill.</div>
+</div>
+
+<!-- ═══ CHALLENGES ═══ -->
+<div class="panel" id="challenges">
+  <div class="sec">Hard engineering and UX challenges</div>
+
+  <div class="challenge-card">
+    <div class="challenge-title">Key recovery when user loses their device</div>
+    <div class="challenge-body">With MPC embedded wallets, key shard A lives on the device. If the user loses their phone, shard A is gone. Recovery relies on shard B (CDP server) + a backup shard the user set up during onboarding — typically an email-based recovery or a passkey. If the user skipped backup setup (common in low-friction onboarding), recovery becomes very difficult. Solution: make recovery setup a first-session prompt with a simple passkey flow. Never let users get to a "your funds might be stuck" situation.</div>
+  </div>
+
+  <div class="challenge-card">
+    <div class="challenge-title">Network latency makes "invisible" feel slow</div>
+    <div class="challenge-body">On Ethereum mainnet, block times are 12 seconds. On Base L2, it's 2 seconds. But the full confirmation cycle (user action → bundler → paymaster check → block inclusion → event confirmed) can take 5–15 seconds on a slow connection. A dating app user expects tap → immediate response. Solution: optimistic UI updates. Treat the transaction as successful the moment it hits the bundler, update the UI immediately, and silently roll back if it fails (rare). The user never sees "waiting for confirmation."</div>
+  </div>
+
+  <div class="challenge-card warn">
+    <div class="challenge-title">Paymaster budget exhaustion during viral moments</div>
+    <div class="challenge-body">If Bae4U gets featured on a popular creator's page and 50,000 users sign up in an hour, the paymaster can burn through its daily ETH budget in minutes. New users then get "transaction failed" errors that have nothing to do with them — creating a catastrophic first impression. Solution: dynamic budget scaling tied to user growth rate, with Slack alerts when budget reaches 30% remaining. Pre-fund the paymaster with 2 weeks of buffer at projected growth.</div>
+  </div>
+
+  <div class="challenge-card warn">
+    <div class="challenge-title">On-ramp KYC friction drops conversion</div>
+    <div class="challenge-body">Transak and MoonPay require ID verification for purchases above certain thresholds (typically $150–200). This verification takes 2–5 minutes and requires a photo ID and selfie. For a dating app user who just wanted to buy a pet, this is jarring. Solution: keep first-purchase amounts below KYC thresholds (offer $5, $10, $20 starter packs). Gate the KYC prompt only when the user explicitly tries to buy more. Most users will never need KYC on day one.</div>
+  </div>
+
+  <div class="challenge-card">
+    <div class="challenge-title">EIP-712 signature verification is subtle to implement correctly</div>
+    <div class="challenge-body">The login bonus uses EIP-712 structured data signing. If the domain separator, type hash, or chainId is misconfigured, users get a "signature verification failed" error on their bonus claim — with no explanation. This is invisible to users (they just see "bonus not available") but silently hemorrhages engagement. Solution: build a separate test harness that runs 1,000 sign-and-verify cycles across all device types before shipping. Make the error logging verbose on the contract level during testnet.</div>
+  </div>
+
+  <div class="challenge-card info">
+    <div class="challenge-title">Multi-device sync — two phones, one wallet</div>
+    <div class="challenge-body">A user installs Bae4U on their phone and their tablet. MPC shard A lives on both devices, but they may be different shards generated separately. The wallet address must be the same on both devices. CDP's MPC model handles this via the server shard (shard B) being the consistent party — when the user logs in on a new device, a new shard A is generated and bound to the same shard B. Test this path heavily. Users switching phones is common.</div>
+  </div>
+
+  <div class="challenge-card info">
+    <div class="challenge-title">Fiat currency volatility between widget open and transaction confirm</div>
+    <div class="challenge-body">A user opens the "buy $20 of Gold" widget. ETH price moves 3% while they complete KYC. They end up with slightly more or less ETH than displayed. On Transak, the price lock lasts only a few minutes. Solution: show the ETH amount prominently in the widget and refresh the quote every 30 seconds. Add a "price may vary slightly" disclosure. Never show a fixed ETH amount without a refresh mechanism — it creates support tickets.</div>
+  </div>
+</div>
+
+<!-- ═══ END-TO-END FLOW ═══ -->
+<div class="panel" id="flow">
+  <div class="sec">Complete invisible UX journey — signup to first successful trade</div>
+
+  <div class="step-row">
+    <div class="step-num">1</div>
+    <div>
+      <div class="step-title">User taps "Sign up with Google"</div>
+      <div class="step-body">CDP SDK intercepts. OAuth flow completes. Behind the scenes: key shard A generated on device, key shard B created on CDP servers. MPC coordination establishes the wallet address. An ERC-1155 SFT is minted by PetsRegistry.sol. The user sees: a profile setup screen. They have no idea a wallet was created.</div>
+    </div>
+  </div>
+  <div class="step-row">
+    <div class="step-num">2</div>
+    <div>
+      <div class="step-title">User fills in profile — app shows "Your profile is live!"</div>
+      <div class="step-body">Backend creates the user DB record, indexes the personality vector in Pinecone, and the SFT metadata (avatar IPFS hash, token URI) is pinned. A BullMQ job fires to set the "first-owner" bonus window — the next person to buy this user gets an extra reward. Still no wallet prompt, no blockchain mention.</div>
+    </div>
+  </div>
+  <div class="step-row">
+    <div class="step-num">3</div>
+    <div>
+      <div class="step-title">Five minutes later: push notification — "Someone added you to their collection!"</div>
+      <div class="step-body">Another user ran buy(tokenId) on PetsMarket.sol. The 10% price invariant fired. Profit split happened automatically. The user's Pets Cash balance increased. The backend indexed the PetPurchased event from The Graph, translated "profit_to_pet_wei" into a displayable Pets Cash amount, and sent the push notification. The user sees a number. Not wei. Not ETH. A clean balance like "you earned 120 Pets Cash."</div>
+    </div>
+  </div>
+  <div class="step-row">
+    <div class="step-num">4</div>
+    <div>
+      <div class="step-title">User opens Pets tab, taps on someone's profile, taps "Add to collection"</div>
+      <div class="step-body">The UI says "Adding to collection..." with a spinner. Behind the scenes: the CDP SDK constructs a UserOperation (ERC-4337). The bundler picks it up from the alt mempool. The paymaster contract checks it — this is a whitelisted buy() call, budget is available, user is under rate limit — and signs the sponsorship. The bundler submits. 2 seconds later on Base: confirmed. The user's portfolio view updates. The previous owner gets a notification. All without a single confirmation prompt.</div>
+    </div>
+  </div>
+  <div class="step-row">
+    <div class="step-num">5</div>
+    <div>
+      <div class="step-title">User logs in 4 hours later — sees "Daily bonus available"</div>
+      <div class="step-body">Backend checks last_login_at against the on-chain bonus_claimed_at timestamp. Eligible. Backend's EIP-712 signer service generates a signed bonus claim: a structured message containing the user's address, bonus amount, nonce, and expiry. This is sent to the app. The SDK constructs a UserOperation calling claimBonus() with the signed claim. Paymaster sponsors. PetsCash.sol mints the bonus. Balance updates. The user tapped one button that said "Claim daily bonus" — no signing, no gas, no waiting.</div>
+    </div>
+  </div>
+  <div class="step-row">
+    <div class="step-num">6</div>
+    <div>
+      <div class="step-title">User wants to buy a more expensive pet — not enough Pets Cash</div>
+      <div class="step-body">UI shows a "Get more Pets Cash" button. Tapping it opens the Gold purchase modal. The backend selects Transak (user is in India, so UPI is available). Transak SDK renders in-app. User enters ₹500, selects UPI, authenticates with UPI PIN. Transak processes the payment, converts to ETH, sends ETH to the user's embedded wallet. Backend receives the Transak webhook confirming the payment, records it in fiat_transactions table. A separate job converts the ETH to Pets Cash via the Gold redemption contract. The user's balance updates. Total time: under 90 seconds. Total friction: entering a UPI PIN, same as any app purchase.</div>
+    </div>
+  </div>
+
+  <div class="sec" style="margin-top:18px">What the user experienced vs what actually happened</div>
+  <div class="compare-wrap">
+    <div class="compare-row head">
+      <div class="compare-cell label">User saw</div>
+      <div class="compare-cell label" style="grid-column:span 3">What actually happened</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell val">"Sign up with Google"</div>
+      <div class="compare-cell val" style="grid-column:span 3">MPC wallet created, SFT minted on Base L2, profile indexed</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell val">"You earned 120 Pets Cash"</div>
+      <div class="compare-cell val" style="grid-column:span 3">buy() called on-chain, 10% price increase, 50/50 profit split executed in smart contract</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell val">Spinner for 2 seconds</div>
+      <div class="compare-cell val" style="grid-column:span 3">UserOperation → bundler → paymaster sponsorship check → Base L2 block inclusion → event indexed</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell val">"Claim daily bonus" button</div>
+      <div class="compare-cell val" style="grid-column:span 3">EIP-712 signed claim verified on-chain, PetsCash.mint() called, balance updated</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell val">UPI payment of ₹500</div>
+      <div class="compare-cell val" style="grid-column:span 3">Transak KYC check, INR → ETH conversion, ETH to embedded wallet, ETH → Pets Cash conversion</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+function sw(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+function calcCost(mau) {
+  const m = parseInt(mau);
+  document.getElementById('mau-val').textContent = m.toLocaleString();
+  const wallet = 0;
+  const gas = 0;
+  const rpc = m <= 10000 ? 49 : m <= 50000 ? 199 : m <= 100000 ? 399 : m <= 200000 ? 799 : 1499;
+  const graph = m <= 10000 ? 0 : m <= 50000 ? 50 : m <= 100000 ? 100 : 200;
+  const ipfs = m <= 10000 ? 10 : m <= 50000 ? 30 : 80;
+  const total = wallet + gas + rpc + graph + ipfs;
+  const perUser = (total / m).toFixed(4);
+  document.getElementById('c-wallet').textContent = '$' + wallet;
+  document.getElementById('c-gas').textContent = '$' + gas;
+  document.getElementById('c-rpc').textContent = '$' + (rpc + graph + ipfs).toLocaleString();
+  document.getElementById('c-total').textContent = '$' + total.toLocaleString();
+  document.getElementById('c-per').textContent = '$' + perUser + ' per user';
+}
+</script>

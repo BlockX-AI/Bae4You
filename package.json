@@ -1,0 +1,14 @@
+{
+  "name": "bae4u",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Bae4U — Web3 social dating protocol on Base L2",
+  "scripts": {
+    "dev:api": "pnpm --filter=api dev",
+    "build:api": "pnpm --filter=api build",
+    "deploy:contracts": "pnpm --filter=contracts deploy:testnet",
+    "test:contracts": "pnpm --filter=contracts test",
+    "install:all": "pnpm install"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

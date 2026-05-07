@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bae4U — Master Deck</title>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,600;0,900;1,400;1,600&family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --void: #050308;
+  --deep: #0d0810;
+  --surface: #130d1a;
+  --panel: #1a1024;
+  --border: rgba(255,255,255,0.06);
+  --border-warm: rgba(201,140,100,0.2);
+  --rose-gold: #C98C64;
+  --rose-gold-light: #E8B896;
+  --rose-gold-pale: rgba(201,140,100,0.12);
+  --pink: #FF3D7F;
+  --pink-soft: #FF7AAA;
+  --pink-pale: rgba(255,61,127,0.1);
+  --pink-glow: rgba(255,61,127,0.25);
+  --teal: #00E5CC;
+  --teal-pale: rgba(0,229,204,0.08);
+  --white: #FFFFFF;
+  --white-80: rgba(255,255,255,0.8);
+  --white-50: rgba(255,255,255,0.5);
+  --white-25: rgba(255,255,255,0.25);
+  --white-10: rgba(255,255,255,0.1);
+  --white-06: rgba(255,255,255,0.06);
+  --text: #E8DDD6;
+  --text-muted: rgba(232,221,214,0.5);
+}
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+html{font-size:16px;overflow:hidden;height:100%}
+
+body{
+  font-family:'Syne',sans-serif;
+  background:var(--void);
+  color:var(--text);
+  height:100vh;
+  overflow:hidden;
+  cursor:default;
+}
+
+/* ── GRAIN OVERLAY ── */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:1000;opacity:0.4;
+}
+
+/* ── DECK SHELL ── */
+.deck{width:100vw;height:100vh;position:relative;overflow:hidden}
+
+/* ── SLIDES ── */
+.slide{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.65s cubic-bezier(0.4,0,0.2,1), transform 0.65s cubic-bezier(0.4,0,0.2,1);
+  transform:translateY(32px);
+}
+.slide.active{opacity:1;pointer-events:all;transform:translateY(0)}
+.slide.exit{opacity:0;transform:translateY(-32px)}
+
+/* ── TOP CHROME ── */
+.chrome-top{
+  position:fixed;top:0;left:0;right:0;
+  height:52px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 32px;
+  background:rgba(5,3,8,0.85);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  z-index:500;
+}
+
+.chrome-logo{
+  font-family:'Bodoni Moda',serif;
+  font-size:18px;font-weight:400;
+  color:var(--rose-gold);
+  letter-spacing:2px;
+  display:flex;align-items:center;gap:10px;
+}
+.chrome-logo span{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--pink);
+  box-shadow:0 0 8px var(--pink);
+  animation:blink 2s ease-in-out infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+.chrome-center{
+  display:flex;align-items:center;gap:6px;
+}
+.ch-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--border);
+  border:none;cursor:pointer;
+  transition:all 0.3s;
+}
+.ch-dot.active{background:var(--pink);box-shadow:0 0 8px var(--pink-glow)}
+.ch-dot:hover{background:var(--rose-gold)}
+
+.chrome-right{
+  display:flex;align-items:center;gap:16px;
+}
+.chrome-section{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;color:var(--text-muted);
+  letter-spacing:2px;text-transform:uppercase;
+}
+.chrome-counter{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;color:var(--rose-gold);
+  letter-spacing:1px;
+}
+
+/* ── BOTTOM CHROME ── */
+.chrome-bottom{
+  position:fixed;bottom:0;left:0;right:0;
+  height:48px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 32px;
+  background:rgba(5,3,8,0.85);
+  backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  z-index:500;
+}
+
+.progress-track{
+  flex:1;height:1px;
+  background:var(--border);
+  margin:0 24px;
+  position:relative;overflow:hidden;border-radius:1px;
+}
+.progress-fill{
+  position:absolute;left:0;top:0;bottom:0;
+  background:linear-gradient(to right,var(--rose-gold),var(--pink));
+  transition:width 0.6s cubic-bezier(0.4,0,0.2,1);
+  box-shadow:0 0 8px var(--pink-glow);
+}
+
+.nav-btn{
+  width:36px;height:36px;
+  border-radius:2px;
+  border:1px solid var(--border);
+  background:transparent;
+  color:var(--white-50);
+  font-size:14px;
+  cursor:pointer;
+  transition:all 0.25s;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'JetBrains Mono',monospace;
+}
+.nav-btn:hover{border-color:var(--rose-gold);color:var(--rose-gold);box-shadow:0 0 12px var(--rose-gold-pale)}
+.nav-btn:disabled{opacity:0.2;cursor:default;pointer-events:none}
+
+.section-tabs{
+  display:flex;gap:4px;
+}
+.s-tab{
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  padding:5px 12px;
+  border-radius:2px;
+  border:1px solid var(--border);
+  background:transparent;
+  color:var(--text-muted);
+  cursor:pointer;
+  transition:all 0.25s;
+}
+.s-tab.active{background:var(--pink-pale);border-color:var(--pink);color:var(--pink)}
+.s-tab:hover{border-color:var(--white-25);color:var(--white-50)}
+
+/* ── SLIDE CONTENT AREA ── */
+.slide-body{
+  flex:1;
+  overflow-y:auto;
+  padding:72px 56px 68px;
+  position:relative;
+}
+.slide-body::-webkit-scrollbar{width:3px}
+.slide-body::-webkit-scrollbar-track{background:transparent}
+.slide-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ── BACKGROUND EFFECTS ── */
+.bg-glow{
+  position:absolute;
+  border-radius:50%;
+  pointer-events:none;
+  filter:blur(80px);
+  z-index:0;
+}
+
+/* ── TYPOGRAPHY ── */
+.overline{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;font-weight:400;
+  letter-spacing:4px;text-transform:uppercase;
+  color:var(--pink);
+  margin-bottom:16px;
+  display:flex;align-items:center;gap:12px;
+}
+.overline::before{
+  content:'';width:24px;height:1px;
+  background:linear-gradient(to right,var(--pink),transparent);
+}
+
+.display{
+  font-family:'Bodoni Moda',serif;
+  font-weight:400;
+  font-size:clamp(40px,5.5vw,72px);
+  line-height:1.0;
+  letter-spacing:-1px;
+  color:var(--white);
+  margin-bottom:10px;
+}
+.display em{font-style:italic;color:var(--rose-gold)}
+.display strong{font-weight:900}
+
+.subtitle{
+  font-size:16px;font-weight:400;
+  color:var(--text-muted);
+  line-height:1.75;
+  max-width:600px;
+  margin-bottom:40px;
+}
+
+.section-label{
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;letter-spacing:3px;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:12px;
+}
+
+/* ── CARD SYSTEM ── */
+.card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:3px;
+  padding:24px 28px;
+  position:relative;
+  overflow:hidden;
+  transition:border-color 0.3s,transform 0.3s,box-shadow 0.3s;
+}
+.card::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:1px;
+  background:linear-gradient(to right,transparent,var(--rose-gold),transparent);
+  opacity:0;transition:opacity 0.3s;
+}
+.card:hover{border-color:rgba(201,140,100,0.3);transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,0.4)}
+.card:hover::before{opacity:1}
+
+.card-pink{
+  background:linear-gradient(135deg,rgba(255,61,127,0.12),rgba(255,61,127,0.04));
+  border-color:rgba(255,61,127,0.2);
+}
+.card-gold{
+  background:linear-gradient(135deg,rgba(201,140,100,0.1),rgba(201,140,100,0.03));
+  border-color:rgba(201,140,100,0.25);
+}
+.card-teal{
+  background:linear-gradient(135deg,rgba(0,229,204,0.08),rgba(0,229,204,0.02));
+  border-color:rgba(0,229,204,0.2);
+}
+.card-dark{background:var(--deep);border-color:var(--border)}
+
+.card-label{
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;letter-spacing:3px;text-transform:uppercase;
+  color:var(--rose-gold);margin-bottom:12px;opacity:0.8;
+}
+.card-title{
+  font-family:'Bodoni Moda',serif;
+  font-size:20px;font-weight:600;
+  color:var(--white);margin-bottom:8px;line-height:1.2;
+}
+.card-body{
+  font-size:13px;font-weight:400;
+  color:var(--text-muted);line-height:1.75;
+}
+
+/* ── GRIDS ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.g-wide{display:grid;grid-template-columns:1.5fr 1fr;gap:24px;align-items:start}
+.g-split{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
+
+/* ── STAT ── */
+.stat{
+  border-top:1px solid var(--border);
+  padding-top:16px;margin-top:18px;
+}
+.stat-num{
+  font-family:'Bodoni Moda',serif;
+  font-size:36px;font-weight:300;
+  color:var(--pink);line-height:1;
+}
+.stat-label{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--text-muted);margin-top:4px;
+}
+
+/* ── FLOW STEPS ── */
+.flow{display:flex;flex-direction:column;gap:2px}
+.flow-row{display:flex;gap:0;align-items:stretch}
+.flow-left{width:48px;display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+.flow-num{
+  width:32px;height:32px;border-radius:50%;
+  border:1px solid var(--pink);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Bodoni Moda',serif;font-size:13px;font-weight:600;
+  color:var(--pink);background:var(--void);
+  flex-shrink:0;position:relative;z-index:1;
+}
+.flow-line{flex:1;width:1px;background:linear-gradient(to bottom,var(--pink),transparent);margin:2px 0;opacity:0.3}
+.flow-content{
+  flex:1;background:var(--panel);border:1px solid var(--border);
+  border-radius:3px;padding:14px 20px;margin-bottom:10px;
+  transition:border-color 0.3s;
+}
+.flow-content:hover{border-color:rgba(255,61,127,0.25)}
+.flow-title{font-weight:600;font-size:13px;color:var(--white);margin-bottom:4px}
+.flow-desc{font-size:12px;color:var(--text-muted);line-height:1.7}
+.flow-tag{
+  display:inline-block;margin-top:8px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--teal);background:var(--teal-pale);
+  border:1px solid rgba(0,229,204,0.15);
+  border-radius:2px;padding:2px 8px;
+}
+
+/* ── RULE ── */
+.h-rule{height:1px;background:var(--border);margin:28px 0}
+
+/* ── EARN ROW ── */
+.earn-row{
+  display:flex;align-items:flex-start;gap:20px;
+  padding:16px 0;border-bottom:1px solid var(--border);
+}
+.earn-row:last-child{border-bottom:none}
+.earn-idx{
+  font-family:'Bodoni Moda',serif;
+  font-size:28px;font-weight:300;
+  color:rgba(255,61,127,0.2);line-height:1;
+  width:32px;flex-shrink:0;
+}
+.earn-title{font-weight:600;font-size:13px;color:var(--white);margin-bottom:4px}
+.earn-desc{font-size:12px;color:var(--text-muted);line-height:1.7}
+
+/* ── CODE BLOCK ── */
+.code-block{
+  background:var(--deep);
+  border:1px solid var(--border);
+  border-left:3px solid var(--pink);
+  border-radius:3px;
+  padding:20px 24px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;line-height:1.8;
+  color:var(--white-50);
+  overflow-x:auto;
+  white-space:pre;
+}
+.code-block .kw{color:var(--pink)}
+.code-block .fn{color:var(--teal)}
+.code-block .cm{color:rgba(255,255,255,0.25);font-style:italic}
+.code-block .st{color:var(--rose-gold)}
+.code-block .num{color:var(--pink-soft)}
+
+/* ── FORMULA ── */
+.formula{
+  background:var(--deep);border:1px solid var(--border-warm);
+  border-radius:3px;padding:20px 28px;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+}
+.f-part{
+  font-family:'Bodoni Moda',serif;
+  font-size:20px;font-weight:600;color:var(--white);
+}
+.f-accent{color:var(--rose-gold)}
+.f-op{
+  font-family:'Bodoni Moda',serif;
+  font-size:24px;font-weight:300;color:var(--white-25);
+}
+
+/* ── ARCH TABLE ── */
+.arch-table{width:100%;border-collapse:collapse}
+.arch-table th{
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text-muted);
+  padding:10px 16px;text-align:left;
+  border-bottom:1px solid var(--border);
+}
+.arch-table td{
+  font-size:12px;color:var(--text-muted);
+  padding:12px 16px;
+  border-bottom:1px solid var(--border);
+  vertical-align:top;line-height:1.6;
+}
+.arch-table td:first-child{color:var(--white);font-weight:600;font-size:12px;white-space:nowrap}
+.arch-table tr:last-child td{border-bottom:none}
+.arch-table tr:hover td{background:var(--white-06)}
+
+/* ── BADGE PILL ── */
+.badge-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.badge-pill{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 16px;border-radius:2px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;
+  border:1px solid;
+}
+.badge-pill.bronze{background:rgba(139,90,43,0.15);color:#C8944A;border-color:rgba(200,148,74,0.3)}
+.badge-pill.silver{background:rgba(150,160,170,0.1);color:#A0B0BA;border-color:rgba(160,176,186,0.3)}
+.badge-pill.gold{background:rgba(201,169,110,0.12);color:var(--rose-gold-light);border-color:var(--border-warm)}
+.badge-pill.diamond{background:rgba(100,200,255,0.08);color:#80CFFF;border-color:rgba(128,207,255,0.25)}
+.badge-pill.master{background:var(--pink-pale);color:var(--pink-soft);border-color:rgba(255,61,127,0.3)}
+
+/* ── RISK TABLE ── */
+.risk-item{
+  display:flex;align-items:flex-start;gap:16px;
+  padding:14px 0;border-bottom:1px solid var(--border);
+}
+.risk-item:last-child{border-bottom:none}
+.risk-sev{
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;letter-spacing:1.5px;text-transform:uppercase;
+  padding:3px 8px;border-radius:2px;
+  flex-shrink:0;margin-top:2px;
+}
+.risk-sev.high{background:rgba(255,80,80,0.15);color:#FF8080;border:1px solid rgba(255,80,80,0.25)}
+.risk-sev.crit{background:rgba(255,40,40,0.2);color:#FF5050;border:1px solid rgba(255,40,40,0.35)}
+.risk-sev.med{background:rgba(255,180,60,0.12);color:#FFB83C;border:1px solid rgba(255,180,60,0.25)}
+.risk-title{font-weight:600;font-size:13px;color:var(--white);margin-bottom:4px}
+.risk-desc{font-size:12px;color:var(--text-muted);line-height:1.65}
+
+/* ── HIGHLIGHT BOX ── */
+.hl-box{
+  border-left:3px solid var(--pink);
+  padding:16px 20px;
+  background:var(--pink-pale);
+  border-radius:0 3px 3px 0;
+  margin:20px 0;
+}
+.hl-box p{font-size:14px;color:var(--text);line-height:1.75}
+.hl-box strong{color:var(--pink-soft)}
+
+.hl-gold-box{
+  border-left:3px solid var(--rose-gold);
+  padding:16px 20px;
+  background:var(--rose-gold-pale);
+  border-radius:0 3px 3px 0;
+  margin:20px 0;
+}
+.hl-gold-box p{font-size:14px;color:var(--text);line-height:1.75}
+.hl-gold-box strong{color:var(--rose-gold-light)}
+
+/* ── CHAIN TABLE ── */
+.chain-row{
+  display:flex;align-items:center;gap:0;
+  padding:12px 0;border-bottom:1px solid var(--border);
+}
+.chain-row:last-child{border-bottom:none}
+.chain-name{width:100px;font-weight:600;font-size:13px;color:var(--white);flex-shrink:0}
+.chain-bar-wrap{flex:1;height:4px;background:var(--border);border-radius:2px;margin:0 16px;position:relative}
+.chain-bar{height:100%;border-radius:2px;transition:width 1s ease}
+.chain-score{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted);width:40px;text-align:right}
+.chain-tag{margin-left:12px}
+
+/* ── TIMELINE ── */
+.timeline{display:flex;flex-direction:column;gap:0}
+.tl-item{display:flex;gap:20px;align-items:stretch}
+.tl-left{width:80px;flex-shrink:0;text-align:right;padding-top:6px}
+.tl-month{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;color:var(--rose-gold);letter-spacing:1px;
+}
+.tl-center{
+  display:flex;flex-direction:column;align-items:center;
+  width:24px;flex-shrink:0;
+}
+.tl-dot{
+  width:10px;height:10px;border-radius:50%;
+  border:2px solid var(--rose-gold);
+  background:var(--void);flex-shrink:0;
+  box-shadow:0 0 8px var(--rose-gold-pale);
+}
+.tl-line{flex:1;width:1px;background:linear-gradient(to bottom,var(--rose-gold),var(--border));opacity:0.3;margin:4px 0}
+.tl-content{
+  flex:1;padding:0 0 20px;
+}
+.tl-title{font-weight:600;font-size:13px;color:var(--white);margin-bottom:6px}
+.tl-items{display:flex;flex-direction:column;gap:4px}
+.tl-sub{
+  font-size:12px;color:var(--text-muted);line-height:1.6;
+  padding-left:12px;border-left:1px solid var(--border);
+}
+
+/* ── COVER SPECIFIC ── */
+.cover-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  min-height:calc(100vh - 120px);
+  position:relative;
+}
+.cover-left{
+  display:flex;flex-direction:column;
+  justify-content:flex-end;
+  padding:0 0 48px;
+  position:relative;
+}
+.cover-right{
+  padding-left:48px;padding-top:0;
+  display:flex;flex-direction:column;
+  justify-content:center;
+  border-left:1px solid var(--border);
+  padding-left:48px;
+}
+.cover-index-header{
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;letter-spacing:3px;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:24px;
+}
+.idx-item{
+  display:flex;align-items:baseline;gap:12px;
+  padding:12px 0;border-bottom:1px solid var(--border);
+  cursor:pointer;transition:all 0.25s;
+}
+.idx-item:hover{padding-left:8px}
+.idx-item:hover .idx-title{color:var(--pink)}
+.idx-item:last-child{border-bottom:none}
+.idx-num{
+  font-family:'Bodoni Moda',serif;font-size:12px;font-weight:300;
+  color:rgba(255,61,127,0.3);width:22px;flex-shrink:0;
+}
+.idx-section{
+  font-family:'JetBrains Mono',monospace;
+  font-size:8px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text-muted);width:80px;flex-shrink:0;
+}
+.idx-title{font-size:13px;font-weight:500;color:var(--white-80);flex:1;transition:color 0.25s}
+.idx-dots{flex:0 0 20px;border-bottom:1px dotted var(--border);margin-bottom:3px}
+.idx-pg{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;color:var(--text-muted);flex-shrink:0;
+}
+
+/* ── LAST SLIDE ── */
+.last-grid{display:grid;grid-template-columns:1fr 1fr;min-height:calc(100vh - 120px)}
+.last-left{display:flex;flex-direction:column;justify-content:center;padding-right:48px;position:relative}
+.last-right{
+  border-left:1px solid var(--border);
+  padding-left:48px;
+  overflow-y:auto;
+  display:flex;flex-direction:column;justify-content:center;
+}
+.tip-card{
+  border:1px solid var(--border);border-radius:3px;
+  padding:16px 20px;background:var(--panel);
+  transition:border-color 0.3s,transform 0.3s;
+  margin-bottom:10px;
+}
+.tip-card:hover{border-color:rgba(201,140,100,0.3);transform:translateX(4px)}
+.tip-num{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;color:var(--rose-gold);letter-spacing:2px;margin-bottom:8px;
+}
+.tip-title{font-weight:600;font-size:13px;color:var(--white);margin-bottom:4px}
+.tip-body{font-size:12px;color:var(--text-muted);line-height:1.65}
+
+.cta-terminal{
+  background:var(--deep);
+  border:1px solid var(--border-warm);
+  border-radius:3px;
+  padding:24px 28px;
+  margin-top:28px;
+  position:relative;
+}
+.cta-terminal::before{
+  content:'> COMMAND';
+  font-family:'JetBrains Mono',monospace;
+  font-size:8px;letter-spacing:3px;color:var(--rose-gold);
+  position:absolute;top:-8px;left:16px;
+  background:var(--deep);padding:0 8px;
+}
+.cta-cmd{
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px;color:var(--teal);line-height:1.8;
+}
+.cta-cursor{
+  display:inline-block;width:8px;height:14px;
+  background:var(--teal);animation:cursor 1.2s step-end infinite;
+  vertical-align:middle;margin-left:2px;
+}
+@keyframes cursor{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── FEAT LIST ── */
+.feat-list{display:flex;flex-direction:column}
+.feat-item{
+  display:flex;gap:14px;align-items:flex-start;
+  padding:14px 0;border-bottom:1px solid var(--border);
+}
+.feat-item:last-child{border-bottom:none}
+.feat-icon{
+  width:28px;height:28px;border-radius:2px;
+  border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;flex-shrink:0;
+  background:var(--panel);
+}
+.feat-title{font-weight:600;font-size:13px;color:var(--white);margin-bottom:2px}
+.feat-desc{font-size:12px;color:var(--text-muted);line-height:1.65}
+
+/* ── ARCHETYPE ── */
+.arch-card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:3px;padding:24px;
+  position:relative;overflow:hidden;
+  transition:border-color 0.3s,transform 0.3s;
+}
+.arch-card:hover{transform:translateY(-4px)}
+.arch-card.a1:hover{border-color:rgba(255,61,127,0.3)}
+.arch-card.a2:hover{border-color:rgba(201,140,100,0.3)}
+.arch-card.a3:hover{border-color:rgba(0,229,204,0.3)}
+.arch-bg{
+  position:absolute;bottom:-30px;right:-20px;
+  font-family:'Bodoni Moda',serif;
+  font-size:100px;font-weight:900;
+  opacity:0.04;line-height:1;pointer-events:none;
+  color:var(--white);
+}
+.arch-tag{
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;letter-spacing:3px;text-transform:uppercase;
+  margin-bottom:12px;
+}
+.arch-tag.p{color:var(--pink)}
+.arch-tag.g{color:var(--rose-gold)}
+.arch-tag.t{color:var(--teal)}
+.arch-name{
+  font-family:'Bodoni Moda',serif;
+  font-size:26px;font-weight:600;color:var(--white);
+  margin-bottom:10px;line-height:1.1;
+}
+.arch-desc{font-size:13px;color:var(--text-muted);line-height:1.75;margin-bottom:16px}
+.arch-strat{
+  font-size:12px;color:var(--text-muted);
+  border-left:2px solid var(--border);
+  padding-left:12px;line-height:1.65;
+}
+.arch-card.a1 .arch-strat{border-color:var(--pink);color:rgba(255,122,170,0.8)}
+.arch-card.a2 .arch-strat{border-color:var(--rose-gold);color:rgba(232,184,150,0.8)}
+.arch-card.a3 .arch-strat{border-color:var(--teal);color:rgba(0,229,204,0.7)}
+
+/* ── COMPARABLE CARD ── */
+.comp-card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:3px;padding:20px 24px;
+  transition:border-color 0.3s;
+}
+.comp-card:hover{border-color:rgba(201,140,100,0.25)}
+.comp-label{
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--rose-gold);margin-bottom:8px;
+}
+.comp-name{font-weight:700;font-size:16px;color:var(--white);margin-bottom:6px}
+.comp-result{
+  display:inline-block;
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;letter-spacing:1px;text-transform:uppercase;
+  padding:3px 10px;border-radius:2px;
+  margin-bottom:10px;
+}
+.comp-result.success{background:rgba(0,229,100,0.1);color:#00E564;border:1px solid rgba(0,229,100,0.2)}
+.comp-result.failed{background:rgba(255,80,80,0.1);color:#FF8080;border:1px solid rgba(255,80,80,0.2)}
+.comp-result.mixed{background:rgba(255,180,60,0.1);color:#FFB83C;border:1px solid rgba(255,180,60,0.2)}
+.comp-body{font-size:12px;color:var(--text-muted);line-height:1.7}
+.comp-lesson{
+  margin-top:12px;font-size:12px;
+  border-left:2px solid var(--rose-gold);
+  padding-left:12px;color:rgba(232,184,150,0.8);
+  line-height:1.65;
+}
+
+/* ── ON/OFF CHAIN TABLE ── */
+.split-table{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.split-col{background:var(--panel);border:1px solid var(--border);border-radius:3px;overflow:hidden}
+.split-head{
+  padding:14px 20px;
+  display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--border);
+}
+.split-head-icon{width:8px;height:8px;border-radius:50%}
+.split-head-icon.on{background:var(--pink);box-shadow:0 0 6px var(--pink-glow)}
+.split-head-icon.off{background:var(--rose-gold)}
+.split-head-title{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  font-weight:600;
+}
+.split-head-title.on{color:var(--pink)}
+.split-head-title.off{color:var(--rose-gold)}
+.split-item{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:12px 20px;
+  border-bottom:1px solid var(--border);
+}
+.split-item:last-child{border-bottom:none}
+.split-dot{width:5px;height:5px;border-radius:50%;margin-top:6px;flex-shrink:0}
+.split-dot.on{background:var(--pink)}
+.split-dot.off{background:var(--rose-gold)}
+.split-item-title{font-weight:600;font-size:12px;color:var(--white);margin-bottom:2px}
+.split-item-desc{font-size:11px;color:var(--text-muted);line-height:1.6}
+
+/* ── MOAT SECTION ── */
+.moat-item{
+  display:flex;gap:16px;align-items:flex-start;
+  padding:16px 0;border-bottom:1px solid var(--border);
+}
+.moat-item:last-child{border-bottom:none}
+.moat-num{
+  font-family:'Bodoni Moda',serif;
+  font-size:36px;font-weight:300;
+  color:rgba(201,140,100,0.2);line-height:1;
+  width:36px;flex-shrink:0;
+}
+.moat-title{font-weight:600;font-size:14px;color:var(--white);margin-bottom:4px}
+.moat-desc{font-size:13px;color:var(--text-muted);line-height:1.7}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .g2,.g3,.g4,.g-wide,.g-split,.cover-grid,.last-grid,.split-table{grid-template-columns:1fr}
+  .cover-right,.last-right{border-left:none;padding-left:0;border-top:1px solid var(--border);padding-top:24px}
+  .slide-body{padding:72px 24px 68px}
+  .chrome-top,.chrome-bottom{padding:0 16px}
+  .section-tabs{display:none}
+}
+
+/* ── UTILITY ── */
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mt20{margin-top:20px}.mt28{margin-top:28px}.mt32{margin-top:32px}
+.mb8{margin-bottom:8px}.mb12{margin-bottom:12px}.mb16{margin-bottom:16px}.mb20{margin-bottom:20px}
+.pink{color:var(--pink)}.gold{color:var(--rose-gold)}.teal{color:var(--teal)}.muted{color:var(--text-muted)}
+.mono{font-family:'JetBrains Mono',monospace}
+.serif{font-family:'Bodoni Moda',serif}
+.w-full{width:100%}
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- ═══════════════ CHROME ═══════════════ -->
+<div class="chrome-top">
+  <div class="chrome-logo"><span></span> Bae4U</div>
+  <div class="chrome-center" id="dots"></div>
+  <div class="chrome-right">
+    <div class="chrome-section" id="sectionLabel">Overview</div>
+    <div class="chrome-counter" id="counter">01 / 16</div>
+  </div>
+</div>
+
+<div class="chrome-bottom">
+  <div class="section-tabs" id="sectionTabs"></div>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  <div style="display:flex;gap:8px">
+    <button class="nav-btn" id="prevBtn" onclick="go(-1)">←</button>
+    <button class="nav-btn" id="nextBtn" onclick="go(1)">→</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+  SLIDES
+═══════════════════════════════════════════ -->
+
+<!-- ── S01: COVER ── -->
+<div class="slide active" data-section="Overview" data-label="Cover">
+  <div class="slide-body">
+    <div class="bg-glow" style="width:500px;height:500px;top:-100px;left:-100px;background:radial-gradient(circle,rgba(255,61,127,0.08),transparent)"></div>
+    <div class="bg-glow" style="width:400px;height:400px;bottom:-50px;right:-50px;background:radial-gradient(circle,rgba(201,140,100,0.06),transparent)"></div>
+    <div class="cover-grid" style="position:relative;z-index:1">
+      <div class="cover-left">
+        <div class="overline" style="margin-bottom:24px">Master Intelligence Deck · 2024</div>
+        <div class="display" style="font-size:clamp(52px,7vw,96px);margin-bottom:16px">
+          Bae4U<br><em>Decoded.</em>
+        </div>
+        <div style="width:48px;height:1px;background:linear-gradient(to right,var(--rose-gold),transparent);margin-bottom:20px"></div>
+        <div class="subtitle">Product · Pets Economy · On-Chain Architecture · Blockchain Strategy. The complete intelligence brief — from user to smart contract.</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div class="badge-pill gold">SocialFi</div>
+          <div class="badge-pill master">Dating + Web3</div>
+          <div class="badge-pill diamond">16 Slides</div>
+        </div>
+      </div>
+      <div class="cover-right">
+        <div class="cover-index-header">Contents</div>
+        <div class="idx-item" onclick="goTo(1)"><div class="idx-num">01</div><div class="idx-section">Product</div><div class="idx-title">What is Bae4U?</div><div class="idx-pg">02</div></div>
+        <div class="idx-item" onclick="goTo(2)"><div class="idx-num">02</div><div class="idx-section">Product</div><div class="idx-title">Platform Features</div><div class="idx-pg">03</div></div>
+        <div class="idx-item" onclick="goTo(3)"><div class="idx-num">03</div><div class="idx-section">Pets Game</div><div class="idx-title">What is Pets?</div><div class="idx-pg">04</div></div>
+        <div class="idx-item" onclick="goTo(4)"><div class="idx-num">04</div><div class="idx-section">Pets Game</div><div class="idx-title">First Session Flow</div><div class="idx-pg">05</div></div>
+        <div class="idx-item" onclick="goTo(5)"><div class="idx-num">05</div><div class="idx-section">Pets Game</div><div class="idx-title">Economy & Earning</div><div class="idx-pg">06</div></div>
+        <div class="idx-item" onclick="goTo(6)"><div class="idx-num">06</div><div class="idx-section">Pets Game</div><div class="idx-title">Value Mechanics</div><div class="idx-pg">07</div></div>
+        <div class="idx-item" onclick="goTo(7)"><div class="idx-num">07</div><div class="idx-section">Pets Game</div><div class="idx-title">Rankings & Archetypes</div><div class="idx-pg">08</div></div>
+        <div class="idx-item" onclick="goTo(8)"><div class="idx-num">08</div><div class="idx-section">Architecture</div><div class="idx-title">On-Chain vs Off-Chain</div><div class="idx-pg">09</div></div>
+        <div class="idx-item" onclick="goTo(9)"><div class="idx-num">09</div><div class="idx-section">Architecture</div><div class="idx-title">Contract System</div><div class="idx-pg">10</div></div>
+        <div class="idx-item" onclick="goTo(10)"><div class="idx-num">10</div><div class="idx-section">Architecture</div><div class="idx-title">Hard Problems</div><div class="idx-pg">11</div></div>
+        <div class="idx-item" onclick="goTo(11)"><div class="idx-num">11</div><div class="idx-section">Strategy</div><div class="idx-title">Precedents</div><div class="idx-pg">12</div></div>
+        <div class="idx-item" onclick="goTo(12)"><div class="idx-num">12</div><div class="idx-section">Strategy</div><div class="idx-title">Chain Selection</div><div class="idx-pg">13</div></div>
+        <div class="idx-item" onclick="goTo(13)"><div class="idx-num">13</div><div class="idx-section">Strategy</div><div class="idx-title">Success Moats</div><div class="idx-pg">14</div></div>
+        <div class="idx-item" onclick="goTo(14)"><div class="idx-num">14</div><div class="idx-section">Strategy</div><div class="idx-title">Risk Register</div><div class="idx-pg">15</div></div>
+        <div class="idx-item" onclick="goTo(15)"><div class="idx-num">15</div><div class="idx-section">Build</div><div class="idx-title">Build Sequence</div><div class="idx-pg">16</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S02: WHAT IS BAE4U ── -->
+<div class="slide" data-section="Product" data-label="What is Bae4U?">
+  <div class="slide-body">
+    <div class="bg-glow" style="width:400px;height:400px;top:-80px;right:0;background:radial-gradient(circle,rgba(201,140,100,0.07),transparent)"></div>
+    <div style="position:relative;z-index:1">
+      <div class="overline">01 · Product Overview</div>
+      <div class="display">The platform<br>that <em>merges</em> all three.</div>
+      <div class="subtitle">Bae4U is not a dating app with blockchain features bolted on. It is three complete product categories fused into a single platform — each one making the others more powerful.</div>
+      <div class="g3 mb20">
+        <div class="card card-pink">
+          <div class="card-label">Layer 01</div>
+          <div class="card-title">Social Dating</div>
+          <div class="card-body">Personality-driven matching, verified profiles, interest communities, language translation. The acquisition layer — why people download the app.</div>
+          <div class="stat"><div class="stat-num" style="font-size:24px">Tinder</div><div class="stat-label">But with soul</div></div>
+        </div>
+        <div class="card card-gold">
+          <div class="card-label">Layer 02</div>
+          <div class="card-title">Pets Economy</div>
+          <div class="card-body">A live social trading game where users are tradeable assets. IPL auction meets stock market. Retention layer — why people stay.</div>
+          <div class="stat"><div class="stat-num" style="font-size:24px">Friend.tech</div><div class="stat-label">With game mechanics</div></div>
+        </div>
+        <div class="card card-teal">
+          <div class="card-label">Layer 03</div>
+          <div class="card-title">Creator Economy</div>
+          <div class="card-body">SFT-gated content paywalls. Creators launch passes, holders get exclusive access. Monetization ceiling — how the platform scales revenue.</div>
+          <div class="stat"><div class="stat-num" style="font-size:24px">Patreon</div><div class="stat-label">On-chain, ownable</div></div>
+        </div>
+      </div>
+      <div class="hl-box">
+        <p>The structural genius of Bae4U: <strong>if Pets Cash crashes, users stay because the dating app is genuinely good. If matches are slow, users stay because the Pets game is addictive.</strong> The three layers provide mutual retention insurance — something no pure SocialFi or pure dating app has ever achieved.</p>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-label">The Mission</div>
+          <div class="card-title">Personality enables potential</div>
+          <div class="card-body">Built by people exhausted by chemistry-less dates and vapid swipes. The platform prioritises compatibility — 18 personality dimensions including zodiac, enneagram, love languages, and mating philosophy — over superficial filters.</div>
+        </div>
+        <div class="card card-dark">
+          <div class="card-label">The Differentiation</div>
+          <div class="card-title">Quality over quantity. Security by design.</div>
+          <div class="card-body">Verified profiles, gender-balanced mechanics, decentralised identity, and an anti-harassment architecture. Built for people who are done with the race to the bottom of legacy dating apps.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S03: FEATURES ── -->
+<div class="slide" data-section="Product" data-label="Platform Features">
+  <div class="slide-body">
+    <div style="position:relative;z-index:1">
+      <div class="overline">02 · Feature Matrix</div>
+      <div class="display">Every feature,<br><em>mapped.</em></div>
+      <div class="g-wide mt28">
+        <div>
+          <div class="section-label mb12">Core Social Features</div>
+          <div class="feat-list">
+            <div class="feat-item"><div class="feat-icon">💬</div><div><div class="feat-title">Social Dating + Friend-Finding</div><div class="feat-desc">Post in interest communities, chat casually, meet people by shared values. Not just dates — friendships, connections, collaborations.</div></div></div>
+            <div class="feat-item"><div class="feat-icon">🧠</div><div><div class="feat-title">Flirting Tips & Personality Analysis</div><div class="feat-desc">18-dimension personality breakdown: compatibility, love language, pet peeves, ideal date, secret desire, enneagram, zodiac, and mating philosophy.</div></div></div>
+            <div class="feat-item"><div class="feat-icon">✅</div><div><div class="feat-title">Verified Profiles</div><div class="feat-desc">On-chain identity verification eliminates catfishes and bots. Verified filter lets users only interact with confirmed real humans.</div></div></div>
+            <div class="feat-item"><div class="feat-icon">🌍</div><div><div class="feat-title">Language Practice</div><div class="feat-desc">Translate profiles and messages, send messages in any language. Meet people globally with no language barrier.</div></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-label mb12">Web3 Features</div>
+          <div class="feat-list">
+            <div class="feat-item"><div class="feat-icon">🐾</div><div><div class="feat-title">Pets Game</div><div class="feat-desc">Social trading economy — buy, sell, own other users as Pets. Portfolio-based ranking system with weekly badge resets.</div></div></div>
+            <div class="feat-item"><div class="feat-icon">🎟️</div><div><div class="feat-title">SFT Creator Passes</div><div class="feat-desc">Creators mint Semi-Fungible Token passes. Holders get gated access to content. Direct Web3 monetization — no intermediary.</div></div></div>
+            <div class="feat-item"><div class="feat-icon">🪙</div><div><div class="feat-title">Dual Currency System</div><div class="feat-desc">Pets Cash (free, earned in-game) + Bae4U Gold (premium, purchased). Classic freemium structure with on-chain settlement.</div></div></div>
+          </div>
+          <div class="hl-gold-box mt16">
+            <p><strong>Key insight:</strong> Every Web3 feature has a direct Web2 analogue that non-crypto users understand. Pets = fantasy cricket. Gold = in-app purchase. SFT passes = Patreon subscription. The blockchain is infrastructure, not the pitch.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S04: WHAT IS PETS ── -->
+<div class="slide" data-section="Pets Game" data-label="What is Pets?">
+  <div class="slide-body">
+    <div class="bg-glow" style="width:600px;height:600px;top:-200px;right:-200px;background:radial-gradient(circle,rgba(255,61,127,0.06),transparent)"></div>
+    <div style="position:relative;z-index:1">
+      <div class="overline">03 · Pets Game</div>
+      <div class="display">A social economy<br>built on <em>people.</em></div>
+      <div class="subtitle">Every Bae4U user is simultaneously a player and a tradeable asset. You buy others. They buy you. Value compounds with every transaction.</div>
+      <div class="g3 mb20">
+        <div class="card card-dark">
+          <div class="card-label">The Analogy</div>
+          <div class="card-title">IPL Auction</div>
+          <div class="card-body">Every user has a price. You acquire them with Pets Cash, they join your collection like a fantasy team. Their performance (activity, demand) drives their value.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">The Mechanism</div>
+          <div class="card-title">Living Stock Market</div>
+          <div class="card-body">Every transaction changes prices. Popular users become expensive. Undervalued ones are opportunities. Smart capital allocation and timing win.</div>
+        </div>
+        <div class="card card-pink">
+          <div class="card-label">The Hook</div>
+          <div class="card-title">Passive by Default</div>
+          <div class="card-body">You earn profit when someone buys you — automatically. The game rewards existence, not just activity. Even casual users are economic participants from day one.</div>
+        </div>
+      </div>
+      <div class="formula mb20">
+        <div class="f-part f-accent">Assets</div>
+        <div class="f-op">=</div>
+        <div class="f-part">Pets Cash</div>
+        <div class="f-op">+</div>
+        <div class="f-part">Σ (Value of all owned Pets)</div>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-label">Collection Limit</div>
+          <div class="card-title">Up to 400 Pets</div>
+          <div class="card-body">Portfolio management becomes strategic at scale. Quality over quantity — higher-value, more active Pets produce better yield than a padded collection of inactive accounts.</div>
+        </div>
+        <div class="card card-gold">
+          <div class="card-label">The Wish List</div>
+          <div class="card-title">500 item acquisition pipeline</div>
+          <div class="card-body">Save targets you can't afford yet. Like a Flipkart wishlist — deferred purchase intent that pulls users back when capital becomes available. No limit on how many can wish you.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S05: FIRST SESSION ── -->
+<div class="slide" data-section="Pets Game" data-label="First Session Flow">
+  <div class="slide-body">
+    <div style="position:relative;z-index:1">
+      <div class="overline">04 · Onboarding Flow</div>
+      <div class="display">Hooked before<br>you <em>know it.</em></div>
+      <div class="subtitle">The game begins automatically. Five moments that convert a new signup into a daily active player — each one engineered with precision.</div>
+      <div class="g-wide mt20">
+        <div class="flow">
+          <div class="flow-row">
+            <div class="flow-left"><div class="flow-num">1</div><div class="flow-line"></div></div>
+            <div class="flow-content"><div class="flow-title">Account created → value assigned</div><div class="flow-desc">The moment your profile goes live, the system mints your SFT and sets a starting market price. You are a tradeable asset before you've opened a single tab.</div><span class="flow-tag">Automatic</span></div>
+          </div>
+          <div class="flow-row">
+            <div class="flow-left"><div class="flow-num">2</div><div class="flow-line"></div></div>
+            <div class="flow-content"><div class="flow-title">"You were bought." — first notification</div><div class="flow-desc">Before you've explored the app, another player purchased you. Your value rose 10%. You earned profit. This happens automatically — the hook fires before the user understands the game.</div><span class="flow-tag">High-impact moment</span></div>
+          </div>
+          <div class="flow-row">
+            <div class="flow-left"><div class="flow-num">3</div><div class="flow-line"></div></div>
+            <div class="flow-content"><div class="flow-title">Curiosity → Pets section opens</div><div class="flow-desc">User investigates who owns them, their current value, their Cash balance, and the leaderboard. For the first time they see the full economy they've already entered.</div><span class="flow-tag">Discovery</span></div>
+          </div>
+          <div class="flow-row">
+            <div class="flow-left"><div class="flow-num">4</div><div class="flow-line"></div></div>
+            <div class="flow-content"><div class="flow-title">First purchase made</div><div class="flow-desc">User browses, finds an affordable target, buys them. The mechanic is now understood experientially, not just intellectually. Assets have grown. The loop is activated.</div><span class="flow-tag">Activation</span></div>
+          </div>
+          <div class="flow-row">
+            <div class="flow-left"><div class="flow-num">5</div><div class="flow-line"></div></div>
+            <div class="flow-content"><div class="flow-title">Rankings reveal the target</div><div class="flow-desc">The leaderboard shows exactly how many more Assets are needed for the next badge tier. A concrete, achievable goal crystallises. The 4-hour login loop begins.</div><span class="flow-tag">Retention trigger</span></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card card-pink">
+            <div class="card-label">Why this works</div>
+            <div class="card-title">Reward before effort</div>
+            <div class="card-body">Most games require effort before delivering a reward signal. Pets inverts this — you receive a reward (being bought, earning profit) before you've done anything. This is the most powerful onboarding mechanic in consumer gaming.</div>
+          </div>
+          <div class="card">
+            <div class="card-label">The 4-hour cadence</div>
+            <div class="card-title">Mapped to your day</div>
+            <div class="card-body">Morning → Lunch → Afternoon → Evening. Four natural break points. Same mechanic that made Farmville impossible to quit. Set a reminder. Miss it and you've lost free income.</div>
+          </div>
+          <div class="card card-dark">
+            <div class="card-label">Cold start solution</div>
+            <div class="card-title">New users = new inventory</div>
+            <div class="card-body">Every new signup is immediately a tradeable asset for existing players. New users increase existing users' game depth — a genuine positive-sum network effect.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S06: ECONOMY ── -->
+<div class="slide" data-section="Pets Game" data-label="Economy & Earning">
+  <div class="slide-body">
+    <div style="position:relative;z-index:1">
+      <div class="overline">05 · Revenue Streams</div>
+      <div class="display">Six ways to earn.<br><em>Zero required.</em></div>
+      <div class="subtitle">Every earning pathway is stacked on top of the others. The best players run all six simultaneously — and none of them require spending real money.</div>
+      <div class="g-split mt20">
+        <div>
+          <div class="earn-row">
+            <div class="earn-idx">01</div>
+            <div><div class="earn-title">Four-hour login bonus</div><div class="earn-desc">A Pets Cash disbursement every 4 hours. Compounds into substantial reserves over weeks. Treat it as a recurring dividend — predictable, passive, cumulative.</div></div>
+            <div style="margin-left:auto;flex-shrink:0"><span class="flow-tag">Passive</span></div>
+          </div>
+          <div class="earn-row">
+            <div class="earn-idx">02</div>
+            <div><div class="earn-title">Daily purchase bonus — first 5 buys</div><div class="earn-desc">Your first five purchases each day carry bonus payouts. Rewards active buying. Make it a morning ritual.</div></div>
+            <div style="margin-left:auto;flex-shrink:0"><span class="flow-tag" style="color:var(--pink);background:var(--pink-pale);border-color:rgba(255,61,127,0.15)">Active</span></div>
+          </div>
+          <div class="earn-row">
+            <div class="earn-idx">03</div>
+            <div><div class="earn-title">Profit when you're purchased</div><div class="earn-desc">When another player buys you, you automatically receive 50% of the transaction profit. You earn without doing anything. Desirability = passive income.</div></div>
+            <div style="margin-left:auto;flex-shrink:0"><span class="flow-tag">Passive</span></div>
+          </div>
+          <div class="earn-row">
+            <div class="earn-idx">04</div>
+            <div><div class="earn-title">Portfolio yield — pets sold from you</div><div class="earn-desc">If someone buys a Pet you own, you receive 50% of that profit. Your portfolio earns yield on every trade — compounding strategy.</div></div>
+            <div style="margin-left:auto;flex-shrink:0"><span class="flow-tag" style="color:var(--rose-gold);background:var(--rose-gold-pale);border-color:var(--border-warm)">Portfolio</span></div>
+          </div>
+          <div class="earn-row">
+            <div class="earn-idx">05</div>
+            <div><div class="earn-title">First-owner bonus on new accounts</div><div class="earn-desc">Acquire a freshly registered user before anyone else — triggers a first-owner reward. Pre-IPO advantage.</div></div>
+            <div style="margin-left:auto;flex-shrink:0"><span class="flow-tag" style="color:var(--teal);background:var(--teal-pale);border-color:rgba(0,229,204,0.15)">Scout</span></div>
+          </div>
+          <div class="earn-row">
+            <div class="earn-idx">06</div>
+            <div><div class="earn-title">Gifted Pets Cash from ranked owners</div><div class="earn-desc">Ranked players can transfer Pets Cash to their Pets — up to 10 gifts per 24 hours. Being an active, attractive Pet makes you a gift target.</div></div>
+            <div style="margin-left:auto;flex-shrink:0"><span class="flow-tag" style="color:var(--pink-soft);background:var(--pink-pale);border-color:rgba(255,122,170,0.15)">Social</span></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card card-gold">
+            <div class="card-label">Currency Architecture</div>
+            <div class="card-title">Free vs. Premium</div>
+            <div class="card-body" style="margin-bottom:16px">Pets Cash = Free Fire coins. Bae4U Gold = UC diamonds. One you grind, one you buy. Gold converts to Pets Cash — optional speed, not pay-to-win.</div>
+            <div style="display:flex;gap:16px">
+              <div style="text-align:center;flex:1"><div style="font-family:'Bodoni Moda',serif;font-size:28px;color:var(--teal);margin-bottom:4px">🪙</div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--text-muted)">PETS CASH</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px">Earned free</div></div>
+              <div style="width:1px;background:var(--border)"></div>
+              <div style="text-align:center;flex:1"><div style="font-family:'Bodoni Moda',serif;font-size:28px;color:var(--rose-gold);margin-bottom:4px">⭐</div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--text-muted)">BAE4U GOLD</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px">Purchased</div></div>
+            </div>
+          </div>
+          <div class="card card-pink">
+            <div class="card-label">Ghost Pets</div>
+            <div class="card-title">Deactivated ≠ Deleted</div>
+            <div class="card-body">When a user deactivates, their SFT becomes a Ghost Pet — still in portfolios, still contributing to Assets, price-frozen and non-transferable. Like a retired legend on your team roster.</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Lock Mechanic</div>
+            <div class="card-title">Protect your best assets</div>
+            <div class="card-body">Apply a temporary lock to any Pet you own to prevent others from purchasing them. Time-based, auto-expires. Use strategically on your highest-value or most-wanted holdings.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S07: VALUE MECHANICS ── -->
+<div class="slide" data-section="Pets Game" data-label="Value Mechanics">
+  <div class="slide-body">
+    <div style="position:relative;z-index:1">
+      <div class="overline">06 · Core Mechanic</div>
+      <div class="display">The <em>10% rule</em><br>drives everything.</div>
+      <div class="subtitle">One invariant governs the entire economy. Every buy raises your value by 10%. Profit splits 50/50. Understand this and you understand Pets.</div>
+      <div class="g2 mt20 mb20">
+        <div class="card card-pink">
+          <div class="card-label">The Invariant</div>
+          <div class="card-title">+10% on every purchase</div>
+          <div class="card-body">Each time you are acquired, your personal market value increases by exactly 10%. This is automatic, permanent, and compounds. High-demand users become exponentially more expensive over time.</div>
+          <div class="stat"><div class="stat-num">10%</div><div class="stat-label">Per transaction, forever</div></div>
+        </div>
+        <div class="card">
+          <div class="card-label">Profit Distribution</div>
+          <div class="card-title">Split equally, always</div>
+          <div class="card-body">Transaction profit divides 50/50 between the Pet being sold and the previous owner. Both parties benefit every time ownership changes hands. Value creation is automatically shared.</div>
+          <div style="display:flex;gap:24px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)">
+            <div><div class="stat-num">50%</div><div class="stat-label">To the Pet</div></div>
+            <div><div class="stat-num">50%</div><div class="stat-label">To previous owner</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="g-wide">
+        <div>
+          <div class="section-label mb12">Worked Example — 10 Transactions</div>
+          <div class="arch-table" style="display:table;width:100%">
+            <table class="arch-table w-full">
+              <tr><th>Event</th><th>Price</th><th>New Value</th><th>Your Profit</th></tr>
+              <tr><td>Join Bae4U</td><td>—</td><td>₹1,000</td><td>₹0</td></tr>
+              <tr><td>Bought once</td><td>₹1,000</td><td>₹1,100</td><td>₹50</td></tr>
+              <tr><td>Bought twice</td><td>₹1,100</td><td>₹1,210</td><td>₹55</td></tr>
+              <tr><td>Bought 5x</td><td>₹1,464</td><td>₹1,610</td><td>₹73</td></tr>
+              <tr><td>Bought 10x</td><td>₹2,358</td><td>₹2,593</td><td><span class="pink">₹117</span></td></tr>
+            </table>
+          </div>
+          <div class="hl-box mt16">
+            <p><strong>The compounding effect:</strong> After 10 buys, your value has grown 2.59x. You've earned ₹540+ in passive profit — all without doing anything except existing on the platform.</p>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card card-dark">
+            <div class="card-label">Buy Again Feature</div>
+            <div class="card-title">Re-acquire at incremental cost</div>
+            <div class="card-body">Already own someone? If both parties are ranked, you can buy them again paying only the price difference — not the full current price. Efficient portfolio concentration tool.</div>
+          </div>
+          <div class="card card-gold">
+            <div class="card-label">Rounding Rule (Critical)</div>
+            <div class="card-title">Use basis points arithmetic</div>
+            <div class="card-body">Integer division truncates. Use <span class="mono" style="color:var(--teal);font-size:11px">price × 11000 / 10000</span> throughout. Document your rounding policy before writing a single function — this prevents audit findings.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S08: RANKINGS & ARCHETYPES ── -->
+<div class="slide" data-section="Pets Game" data-label="Rankings & Archetypes">
+  <div class="slide-body">
+    <div style="position:relative;z-index:1">
+      <div class="overline">07 · Competition Layer</div>
+      <div class="display">Three rankings.<br><em>Three archetypes.</em></div>
+      <div class="g3 mt20 mb20">
+        <div class="card">
+          <div class="card-label">Ranking 01</div>
+          <div class="card-title">Assets Rank</div>
+          <div class="card-body">Total net worth — Cash reserves plus the sum of all Pet values. Primary measure of economic power. Build a large, high-value portfolio to dominate.</div>
+        </div>
+        <div class="card card-pink">
+          <div class="card-label">Ranking 02</div>
+          <div class="card-title">Value Rank</div>
+          <div class="card-body">Your personal market price. Rises automatically with every purchase. Reflects social standing. Be desirable, not just wealthy — these are separate leaderboards.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Ranking 03</div>
+          <div class="card-title">Country Rank</div>
+          <div class="card-body">Geo-filtered competition. Smaller pool. Easier first wins for new players. Weekly resets mean everyone gets a recurring shot at the top — same mechanic as Duolingo leagues.</div>
+        </div>
+      </div>
+      <div class="mb16">
+        <div class="section-label mb12">Badge Tiers — Reset Weekly & Monthly</div>
+        <div class="badge-row"><div class="badge-pill bronze">🥉 Bronze</div><div class="badge-pill silver">🥈 Silver</div><div class="badge-pill gold">🥇 Gold</div><div class="badge-pill diamond">💎 Diamond</div><div class="badge-pill master">👑 Master</div></div>
+      </div>
+      <div class="h-rule"></div>
+      <div class="section-label mb16">The Three Player Archetypes</div>
+      <div class="g3">
+        <div class="arch-card a1">
+          <div class="arch-bg">I</div>
+          <div class="arch-tag p">Archetype 01</div>
+          <div class="arch-name">The Collector</div>
+          <div class="arch-desc">Wants 400 pets. Scouts undervalued users, builds a massive portfolio, earns passive yield as the market moves. Patient. Systematic. Long-game.</div>
+          <div class="arch-strat">Buy low-value active users early. Diversify. Hold through growth. Earn yield on every resale.</div>
+        </div>
+        <div class="arch-card a2">
+          <div class="arch-bg">II</div>
+          <div class="arch-tag g">Archetype 02</div>
+          <div class="arch-name">The Competitor</div>
+          <div class="arch-desc">Rankings are the only metric that matters. Monitors standings daily. Deploys Gold at weekly reset windows. Calculates every move around leaderboard position.</div>
+          <div class="arch-strat">Maintain cash buffers. Time Gold conversion to resets. Focus on Assets rank, not just Value.</div>
+        </div>
+        <div class="arch-card a3">
+          <div class="arch-bg">III</div>
+          <div class="arch-tag t">Archetype 03</div>
+          <div class="arch-name">The Casual</div>
+          <div class="arch-desc">Here for the vibe. Enjoys being purchased, earning passive income, staying visible. Low effort, low stress — but provides essential market liquidity for everyone else.</div>
+          <div class="arch-strat">Log in consistently. Stay active so value rises. Let the system earn for you.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S09: ON/OFF CHAIN ── -->
+<div class="slide" data-section="Architecture" data-label="On-Chain vs Off-Chain">
+  <div class="slide-body">
+    <div style="position:relative;z-index:1">
+      <div class="overline">08 · Architecture Principle</div>
+      <div class="display">Economic truth<br><em>on-chain.</em> Everything else, off.</div>
+      <div class="subtitle">The most consequential architectural decision. Get it wrong and you have a $5-per-click product — or just a regular app with a wallet bolted on.</div>
+      <div class="split-table mt20 mb20">
+        <div class="split-col">
+          <div class="split-head"><div class="split-head-icon on"></div><div class="split-head-title on">On-Chain — Economic Truth</div></div>
+          <div class="split-item"><div class="split-dot on"></div><div><div class="split-item-title">User Profile SFTs (ERC-1155)</div><div class="split-item-desc">Every user minted as a Semi-Fungible Token on signup. Token ID → user, price, owner, lock status, ghost flag.</div></div></div>
+          <div class="split-item"><div class="split-dot on"></div><div><div class="split-item-title">Pets Market — buy/sell/10% rule</div><div class="split-item-desc">The 10% invariant lives here. Not in a database. Smart contract enforces it — trustless, unhackable.</div></div></div>
+          <div class="split-item"><div class="split-dot on"></div><div><div class="split-item-title">Pets Cash Token (ERC-20)</div><div class="split-item-desc">All transfers on-chain. Balances publicly verifiable — required for ranking system to be trustworthy.</div></div></div>
+          <div class="split-item"><div class="split-dot on"></div><div><div class="split-item-title">Badge SFTs — weekly issuance</div><div class="split-item-desc">On-chain minting = truly owned, verifiable credentials. Not participation trophies in a database.</div></div></div>
+          <div class="split-item"><div class="split-dot on"></div><div><div class="split-item-title">SFT Creator Passes</div><div class="split-item-desc">Ownership record on-chain. Token-gates off-chain content access. Transferable, resellable by holders.</div></div></div>
+          <div class="split-item"><div class="split-dot on"></div><div><div class="split-item-title">Lock status + expiry timestamp</div><div class="split-item-desc">Contract-enforced lock. If it lived in your DB, a compromised backend could delete it and steal a pet.</div></div></div>
+        </div>
+        <div class="split-col">
+          <div class="split-head"><div class="split-head-icon off"></div><div class="split-head-title off">Off-Chain — Everything Else</div></div>
+          <div class="split-item"><div class="split-dot off"></div><div><div class="split-item-title">Wish List</div><div class="split-item-desc">Pure user intent. No economic consequence until a buy. Paying gas to bookmark a profile is absurd.</div></div></div>
+          <div class="split-item"><div class="split-dot off"></div><div><div class="split-item-title">Ranking Computation (The Graph)</div><div class="split-item-desc">O(n) reads on-chain = prohibitive at scale. Compute off-chain via subgraph, verify result on-chain.</div></div></div>
+          <div class="split-item"><div class="split-dot off"></div><div><div class="split-item-title">Login Bonus Triggering</div><div class="split-item-desc">EIP-712 signed claims. Backend signs, user submits to contract. Trustless without direct backend authority.</div></div></div>
+          <div class="split-item"><div class="split-dot off"></div><div><div class="split-item-title">Profile content (photos, bio)</div><div class="split-item-desc">Storage-heavy. On-chain storage at $1+ per "like" kills any social app. Use IPFS or CDN.</div></div></div>
+          <div class="split-item"><div class="split-dot off"></div><div><div class="split-item-title">Matching algorithm</div><div class="split-item-desc">18-dimension personality scoring. Computational, no trust requirements. Traditional backend.</div></div></div>
+          <div class="split-item"><div class="split-dot off"></div><div><div class="split-item-title">Chat, notifications, search</div><div class="split-item-desc">Real-time, high-frequency, zero financial consequence. On-chain messaging is catastrophically bad UX.</div></div></div>
+        </div>
+      </div>
+      <div class="hl-gold-box">
+        <p><strong>The hybrid layer:</strong> Rankings are computed off-chain (The Graph indexes all <span style="color:var(--teal);font-family:'JetBrains Mono',monospace;font-size:12px">PetPurchased</span> events) but badge SFT minting happens on-chain via backend-signed proofs. Computed off-chain. Verifiable by anyone. Anchored on-chain.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S10: CONTRACT SYSTEM ── -->
+<div class="slide" data-section="Architecture" data-label="Contract System">
+  <div class="slide-body">
+    <div style="position:relative;z-index:1">
+      <div class="overline">09 · Smart Contract Architecture</div>
+      <div class="display">Four contracts.<br><em>One economy.</em></div>
+      <div class="g2 mt20 mb20">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card card-pink">
+            <div class="card-label">Contract 01</div>
+            <div class="card-title">PetsRegistry.sol</div>
+            <div class="card-body">Mints user SFT on account creation. Sets initial price. Maintains user → token ID mapping. The entry point for all new participants in the economy.</div>
+          </div>
+          <div class="card card-gold">
+            <div class="card-label">Contract 02</div>
+            <div class="card-title">PetsMarket.sol</div>
+            <div class="card-body">Core trading contract. <span class="mono" style="color:var(--teal)">buy(tokenId)</span> enforces the 10% price increase, splits profit 50/50 automatically, checks lock status, emits <span class="mono" style="color:var(--teal)">PetPurchased</span> events.</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Contract 03</div>
+            <div class="card-title">PetsCash.sol (ERC-20)</div>
+            <div class="card-body">In-game currency token. Minted on login bonuses (via EIP-712 signed claims). Transferred on all purchases, splits, and gifts. Bridgeable to Gold.</div>
+          </div>
+          <div class="card card-teal">
+            <div class="card-label">Contract 04</div>
+            <div class="card-title">PetsRanking.sol</div>
+            <div class="card-body">Reads Assets on-chain. Weekly snapshot via Chainlink Automation. Issues badge SFTs on threshold crossing. Executes weekly standing resets.</div>
+          </div>
+        </div>
+        <div>
+          <div class="section-label mb12">The Core buy() Function</div>
+          <div class="code-block"><span class="kw">function</span> <span class="fn">buy</span>(uint256 tokenId) external {
+  Pet storage pet = pets[tokenId];
+  
+  <span class="cm">// Guard: lock + balance checks</span>
+  require(!pet.locked, <span class="st">"Pet is locked"</span>);
+  require(
+    petsCash.<span class="fn">balanceOf</span>(msg.sender) >= pet.price,
+    <span class="st">"Insufficient balance"</span>
+  );
+  
+  address prevOwner = pet.owner;
+  address petOwner  = pet.userAddress;
+  uint256 salePrice = pet.price;
+  
+  <span class="cm">// Calculate profit split</span>
+  uint256 cost   = pet.purchasePrice[prevOwner];
+  uint256 profit = salePrice - cost;
+  uint256 half   = profit / <span class="num">2</span>;
+  
+  <span class="cm">// Settle payment</span>
+  petsCash.<span class="fn">transferFrom</span>(msg.sender, address(this), salePrice);
+  petsCash.<span class="fn">transfer</span>(prevOwner, cost + half);
+  petsCash.<span class="fn">transfer</span>(petOwner, half);
+  
+  <span class="cm">// Update state</span>
+  pet.owner = msg.sender;
+  pet.purchasePrice[msg.sender] = salePrice;
+  
+  <span class="cm">// THE INVARIANT — 10% price increase</span>
+  pet.price = (salePrice * <span class="num">11000</span>) / <span class="num">10000</span>;
+  
+  emit <span class="fn">PetPurchased</span>(tokenId, prevOwner, msg.sender,
+                    salePrice, pet.price);
+}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S11: HARD PROBLEMS ── -->
+<div class="slide" data-section="Architecture" data-label="Hard Problems">
+  <div class="slide-body">
+    <div style="position:relative;z-index:1">
+      <div class="overline">10 · Engineering Challenges</div>
+      <div class="display">The problems<br><em>nobody warns you about.</em></div>
+      <div class="g-split mt20">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card card-pink">
+            <div class="card-label">Challenge 01 — Oracle Problem</div>
+            <div class="card-title">Login Bonuses</div>
+            <div class="card-body">Off-chain event (login) must trigger on-chain state (mint Cash). Solution: EIP-712 signed claims. Backend signs the bonus. User submits signature to contract. Contract verifies — not trusts — the backend. Never have your backend call <span class="mono" style="color:var(--teal)">mintBonus()</span> directly with an owner key — that's a centralised failure surface.</div>
+          </div>
+          <div class="card card-gold">
+            <div class="card-label">Challenge 02 — Gas UX</div>
+            <div class="card-title">Every transaction has friction</div>
+            <div class="card-body">Buy, sell, lock, gift — all on-chain. At mainnet gas prices, a single pet purchase could cost more than the pet itself. Solution: Deploy on L2 (Base or Polygon). Use a paymaster contract to sponsor gas fees for users. Abstract wallets via Coinbase embedded wallet SDK. The user should never see the words "gas fee."</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Challenge 03 — Rankings at Scale</div>
+            <div class="card-title">O(n) reads are lethal</div>
+            <div class="card-body">Computing rankings fully on-chain means iterating all users' assets — prohibitively expensive at scale. Solution: The Graph protocol indexes <span class="mono" style="color:var(--teal)">PetPurchased</span> events in real-time. Off-chain computation builds rankings. Backend submits signed proof. Contract mints badge SFT. Rankings are verifiable by anyone — the on-chain data is public.</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card">
+            <div class="card-label">Challenge 04 — Ghost Pets</div>
+            <div class="card-title">Deactivation without deletion</div>
+            <div class="card-body">When a user deactivates, their SFT can't disappear — it's still in someone's portfolio affecting their Assets. Implement as a status enum: <span class="mono" style="color:var(--teal)">PetStatus { Active, Ghost, Burned }</span>. Ghost = price frozen, non-transferable, but asset-counted. Deactivation requires a user-signed transaction to prevent backend abuse.</div>
+          </div>
+          <div class="card card-teal">
+            <div class="card-label">Challenge 05 — Lock Mechanic</div>
+            <div class="card-title">Self-expiring, no manual unlock</div>
+            <div class="card-body">Use <span class="mono" style="color:var(--teal)">block.timestamp</span> comparison. Auto-expire when <span class="mono" style="color:var(--teal)">block.timestamp >= lockExpiry</span>. Locks self-resolve without a manual unlock call — one less transaction, cleaner UX, no forgotten locks.</div>
+          </div>
+          <div class="card card-dark">
+            <div class="card-label">Challenge 06 — Rounding</div>
+            <div class="card-title">Document before you code</div>
+            <div class="card-body">Integer division truncates. On a sale of ₹1,001, <span class="mono" style="color:var(--teal)">profit / 2</span> rounds down — one satoshi disappears. At millions of transactions this becomes a systemic accounting error. Use basis points throughout: <span class="mono" style="color:var(--teal)">price × 11000 / 10000</span>. Define your rounding policy before writing a single function.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S12: PRECEDENTS ── -->
+<div class="slide" data-section="Strategy" data-label="Precedents">
+  <div class="slide-body">
+    <div style="position:relative;z-index:1">
+      <div class="overline">11 · Competitive Intelligence</div>
+      <div class="display">What came before.<br><em>What we learned.</em></div>
+      <div class="subtitle">Three precedents that prove the model, warn of failure modes, and define the design space Bae4U occupies.</div>
+      <div class="g3 mt20">
+        <div class="comp-card">
+          <div class="comp-label">SocialFi · 2023</div>
+          <div class="comp-name">Friend.tech</div>
+          <div class="comp-result success">$230M+ Volume · 200K users</div>
+          <div class="comp-body">People-as-tradeable-assets. Users' social influence represented as Keys (shares). Built on Base. Paradigm-backed at $50M seed. Proved the model works at launch.</div>
+          <div class="comp-lesson">Failure: Trading peaked on day of creation, dropping 80% by Day 2. No utility beyond speculation. Top 0.1% captured 47.9% of earnings. Bae4U's fix: dating utility independent of token price, plus tiered rankings so new users have winnable competitions.</div>
+        </div>
+        <div class="comp-card">
+          <div class="comp-label">Blockchain Gaming · 2021</div>
+          <div class="comp-name">Axie Infinity</div>
+          <div class="comp-result mixed">2.7M daily users → 250K after crash</div>
+          <div class="comp-body">Play-to-earn Pokémon-style game. $3B valuation at peak. Proved blockchain gaming could reach mainstream scale. Inspired entire P2E category.</div>
+          <div class="comp-lesson">Failure: SLP token crashed 99% when new player inflow slowed — classic Ponzi mechanics. No token sinks meant hyperinflation. Bae4U's fix: multiple token sinks (premium features, verified badges, SFT passes) absorb Pets Cash to control supply.</div>
+        </div>
+        <div class="comp-card">
+          <div class="comp-label">Blockchain Dating · 2022</div>
+          <div class="comp-name">Lonely Ape Dating Club</div>
+          <div class="comp-result failed">Cancelled before launch</div>
+          <div class="comp-body">NFT-gated dating app for BAYC holders. Featured wallet-based matching, crypto net worth filters, match-to-earn. Cancelled within months.</div>
+          <div class="comp-lesson">Failure: TAM of 6,400 BAYC holders — overwhelmingly male, many not single. No viral mechanic. No retention layer. Bae4U's fix: open to all users, Pets game drives retention regardless of dating success, identity verification solves the catfish/authenticity problem.</div>
+        </div>
+      </div>
+      <div class="hl-box mt20">
+        <p><strong>The synthesis:</strong> Friend.tech proved people-as-assets works. Axie proved blockchain gaming retains users. Lonely Ape proved dating-only crypto fails. Bae4U is the first platform to combine all three insights — <strong>social utility + game retention + open access</strong> — into a single architecture.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S13: CHAIN SELECTION ── -->
+<div class="slide" data-section="Strategy" data-label="Chain Selection">
+  <div class="slide-body">
+    <div style="position:relative;z-index:1">
+      <div class="overline">12 · Infrastructure Decision</div>
+      <div class="display">The chain choice<br><em>sets your ceiling.</em></div>
+      <div class="subtitle">General-purpose blockchains cannot scale storage-heavy social applications. Every click costing $1+ in storage fees kills any consumer product. Chain selection is a product decision, not just a technical one.</div>
+      <div class="g2 mt20 mb20">
+        <div class="card">
+          <div class="section-label mb16">Chain Comparison — Consumer Social Fit</div>
+          <div class="chain-row">
+            <div class="chain-name">Base</div>
+            <div class="chain-bar-wrap"><div class="chain-bar" style="width:94%;background:linear-gradient(to right,var(--pink),var(--pink-soft))"></div></div>
+            <div class="chain-score">94</div>
+            <div class="chain-tag"><span class="comp-result success" style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 8px;border-radius:2px;background:rgba(0,229,100,0.1);color:#00E564;border:1px solid rgba(0,229,100,0.2)">Top Pick</span></div>
+          </div>
+          <div class="chain-row">
+            <div class="chain-name">Hedera</div>
+            <div class="chain-bar-wrap"><div class="chain-bar" style="width:88%;background:linear-gradient(to right,var(--rose-gold),var(--rose-gold-light))"></div></div>
+            <div class="chain-score">88</div>
+            <div class="chain-tag"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 8px;border-radius:2px;background:rgba(201,140,100,0.12);color:var(--rose-gold);border:1px solid var(--border-warm)">Compliance</span></div>
+          </div>
+          <div class="chain-row">
+            <div class="chain-name">Polygon</div>
+            <div class="chain-bar-wrap"><div class="chain-bar" style="width:82%;background:var(--teal)"></div></div>
+            <div class="chain-score">82</div>
+            <div class="chain-tag"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 8px;border-radius:2px;background:rgba(0,229,204,0.08);color:var(--teal);border:1px solid rgba(0,229,204,0.2)">Mature</span></div>
+          </div>
+          <div class="chain-row">
+            <div class="chain-name">Solana</div>
+            <div class="chain-bar-wrap"><div class="chain-bar" style="width:75%;background:rgba(255,255,255,0.2)"></div></div>
+            <div class="chain-score">75</div>
+            <div class="chain-tag"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 8px;border-radius:2px;background:rgba(255,255,255,0.05);color:var(--white-50);border:1px solid var(--border)">Non-EVM</span></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card card-pink">
+            <div class="card-label">Recommendation A — Speed</div>
+            <div class="card-title">Build on Base</div>
+            <div class="card-body">Friend.tech's home chain. Existing SocialFi tooling, wallets, and user community primed for Bae4U's model. Coinbase embedded wallet SDK abstracts all crypto complexity. Near-zero gas. EVM-compatible — all existing Solidity tooling works.</div>
+          </div>
+          <div class="card card-gold">
+            <div class="card-label">Recommendation B — Compliance Moat</div>
+            <div class="card-title">Build on Hedera</div>
+            <div class="card-body">HTS (Hedera Token Service) handles SFTs natively. Fees at fractions of a cent. Your existing TokenProof work maps directly — on-chain verified identity on a compliant, enterprise-grade chain becomes a dating safety moat no competitor can replicate.</div>
+          </div>
+        </div>
+      </div>
+      <div class="hl-box">
+        <p><strong>Decision framework:</strong> If compliance moat (TokenProof + verified identity) is core go-to-market → <strong>Hedera.</strong> If speed to market and existing SocialFi ecosystem is priority → <strong>Base.</strong> Both are valid. The wrong choice is Ethereum mainnet.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S14: SUCCESS MOATS ── -->
+<div class="slide" data-section="Strategy" data-label="Success Moats">
+  <div class="slide-body">
+    <div style="position:relative;z-index:1">
+      <div class="overline">13 · Competitive Moats</div>
+      <div class="display">Five things that<br>make this <em>survive.</em></div>
+      <div class="subtitle">90% of Web3 projects fail within 18 months. The survivors share five structural properties. Here's how Bae4U maps against each one.</div>
+      <div class="mt20">
+        <div class="moat-item">
+          <div class="moat-num">1</div>
+          <div>
+            <div class="moat-title">Real utility beyond speculation</div>
+            <div class="moat-desc">The fatal mode: product only works when token price goes up. Bae4U's fix: if Pets Cash crashes, users stay because the dating app is genuinely good. If matches are slow, the Pets game is still addictive. The three layers provide <span class="pink">mutual retention insurance</span> — something no pure SocialFi app has ever achieved.</div>
+          </div>
+        </div>
+        <div class="moat-item">
+          <div class="moat-num">2</div>
+          <div>
+            <div class="moat-title">Token sinks prevent hyperinflation</div>
+            <div class="moat-desc">Pets Cash has six minting sources (inflation). It needs sinks: premium verification badges, profile boosts in discovery, advanced personality analysis, ranked tournament entry, SFT pass purchases denominated in Pets Cash. Without sinks, the currency inflates → users feel poorer → they leave. Design sinks before mainnet.</div>
+          </div>
+        </div>
+        <div class="moat-item">
+          <div class="moat-num">3</div>
+          <div>
+            <div class="moat-title">Invisible UX — blockchain as backend</div>
+            <div class="moat-desc">A dating app user should never see the words "gas fee," "smart contract," or "seed phrase." Auto-create custodial wallets on signup. Sponsor gas via paymaster. Show Pets Cash as an app balance. Make "buy this pet" feel like "add to cart." The blockchain is your infrastructure — as invisible to users as AWS is to Netflix subscribers.</div>
+          </div>
+        </div>
+        <div class="moat-item">
+          <div class="moat-num">4</div>
+          <div>
+            <div class="moat-title">Tiered competition prevents whale dominance</div>
+            <div class="moat-desc">Friend.tech's top 0.1% captured 47.9% of all earnings — a wealth concentration that kills social products. Country rankings, weekly resets, and activity-bracket tiers ensure new players always have <span class="gold">winnable competitions</span>. Remove global leaderboard dominance as a discouragement vector.</div>
+          </div>
+        </div>
+        <div class="moat-item">
+          <div class="moat-num">5</div>
+          <div>
+            <div class="moat-title">Compliance identity as a dating safety moat</div>
+            <div class="moat-desc">Dating apps have an unsolved identity crisis: catfishing, bots, predatory accounts. On-chain verified identity (TokenProof) creates a verified-profile layer no legacy dating app can replicate. A user with verified on-chain identity, 6-month tenure, 40 pets, and rising value is provably a real, engaged human. <span class="teal">That's Bae4U's Tinder-killing moat.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S15: RISK REGISTER ── -->
+<div class="slide" data-section="Strategy" data-label="Risk Register">
+  <div class="slide-body">
+    <div style="position:relative;z-index:1">
+      <div class="overline">14 · Risk Matrix</div>
+      <div class="display">Know the risks<br><em>before you ship.</em></div>
+      <div class="g-split mt20">
+        <div>
+          <div class="section-label mb12">Technical Risks</div>
+          <div class="risk-item">
+            <div class="risk-sev crit">Critical</div>
+            <div><div class="risk-title">Smart contract exploit in profit split</div><div class="risk-desc">Integer overflow, rounding errors, or re-entrancy in the 50/50 split logic. Mandatory: two independent audits, formal verification of the buy() function, bug bounty before mainnet.</div></div>
+          </div>
+          <div class="risk-item">
+            <div class="risk-sev high">High</div>
+            <div><div class="risk-title">Gas UX friction kills mainstream adoption</div><div class="risk-desc">Abstract entirely via embedded wallets and paymasters. Never surface gas to the user. Test onboarding with Web2-native users before launch.</div></div>
+          </div>
+          <div class="risk-item">
+            <div class="risk-sev med">Medium</div>
+            <div><div class="risk-title">Bot manipulation of Pets market</div><div class="risk-desc">Bots can front-run new user mints (first-owner bonus). Rate limiting on buys, anti-bot off-chain detection layer, cooldown periods on first-owner claims.</div></div>
+          </div>
+          <div class="risk-item">
+            <div class="risk-sev med">Medium</div>
+            <div><div class="risk-title">Regulatory classification of Pets Cash</div><div class="risk-desc">Does Pets Cash constitute a security in target markets? Get a legal opinion before mainnet launch. Structure it as a utility token with clear in-app purpose.</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-label mb12">Product & Market Risks</div>
+          <div class="risk-item">
+            <div class="risk-sev high">High</div>
+            <div><div class="risk-title">Token price crash kills engagement</div><div class="risk-desc">Ensure dating utility is fully independent of Pets Cash price. If the token goes to zero, users should still want to use the dating features. Design for this scenario explicitly.</div></div>
+          </div>
+          <div class="risk-item">
+            <div class="risk-sev high">High</div>
+            <div><div class="risk-title">Whale concentration dominates rankings</div><div class="risk-desc">Tiered rankings by country, activity bracket, and tenure. Cap global leaderboard impact. Weekly resets are necessary but not sufficient alone.</div></div>
+          </div>
+          <div class="risk-item">
+            <div class="risk-sev high">High</div>
+            <div><div class="risk-title">Dating safety and harassment vectors</div><div class="risk-desc">The Pets mechanic (buying people) can feel dehumanising without careful framing. Strong opt-out controls, community moderation, and the identity verification layer are the mitigation.</div></div>
+          </div>
+          <div class="risk-item">
+            <div class="risk-sev med">Medium</div>
+            <div><div class="risk-title">Value inflation locks out new players</div><div class="risk-desc">Top pets become exponentially expensive. Add value decay curves or tier-based markets so new users have accessible, affordable entry points even after the platform matures.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── S16: BUILD SEQUENCE ── -->
+<div class="slide" data-section="Build" data-label="Build Sequence">
+  <div class="slide-body">
+    <div class="last-grid">
+      <div class="last-left">
+        <div style="position:relative;z-index:1">
+          <div class="bg-glow" style="width:400px;height:400px;top:-100px;left:-100px;background:radial-gradient(circle,rgba(255,61,127,0.08),transparent)"></div>
+          <div class="overline">15 · Execution</div>
+          <div class="display" style="font-size:clamp(36px,4.5vw,60px)">Six months<br>to <em>mainnet.</em></div>
+          <div style="width:40px;height:1px;background:linear-gradient(to right,var(--rose-gold),transparent);margin:16px 0"></div>
+          <div class="subtitle" style="font-size:14px">The players who perform best are not those who spend the most. They understand the system soonest. Six rules determine 90% of outcomes.</div>
+          <div class="cta-terminal">
+            <div class="cta-cmd">$ open Bae4U<br>$ navigate_to /pets<br>$ check_who_owns_you<br>$ make_first_5_purchases<br>$ set_reminder --interval 4h<br><span class="cta-cursor"></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="last-right">
+        <div class="section-label mb16">Build Sequence</div>
+        <div class="timeline">
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-month">M 1–2</div></div>
+            <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+            <div class="tl-content">
+              <div class="tl-title">Foundation Contracts</div>
+              <div class="tl-items">
+                <div class="tl-sub">PetsCash ERC-20 + PetsRegistry SFT on testnet</div>
+                <div class="tl-sub">Core buy/sell with 10% rule — test obsessively</div>
+                <div class="tl-sub">Profit split unit tests: 100% coverage required</div>
+              </div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-month">M 3</div></div>
+            <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+            <div class="tl-content">
+              <div class="tl-title">Economy Layer</div>
+              <div class="tl-items">
+                <div class="tl-sub">EIP-712 login bonus signer service</div>
+                <div class="tl-sub">Lock mechanic + ghost status + buy-again</div>
+                <div class="tl-sub">Embedded wallet integration — invisible to user</div>
+              </div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-month">M 4</div></div>
+            <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+            <div class="tl-content">
+              <div class="tl-title">Rankings System</div>
+              <div class="tl-items">
+                <div class="tl-sub">The Graph subgraph — index all PetPurchased events</div>
+                <div class="tl-sub">Off-chain ranking computation engine</div>
+                <div class="tl-sub">Badge SFT minting with signed proofs</div>
+              </div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-month">M 5</div></div>
+            <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+            <div class="tl-content">
+              <div class="tl-title">Creator Economy</div>
+              <div class="tl-items">
+                <div class="tl-sub">SFT pass creation + minting flow</div>
+                <div class="tl-sub">Token-gated content access layer</div>
+                <div class="tl-sub">Creator dashboard — analytics and revenue</div>
+              </div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-left"><div class="tl-month">M 6</div></div>
+            <div class="tl-center"><div class="tl-dot"></div><div class="tl-line"></div></div>
+            <div class="tl-content">
+              <div class="tl-title">Compliance Moat</div>
+              <div class="tl-items">
+                <div class="tl-sub">TokenProof identity verification integration</div>
+                <div class="tl-sub">Verified profile filter in dating layer</div>
+                <div class="tl-sub">Security audit + bug bounty → mainnet</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<script>
+const slides = Array.from(document.querySelectorAll('.slide'));
+const N = slides.length;
+let cur = 0;
+
+// Sections for tabs
+const sections = [...new Set(slides.map(s => s.dataset.section))];
+const sectionTabs = document.getElementById('sectionTabs');
+sections.forEach((sec, i) => {
+  const btn = document.createElement('button');
+  btn.className = 's-tab';
+  btn.textContent = sec;
+  btn.onclick = () => {
+    const idx = slides.findIndex(s => s.dataset.section === sec);
+    if(idx >= 0) goTo(idx);
+  };
+  sectionTabs.appendChild(btn);
+});
+
+// Dots
+const dotsEl = document.getElementById('dots');
+for(let i = 0; i < N; i++){
+  const d = document.createElement('button');
+  d.className = 'ch-dot';
+  d.onclick = () => goTo(i);
+  dotsEl.appendChild(d);
+}
+
+function goTo(n){
+  if(n < 0 || n >= N) return;
+  slides[cur].classList.remove('active');
+  slides[cur].classList.add('exit');
+  const prev = cur;
+  cur = n;
+  setTimeout(() => slides[prev].classList.remove('exit'), 700);
+  slides[cur].classList.add('active');
+  // scroll to top
+  slides[cur].querySelector('.slide-body')?.scrollTo({top:0,behavior:'smooth'});
+  updateUI();
+}
+
+function go(dir){ goTo(cur + dir); }
+
+function updateUI(){
+  // dots
+  const dots = dotsEl.querySelectorAll('.ch-dot');
+  dots.forEach((d,i) => d.classList.toggle('active', i === cur));
+  // counter
+  document.getElementById('counter').textContent = String(cur+1).padStart(2,'0') + ' / ' + String(N).padStart(2,'0');
+  // section label
+  document.getElementById('sectionLabel').textContent = slides[cur].dataset.section || '';
+  // progress
+  document.getElementById('progressFill').style.width = ((cur+1)/N*100) + '%';
+  // nav buttons
+  document.getElementById('prevBtn').disabled = cur === 0;
+  document.getElementById('nextBtn').disabled = cur === N-1;
+  // tabs
+  const tabs = sectionTabs.querySelectorAll('.s-tab');
+  const curSection = slides[cur].dataset.section;
+  tabs.forEach(t => t.classList.toggle('active', t.textContent === curSection));
+}
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if(e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1);
+  if(e.key === 'ArrowLeft' || e.key === 'ArrowUp') go(-1);
+});
+
+// Touch
+let tx = 0;
+document.addEventListener('touchstart', e => tx = e.touches[0].clientX, {passive:true});
+document.addEventListener('touchend', e => {
+  const d = tx - e.changedTouches[0].clientX;
+  if(Math.abs(d) > 50) go(d > 0 ? 1 : -1);
+}, {passive:true});
+
+updateUI();
+</script>
+</body>
+</html>

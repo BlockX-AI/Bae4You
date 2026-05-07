@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bae4U — Product Plan v1.0</title>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:ital,wght@0,300;0,400;0,500;0,700;0,900;1,300;1,500&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#030507;
+  --deep:#070d12;
+  --panel:#0c1318;
+  --surface:#111a20;
+  --lift:#162028;
+  --border:rgba(255,255,255,0.06);
+  --border2:rgba(255,255,255,0.1);
+  --green:#00E87A;
+  --green-dim:rgba(0,232,122,0.12);
+  --green-glow:rgba(0,232,122,0.2);
+  --gold:#E8B84B;
+  --gold-dim:rgba(232,184,75,0.1);
+  --pink:#FF4D8A;
+  --pink-dim:rgba(255,77,138,0.1);
+  --blue:#3B9EFF;
+  --blue-dim:rgba(59,158,255,0.1);
+  --teal:#00D4C8;
+  --teal-dim:rgba(0,212,200,0.1);
+  --red:#FF4D4D;
+  --red-dim:rgba(255,77,77,0.1);
+  --text:#D4E0E8;
+  --text-muted:rgba(212,224,232,0.45);
+  --text-dim:rgba(212,224,232,0.25);
+  --white:#fff;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;font-size:15px}
+body{font-family:'Epilogue',sans-serif;background:var(--void);color:var(--text);line-height:1.6;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(0,232,122,0.04),transparent),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(59,158,255,0.03),transparent);pointer-events:none;z-index:0}
+
+/* LAYOUT */
+.doc-wrap{max-width:1100px;margin:0 auto;padding:0 32px 120px;position:relative;z-index:1}
+
+/* NAV */
+.sticky-nav{position:sticky;top:0;z-index:100;background:rgba(3,5,7,0.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0;margin:0 -32px 0;width:calc(100% + 64px)}
+.nav-inner{display:flex;align-items:center;gap:0;padding:0 32px;overflow-x:auto;scrollbar-width:none}
+.nav-inner::-webkit-scrollbar{display:none}
+.nav-link{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);text-decoration:none;padding:14px 18px;white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s}
+.nav-link:hover{color:var(--green)}
+.nav-link.active{color:var(--green);border-bottom-color:var(--green)}
+
+/* COVER */
+.cover{padding:80px 0 60px;border-bottom:1px solid var(--border)}
+.cover-badge{display:inline-flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--green);border:1px solid rgba(0,232,122,0.25);border-radius:2px;padding:6px 14px;margin-bottom:28px}
+.cover-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 var(--green-glow)}50%{box-shadow:0 0 0 6px transparent}}
+.cover-title{font-size:clamp(52px,6vw,80px);font-weight:900;line-height:1.0;letter-spacing:-2px;margin-bottom:16px;color:var(--white)}
+.cover-title em{font-style:italic;font-weight:300;color:var(--green)}
+.cover-sub{font-size:18px;font-weight:300;color:var(--text-muted);max-width:640px;line-height:1.75;margin-bottom:40px}
+.cover-meta{display:flex;gap:32px;flex-wrap:wrap}
+.meta-item{display:flex;flex-direction:column;gap:4px}
+.meta-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim)}
+.meta-value{font-size:14px;font-weight:500;color:var(--text)}
+
+/* SECTIONS */
+.section{padding:56px 0;border-bottom:1px solid var(--border)}
+.section:last-child{border-bottom:none}
+.sec-header{display:flex;align-items:baseline;gap:16px;margin-bottom:36px}
+.sec-tag{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--green);flex-shrink:0}
+.sec-title{font-size:clamp(24px,3vw,36px);font-weight:700;color:var(--white);letter-spacing:-0.5px;line-height:1.1}
+.sec-rule{flex:1;height:1px;background:linear-gradient(to right,var(--border2),transparent)}
+
+/* CARDS */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:24px 28px;position:relative;overflow:hidden;transition:border-color .25s,transform .25s}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,var(--green),transparent);opacity:0;transition:opacity .3s}
+.card:hover{border-color:rgba(0,232,122,0.2);transform:translateY(-2px)}
+.card:hover::before{opacity:1}
+.card-g{background:linear-gradient(135deg,var(--green-dim),transparent);border-color:rgba(0,232,122,0.15)}
+.card-b{background:linear-gradient(135deg,var(--blue-dim),transparent);border-color:rgba(59,158,255,0.15)}
+.card-gold{background:linear-gradient(135deg,var(--gold-dim),transparent);border-color:rgba(232,184,75,0.2)}
+.card-pink{background:linear-gradient(135deg,var(--pink-dim),transparent);border-color:rgba(255,77,138,0.15)}
+.card-teal{background:linear-gradient(135deg,var(--teal-dim),transparent);border-color:rgba(0,212,200,0.15)}
+.card-dark{background:var(--deep);border-color:var(--border)}
+
+.card-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--green);margin-bottom:10px;opacity:.8}
+.card-title{font-size:18px;font-weight:700;color:var(--white);margin-bottom:8px;line-height:1.2}
+.card-body{font-size:13px;color:var(--text-muted);line-height:1.75}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.gw{display:grid;grid-template-columns:1.6fr 1fr;gap:24px;align-items:start}
+.gws{display:grid;grid-template-columns:1fr 1.6fr;gap:24px;align-items:start}
+
+/* STACK LAYERS */
+.stack-layer{display:flex;align-items:stretch;margin-bottom:8px;border-radius:4px;overflow:hidden;border:1px solid var(--border)}
+.layer-label{width:120px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:700;padding:16px 8px;text-align:center}
+.layer-label.frontend{background:var(--pink-dim);color:var(--pink)}
+.layer-label.backend{background:var(--blue-dim);color:var(--blue)}
+.layer-label.chain{background:var(--green-dim);color:var(--green)}
+.layer-label.db{background:var(--gold-dim);color:var(--gold)}
+.layer-label.infra{background:var(--teal-dim);color:var(--teal)}
+.layer-content{flex:1;padding:14px 20px;background:var(--panel)}
+.layer-title{font-weight:700;font-size:13px;color:var(--white);margin-bottom:6px}
+.layer-items{display:flex;flex-wrap:wrap;gap:6px}
+.tech-pill{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 10px;border-radius:2px;background:var(--surface);border:1px solid var(--border2);color:var(--text-muted)}
+
+/* FLOW DIAGRAM */
+.flow-diagram{background:var(--deep);border:1px solid var(--border);border-radius:4px;padding:24px;overflow-x:auto}
+.flow-row{display:flex;align-items:center;gap:0;margin-bottom:10px;flex-wrap:nowrap}
+.flow-row:last-child{margin-bottom:0}
+.flow-node{min-width:130px;padding:10px 14px;border-radius:3px;text-align:center;flex-shrink:0}
+.flow-node .fn-label{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;opacity:.7}
+.flow-node .fn-title{font-size:12px;font-weight:700;line-height:1.2}
+.flow-node .fn-sub{font-size:10px;opacity:.7;margin-top:3px;line-height:1.3}
+.fn-user{background:var(--pink-dim);border:1px solid rgba(255,77,138,0.25);color:var(--pink)}
+.fn-chain{background:var(--green-dim);border:1px solid rgba(0,232,122,0.25);color:var(--green)}
+.fn-backend{background:var(--blue-dim);border:1px solid rgba(59,158,255,0.2);color:var(--blue)}
+.fn-db{background:var(--gold-dim);border:1px solid rgba(232,184,75,0.2);color:var(--gold)}
+.fn-neutral{background:var(--surface);border:1px solid var(--border2);color:var(--text-muted)}
+.fn-partner{background:var(--teal-dim);border:1px solid rgba(0,212,200,0.2);color:var(--teal)}
+.fn-admin{background:rgba(255,77,77,0.1);border:1px solid rgba(255,77,77,0.2);color:var(--red)}
+.flow-arrow{display:flex;align-items:center;padding:0 6px;color:var(--text-dim);font-size:14px;flex-shrink:0}
+.flow-arrow.down{transform:rotate(90deg)}
+.flow-label{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--text-dim);text-align:center;padding:0 4px;flex-shrink:0;min-width:50px}
+
+/* DB SCHEMA */
+.schema-table{background:var(--panel);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:16px}
+.schema-header{padding:12px 18px;background:var(--surface);display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+.schema-table-name{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--green)}
+.schema-tag{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 8px;border-radius:2px;border:1px solid}
+.schema-tag.onchain{color:var(--green);border-color:rgba(0,232,122,0.3);background:var(--green-dim)}
+.schema-tag.offchain{color:var(--gold);border-color:rgba(232,184,75,0.3);background:var(--gold-dim)}
+.schema-tag.hybrid{color:var(--teal);border-color:rgba(0,212,200,0.3);background:var(--teal-dim)}
+.schema-body{padding:0}
+.schema-row{display:grid;grid-template-columns:160px 100px 1fr 80px;gap:0;border-bottom:1px solid var(--border);font-size:12px}
+.schema-row:last-child{border-bottom:none}
+.schema-row:hover{background:var(--surface)}
+.schema-cell{padding:8px 14px;display:flex;align-items:center}
+.schema-cell.field{font-family:'JetBrains Mono',monospace;color:var(--white);font-weight:500}
+.schema-cell.type{font-family:'JetBrains Mono',monospace;color:var(--blue);font-size:11px}
+.schema-cell.desc{color:var(--text-muted)}
+.schema-cell.key{justify-content:center}
+.key-badge{font-family:'JetBrains Mono',monospace;font-size:8px;padding:2px 6px;border-radius:2px}
+.key-pk{background:rgba(232,184,75,0.15);color:var(--gold);border:1px solid rgba(232,184,75,0.2)}
+.key-fk{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(59,158,255,0.2)}
+.key-idx{background:var(--surface);color:var(--text-dim);border:1px solid var(--border)}
+.schema-section-header{padding:8px 14px;background:var(--deep);display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--border)}
+.schema-section-header span{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)}
+
+/* CONTRACT CARDS */
+.contract-card{background:var(--panel);border:1px solid rgba(0,232,122,0.15);border-radius:4px;overflow:hidden}
+.contract-header{padding:14px 20px;background:var(--green-dim);border-bottom:1px solid rgba(0,232,122,0.15);display:flex;justify-content:space-between;align-items:center}
+.contract-name{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--green)}
+.contract-std{font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(0,232,122,0.6);letter-spacing:1px}
+.contract-body{padding:16px 20px}
+.fn-list{display:flex;flex-direction:column;gap:6px}
+.fn-item{display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)}
+.fn-item:last-child{border-bottom:none}
+.fn-name{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--teal);min-width:140px;flex-shrink:0;padding-top:2px}
+.fn-desc{font-size:12px;color:var(--text-muted);line-height:1.55}
+
+/* 7-DAY SPRINT */
+.day-card{background:var(--panel);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:12px}
+.day-header{padding:14px 20px;display:flex;align-items:center;gap:16px;cursor:pointer;border-bottom:1px solid var(--border)}
+.day-num{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);font-weight:700;min-width:40px}
+.day-title{font-weight:700;font-size:14px;color:var(--white);flex:1}
+.day-tag{font-family:'JetBrains Mono',monospace;font-size:9px;padding:3px 10px;border-radius:2px;border:1px solid}
+.day-body{padding:16px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.team-col{display:flex;flex-direction:column;gap:8px}
+.team-head{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:4px 10px;border-radius:2px;margin-bottom:4px}
+.team-head.fe{background:var(--pink-dim);color:var(--pink)}
+.team-head.be{background:var(--blue-dim);color:var(--blue)}
+.team-head.bc{background:var(--green-dim);color:var(--green)}
+.task-item{font-size:12px;color:var(--text-muted);padding:6px 10px;background:var(--surface);border-radius:2px;border-left:2px solid var(--border2);line-height:1.5}
+.task-item.done::before{content:'✓ ';color:var(--green)}
+.task-item.critical{border-left-color:var(--red)}
+.task-item.ship{border-left-color:var(--gold)}
+
+/* FIAT SECTION */
+.ramp-card{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:20px 24px;display:flex;gap:16px;align-items:flex-start;transition:border-color .2s}
+.ramp-card:hover{border-color:var(--border2)}
+.ramp-icon{width:40px;height:40px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.ramp-name{font-weight:700;font-size:14px;color:var(--white);margin-bottom:4px}
+.ramp-desc{font-size:12px;color:var(--text-muted);line-height:1.6}
+.ramp-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.ramp-tag{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 8px;border-radius:2px;background:var(--surface);border:1px solid var(--border2);color:var(--text-dim)}
+
+/* PROTOCOL SECTION */
+.protocol-box{background:var(--deep);border:1px solid rgba(0,232,122,0.2);border-radius:4px;padding:24px 28px}
+.protocol-title{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--green);margin-bottom:12px}
+.protocol-desc{font-size:14px;color:var(--text-muted);line-height:1.75}
+.protocol-desc strong{color:var(--white)}
+
+/* ARCH DIAGRAM */
+.arch-block{border-radius:3px;padding:10px 14px;text-align:center}
+.arch-title{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+.arch-sub{font-size:10px;opacity:.65;line-height:1.3}
+.arch-arrow{display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:18px;padding:2px 0}
+
+/* HIGHLIGHTS */
+.hl{color:var(--green)}
+.hl-gold{color:var(--gold)}
+.hl-blue{color:var(--blue)}
+.hl-pink{color:var(--pink)}
+.mono{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--teal)}
+.muted{color:var(--text-muted)}
+.bold{font-weight:700;color:var(--white)}
+
+/* MISC */
+.divider{height:1px;background:var(--border);margin:24px 0}
+.mt{margin-top:20px}.mt2{margin-top:32px}
+.mb{margin-bottom:12px}
+.pill{display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;padding:3px 10px;border-radius:2px;border:1px solid}
+.pill-g{color:var(--green);border-color:rgba(0,232,122,0.3);background:var(--green-dim)}
+.pill-b{color:var(--blue);border-color:rgba(59,158,255,0.2);background:var(--blue-dim)}
+.pill-gold{color:var(--gold);border-color:rgba(232,184,75,0.2);background:var(--gold-dim)}
+.pill-pink{color:var(--pink);border-color:rgba(255,77,138,0.2);background:var(--pink-dim)}
+.pill-teal{color:var(--teal);border-color:rgba(0,212,200,0.2);background:var(--teal-dim)}
+.pill-red{color:var(--red);border-color:rgba(255,77,77,0.2);background:var(--red-dim)}
+
+.two-col-note{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.note-box{background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:14px 18px}
+.note-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px}
+.note-body{font-size:13px;color:var(--text-muted);line-height:1.65}
+
+/* CHAIN ARCH TABLE */
+.ca-table{width:100%;border-collapse:collapse}
+.ca-table th{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);background:var(--deep)}
+.ca-table td{font-size:12px;color:var(--text-muted);padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.6}
+.ca-table td:first-child{font-family:'JetBrains Mono',monospace;color:var(--white);font-size:11px}
+.ca-table tr:last-child td{border-bottom:none}
+.ca-table tr:hover td{background:var(--surface)}
+
+/* METRIC CARDS */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px}
+.metric-card{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:16px 18px}
+.metric-num{font-size:28px;font-weight:900;color:var(--white);letter-spacing:-1px;line-height:1}
+.metric-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-top:6px}
+
+/* RESPONSIVE */
+@media(max-width:800px){
+  .g2,.g3,.g4,.gw,.gws{grid-template-columns:1fr}
+  .metrics{grid-template-columns:1fr 1fr}
+  .doc-wrap{padding:0 16px 80px}
+  .schema-row{grid-template-columns:120px 80px 1fr}
+  .day-body{grid-template-columns:1fr}
+  .sticky-nav{margin:0 -16px;width:calc(100% + 32px)}
+}
+
+/* PRINT */
+@media print{
+  body{background:white;color:black}
+  .sticky-nav{display:none}
+}
+</style>
+</head>
+<body>
+<div class="doc-wrap">
+
+<!-- ── NAV ── -->
+<nav class="sticky-nav">
+  <div class="nav-inner">
+    <a href="#overview" class="nav-link active">Overview</a>
+    <a href="#vision" class="nav-link">Vision</a>
+    <a href="#stack" class="nav-link">Tech Stack</a>
+    <a href="#architecture" class="nav-link">Architecture</a>
+    <a href="#flows" class="nav-link">User Flows</a>
+    <a href="#schema" class="nav-link">DB Schema</a>
+    <a href="#contracts" class="nav-link">Contracts</a>
+    <a href="#fiat" class="nav-link">Crypto ↔ Fiat</a>
+    <a href="#protocol" class="nav-link">Protocol Layer</a>
+    <a href="#sprint" class="nav-link">7-Day Sprint</a>
+    <a href="#risks" class="nav-link">Risks</a>
+  </div>
+</nav>
+
+<!-- ── COVER ── -->
+<div class="cover" id="overview">
+  <div class="cover-badge">Product Plan v1.0 · Confidential</div>
+  <div class="cover-title">Bae4U<br><em>Protocol.</em></div>
+  <div class="cover-sub">A Web3-native social dating protocol built on Ethereum. Merging personality-driven matching, a live social trading economy, and creator monetization into the first SocialFi platform with real-world retention beyond speculation.</div>
+  <div class="cover-meta">
+    <div class="meta-item"><div class="meta-label">Chain</div><div class="meta-value">Ethereum (Base L2)</div></div>
+    <div class="meta-item"><div class="meta-label">Token Standard</div><div class="meta-value">ERC-20 + ERC-1155</div></div>
+    <div class="meta-item"><div class="meta-label">Target Launch</div><div class="meta-value">7-day MVP sprint</div></div>
+    <div class="meta-item"><div class="meta-label">Document Version</div><div class="meta-value">1.0 — Founder Draft</div></div>
+    <div class="meta-item"><div class="meta-label">Distribution</div><div class="meta-value">Product Development Dept.</div></div>
+  </div>
+</div>
+
+<!-- ── VISION ── -->
+<div class="section" id="vision">
+  <div class="sec-header">
+    <div class="sec-tag">§01</div>
+    <div class="sec-title">Product Vision</div>
+    <div class="sec-rule"></div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric-card"><div class="metric-num">3</div><div class="metric-label">Product layers fused</div></div>
+    <div class="metric-card"><div class="metric-num">4</div><div class="metric-label">Smart contracts</div></div>
+    <div class="metric-card"><div class="metric-num">7</div><div class="metric-label">Days to MVP</div></div>
+    <div class="metric-card"><div class="metric-num">ETH</div><div class="metric-label">Default chain</div></div>
+  </div>
+
+  <div class="g3 mb">
+    <div class="card card-pink">
+      <div class="card-label">Layer 01 · Acquisition</div>
+      <div class="card-title">Social Dating</div>
+      <div class="card-body">Personality-driven matching across 18 dimensions. Verified profiles via on-chain identity. Language-agnostic global connections. The reason people download.</div>
+    </div>
+    <div class="card card-g">
+      <div class="card-label">Layer 02 · Retention</div>
+      <div class="card-title">Pets Economy</div>
+      <div class="card-body">Every user is a tradeable SFT. Buy, sell, collect up to 400 profiles. 10% price compounding on every transaction. 50/50 profit split. The reason people stay.</div>
+    </div>
+    <div class="card card-gold">
+      <div class="card-label">Layer 03 · Monetisation</div>
+      <div class="card-title">Creator Protocol</div>
+      <div class="card-body">Creators mint SFT passes on ERC-1155. Holders get gated content access. On-chain royalties. Direct Web3 monetization. The ceiling for platform revenue.</div>
+    </div>
+  </div>
+
+  <div class="protocol-box">
+    <div class="protocol-title">The Core Thesis</div>
+    <div class="protocol-desc">Bae4U is not a dating app with crypto features. It is a <strong>social finance protocol</strong> — an on-chain economy where human attention, desirability, and personality are the underlying assets. The dating layer is the distribution moat. The Pets protocol is the retention engine. The creator layer is the monetisation stack. Remove any one layer and it becomes just another app. Together, they create the first consumer blockchain product where users stay because the product is genuinely good — not because the token is going up.</div>
+  </div>
+</div>
+
+<!-- ── TECH STACK ── -->
+<div class="section" id="stack">
+  <div class="sec-header">
+    <div class="sec-tag">§02</div>
+    <div class="sec-title">Technology Stack</div>
+    <div class="sec-rule"></div>
+  </div>
+
+  <div class="stack-layer">
+    <div class="layer-label frontend">Frontend</div>
+    <div class="layer-content">
+      <div class="layer-title">User Interface — Mobile + Web</div>
+      <div class="layer-items">
+        <span class="tech-pill">React Native (Expo)</span>
+        <span class="tech-pill">Next.js 14 (Web)</span>
+        <span class="tech-pill">TailwindCSS</span>
+        <span class="tech-pill">Wagmi v2</span>
+        <span class="tech-pill">viem</span>
+        <span class="tech-pill">Coinbase Embedded Wallet SDK</span>
+        <span class="tech-pill">Reanimated 3</span>
+        <span class="tech-pill">React Query</span>
+        <span class="tech-pill">Zustand</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stack-layer">
+    <div class="layer-label backend">Backend</div>
+    <div class="layer-content">
+      <div class="layer-title">API + Business Logic + Off-Chain Services</div>
+      <div class="layer-items">
+        <span class="tech-pill">Node.js + Fastify</span>
+        <span class="tech-pill">GraphQL (Apollo)</span>
+        <span class="tech-pill">REST endpoints</span>
+        <span class="tech-pill">Bull MQ (queues)</span>
+        <span class="tech-pill">Socket.io (realtime)</span>
+        <span class="tech-pill">EIP-712 Signer Service</span>
+        <span class="tech-pill">Cloudflare Workers</span>
+        <span class="tech-pill">JWT + SIWE auth</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stack-layer">
+    <div class="layer-label chain">Blockchain</div>
+    <div class="layer-content">
+      <div class="layer-title">Ethereum → Base L2 (default chain)</div>
+      <div class="layer-items">
+        <span class="tech-pill">Solidity 0.8.x</span>
+        <span class="tech-pill">Hardhat + Foundry</span>
+        <span class="tech-pill">OpenZeppelin</span>
+        <span class="tech-pill">The Graph Protocol</span>
+        <span class="tech-pill">Chainlink Automation</span>
+        <span class="tech-pill">Alchemy (RPC)</span>
+        <span class="tech-pill">IPFS + Pinata</span>
+        <span class="tech-pill">Base L2 (Coinbase)</span>
+        <span class="tech-pill">Paymaster (gas sponsorship)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stack-layer">
+    <div class="layer-label db">Database</div>
+    <div class="layer-content">
+      <div class="layer-title">Off-Chain Data — Social, Content, Sessions</div>
+      <div class="layer-items">
+        <span class="tech-pill">PostgreSQL (primary)</span>
+        <span class="tech-pill">Redis (cache + sessions)</span>
+        <span class="tech-pill">Supabase (realtime + storage)</span>
+        <span class="tech-pill">Pinecone (vector — matching)</span>
+        <span class="tech-pill">S3-compatible (media)</span>
+        <span class="tech-pill">ElasticSearch (profile search)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stack-layer">
+    <div class="layer-label infra">Infra</div>
+    <div class="layer-content">
+      <div class="layer-title">Infrastructure + DevOps + Monitoring</div>
+      <div class="layer-items">
+        <span class="tech-pill">AWS ECS (Fargate)</span>
+        <span class="tech-pill">Docker + Compose</span>
+        <span class="tech-pill">GitHub Actions CI/CD</span>
+        <span class="tech-pill">Datadog APM</span>
+        <span class="tech-pill">Sentry (errors)</span>
+        <span class="tech-pill">Mixpanel (analytics)</span>
+        <span class="tech-pill">Tenderly (contract monitoring)</span>
+        <span class="tech-pill">Transak / MoonPay (fiat)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ARCHITECTURE ── -->
+<div class="section" id="architecture">
+  <div class="sec-header">
+    <div class="sec-tag">§03</div>
+    <div class="sec-title">System Architecture</div>
+    <div class="sec-rule"></div>
+  </div>
+
+  <div class="gw">
+    <div>
+      <p class="card-body mb" style="margin-bottom:20px">Three architectural layers, clearly bounded. The rule: <strong class="hl">economic truth on-chain, everything else off-chain, UX invisible to users</strong>. The Graph sits as the read bridge between layers.</p>
+
+      <div class="card mb" style="margin-bottom:12px">
+        <div class="card-label">Layer A — Client</div>
+        <div class="card-title">React Native App + Next.js Web</div>
+        <div class="card-body">Embedded wallet auto-created on signup. All blockchain interactions abstracted — user sees "Buy Pet" not "Sign Transaction". Gas sponsored via Paymaster. SIWE (Sign-In with Ethereum) replaces passwords silently.</div>
+      </div>
+
+      <div class="card card-b mb" style="margin-bottom:12px">
+        <div class="card-label">Layer B — Off-Chain Backend</div>
+        <div class="card-title">Fastify API + Socket.io + EIP-712 Signer</div>
+        <div class="card-body">Handles all social features (chat, matching, profiles), EIP-712 signed bonus claims, notification dispatch, ranking computation via The Graph data, and fiat on-ramp orchestration.</div>
+      </div>
+
+      <div class="card card-g">
+        <div class="card-label">Layer C — On-Chain Protocol</div>
+        <div class="card-title">4 Contracts on Base L2</div>
+        <div class="card-body">PetsRegistry (SFT mint), PetsMarket (buy/sell/10% rule), PetsCash (ERC-20), PetsRanking (badge SFTs). All economic state lives here. Immutable. Auditable. Trustless.</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="flow-diagram">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:16px">System data flow</div>
+
+        <div style="display:flex;flex-direction:column;gap:0;align-items:center">
+          <div class="arch-block" style="background:var(--pink-dim);border:1px solid rgba(255,77,138,0.2);width:100%;max-width:340px">
+            <div class="arch-title" style="color:var(--pink)">Mobile App / Web</div>
+            <div class="arch-sub" style="color:rgba(255,77,138,0.6)">React Native · Next.js · Embedded Wallet</div>
+          </div>
+          <div class="arch-arrow">↓</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:340px">
+            <div class="arch-block" style="background:var(--blue-dim);border:1px solid rgba(59,158,255,0.2)">
+              <div class="arch-title" style="color:var(--blue);font-size:9px">Fastify API</div>
+              <div class="arch-sub" style="color:rgba(59,158,255,0.6);font-size:9px">Social + Auth + Chat</div>
+            </div>
+            <div class="arch-block" style="background:var(--green-dim);border:1px solid rgba(0,232,122,0.2)">
+              <div class="arch-title" style="color:var(--green);font-size:9px">Base L2 RPC</div>
+              <div class="arch-sub" style="color:rgba(0,232,122,0.6);font-size:9px">On-chain txns</div>
+            </div>
+          </div>
+          <div class="arch-arrow">↓</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:340px">
+            <div class="arch-block" style="background:var(--gold-dim);border:1px solid rgba(232,184,75,0.2)">
+              <div class="arch-title" style="color:var(--gold);font-size:9px">PostgreSQL</div>
+              <div class="arch-sub" style="color:rgba(232,184,75,0.6);font-size:9px">Profiles, chats, sessions</div>
+            </div>
+            <div class="arch-block" style="background:var(--green-dim);border:1px solid rgba(0,232,122,0.2)">
+              <div class="arch-title" style="color:var(--green);font-size:9px">4 Contracts</div>
+              <div class="arch-sub" style="color:rgba(0,232,122,0.6);font-size:9px">Economic truth layer</div>
+            </div>
+          </div>
+          <div class="arch-arrow">↓</div>
+          <div class="arch-block" style="background:var(--teal-dim);border:1px solid rgba(0,212,200,0.2);width:100%;max-width:340px">
+            <div class="arch-title" style="color:var(--teal)">The Graph Subgraph</div>
+            <div class="arch-sub" style="color:rgba(0,212,200,0.6)">Indexes PetPurchased events → Rankings computation → Badge triggers</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt2">
+    <table class="ca-table w-full" style="width:100%;background:var(--panel);border:1px solid var(--border);border-radius:4px;overflow:hidden">
+      <thead><tr><th>Concern</th><th>Where it lives</th><th>Why</th><th>Technology</th></tr></thead>
+      <tbody>
+        <tr><td>User profile SFT ownership</td><td><span class="pill pill-g">On-chain</span></td><td>Must be verifiable, trustless, transferable</td><td>ERC-1155 · PetsRegistry.sol</td></tr>
+        <tr><td>10% price increase invariant</td><td><span class="pill pill-g">On-chain</span></td><td>Core economic rule — can't live in a DB it can be changed</td><td>PetsMarket.sol · buy()</td></tr>
+        <tr><td>Pets Cash balances</td><td><span class="pill pill-g">On-chain</span></td><td>Rankings require publicly verifiable balances</td><td>ERC-20 · PetsCash.sol</td></tr>
+        <tr><td>Badge SFTs (Bronze→Master)</td><td><span class="pill pill-g">On-chain</span></td><td>Credentials must be owned, not just displayed</td><td>ERC-1155 · PetsRanking.sol</td></tr>
+        <tr><td>Login bonus (4-hour)</td><td><span class="pill pill-teal">Hybrid</span></td><td>Off-chain trigger, on-chain mint via EIP-712</td><td>Signer service + PetsCash.mint()</td></tr>
+        <tr><td>Rankings computation</td><td><span class="pill pill-teal">Hybrid</span></td><td>O(n) reads impossible on-chain at scale</td><td>The Graph + backend + signed proof</td></tr>
+        <tr><td>Chat and messaging</td><td><span class="pill pill-gold">Off-chain</span></td><td>Real-time, high-frequency, zero economic consequence</td><td>Socket.io + PostgreSQL</td></tr>
+        <tr><td>Profile content, photos</td><td><span class="pill pill-gold">Off-chain</span></td><td>Storage-heavy — on-chain storage costs prohibitive</td><td>IPFS + CDN + S3</td></tr>
+        <tr><td>Wish List</td><td><span class="pill pill-gold">Off-chain</span></td><td>Pure intent, no economic consequence until buy</td><td>PostgreSQL</td></tr>
+        <tr><td>Matching algorithm</td><td><span class="pill pill-gold">Off-chain</span></td><td>18-dim vector computation, no trust requirement</td><td>Pinecone + Node.js</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── USER FLOWS ── -->
+<div class="section" id="flows">
+  <div class="sec-header">
+    <div class="sec-tag">§04</div>
+    <div class="sec-title">All User Flows</div>
+    <div class="sec-rule"></div>
+  </div>
+
+  <!-- USER FLOW -->
+  <div class="card-label mb" style="margin-bottom:16px;font-size:11px">Flow A · End User Journey</div>
+  <div class="flow-diagram mb" style="margin-bottom:20px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="flow-row">
+        <div class="flow-node fn-user"><div class="fn-label">Step 1</div><div class="fn-title">Download + Signup</div><div class="fn-sub">SIWE · email fallback</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-chain"><div class="fn-label">Auto</div><div class="fn-title">Wallet created</div><div class="fn-sub">Embedded, invisible</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-chain"><div class="fn-label">Auto</div><div class="fn-title">SFT minted</div><div class="fn-sub">PetsRegistry.sol</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-backend"><div class="fn-label">Backend</div><div class="fn-title">Profile indexed</div><div class="fn-sub">Personality vectors</div></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-node fn-user"><div class="fn-label">Step 2</div><div class="fn-title">First notification</div><div class="fn-sub">"You were bought"</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-chain"><div class="fn-label">On-chain</div><div class="fn-title">Price +10%</div><div class="fn-sub">Auto profit split</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-user"><div class="fn-label">Step 3</div><div class="fn-title">Open Pets tab</div><div class="fn-sub">See value + owner</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-chain"><div class="fn-label">Step 4</div><div class="fn-title">First buy</div><div class="fn-sub">Assets grow</div></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-node fn-user"><div class="fn-label">Step 5</div><div class="fn-title">Daily loop</div><div class="fn-sub">Every 4hrs login</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-backend"><div class="fn-label">Signer</div><div class="fn-title">EIP-712 claim</div><div class="fn-sub">Bonus mint</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-user"><div class="fn-label">Step 6</div><div class="fn-title">Rankings</div><div class="fn-sub">Target next badge</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-user"><div class="fn-label">Step 7</div><div class="fn-title">Buy Gold</div><div class="fn-sub">Fiat → ETH → Cash</div></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-node fn-user"><div class="fn-label">Dating</div><div class="fn-title">Browse + Match</div><div class="fn-sub">Personality filter</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-backend"><div class="fn-label">Backend</div><div class="fn-title">Chat opens</div><div class="fn-sub">Socket.io</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-user"><div class="fn-label">Social</div><div class="fn-title">Interest communities</div><div class="fn-sub">Post + connect</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-chain"><div class="fn-label">Creator</div><div class="fn-title">Buy SFT pass</div><div class="fn-sub">Gated content</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PARTNER / CREATOR FLOW -->
+  <div class="card-label mb" style="margin-bottom:16px;font-size:11px">Flow B · Partner / Creator Flow</div>
+  <div class="flow-diagram mb" style="margin-bottom:20px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="flow-row">
+        <div class="flow-node fn-partner"><div class="fn-label">Step 1</div><div class="fn-title">Apply as Creator</div><div class="fn-sub">KYC + verification</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-backend"><div class="fn-label">Admin</div><div class="fn-title">Review + Approve</div><div class="fn-sub">Manual gate</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-chain"><div class="fn-label">On-chain</div><div class="fn-title">Creator role granted</div><div class="fn-sub">Contract allowlist</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-partner"><div class="fn-label">Step 2</div><div class="fn-title">Creator dashboard</div><div class="fn-sub">Analytics + tools</div></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-node fn-partner"><div class="fn-label">Step 3</div><div class="fn-title">Mint SFT pass</div><div class="fn-sub">Set price + supply</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-chain"><div class="fn-label">On-chain</div><div class="fn-title">ERC-1155 issued</div><div class="fn-sub">Royalty % set</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-backend"><div class="fn-label">Backend</div><div class="fn-title">Content gated</div><div class="fn-sub">Token-gate middleware</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-partner"><div class="fn-label">Step 4</div><div class="fn-title">Upload content</div><div class="fn-sub">Photos, posts, video</div></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-node fn-chain"><div class="fn-label">Ongoing</div><div class="fn-title">Fans buy pass</div><div class="fn-sub">ETH payment</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-chain"><div class="fn-label">Auto</div><div class="fn-title">Royalty split</div><div class="fn-sub">Creator % + platform %</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-partner"><div class="fn-label">Earnings</div><div class="fn-title">Withdraw ETH</div><div class="fn-sub">Or convert to fiat</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-backend"><div class="fn-label">OffRamp</div><div class="fn-title">ETH → Bank</div><div class="fn-sub">Transak API</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN FLOW -->
+  <div class="card-label mb" style="margin-bottom:16px;font-size:11px">Flow C · Admin / Operations Flow</div>
+  <div class="flow-diagram mb" style="margin-bottom:20px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="flow-row">
+        <div class="flow-node fn-admin"><div class="fn-label">Control</div><div class="fn-title">Admin Panel</div><div class="fn-sub">Privileged access</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-admin"><div class="fn-label">Moderation</div><div class="fn-title">User reports</div><div class="fn-sub">Flag + review</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-admin"><div class="fn-label">Action</div><div class="fn-title">Suspend / ban</div><div class="fn-sub">DB + contract flag</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-chain"><div class="fn-label">On-chain</div><div class="fn-title">Ghost pet status</div><div class="fn-sub">Price frozen</div></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-node fn-admin"><div class="fn-label">Finance</div><div class="fn-title">Platform fees</div><div class="fn-sub">2.5% per trade</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-chain"><div class="fn-label">Contract</div><div class="fn-title">Treasury wallet</div><div class="fn-sub">Multisig</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-admin"><div class="fn-label">Weekly</div><div class="fn-title">Badge reset</div><div class="fn-sub">Chainlink trigger</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-admin"><div class="fn-label">Analytics</div><div class="fn-title">Dashboard</div><div class="fn-sub">Mixpanel + The Graph</div></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-node fn-admin"><div class="fn-label">Creator Mgmt</div><div class="fn-title">KYC review</div><div class="fn-sub">Approve / reject</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-backend"><div class="fn-label">Backend</div><div class="fn-title">Allowlist update</div><div class="fn-sub">Contract call</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-admin"><div class="fn-label">Compliance</div><div class="fn-title">Fiat reporting</div><div class="fn-sub">Transak webhooks</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-admin"><div class="fn-label">Emergency</div><div class="fn-title">Pause contracts</div><div class="fn-sub">Multisig 3-of-5</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DB SCHEMA ── -->
+<div class="section" id="schema">
+  <div class="sec-header">
+    <div class="sec-tag">§05</div>
+    <div class="sec-title">Database Schema</div>
+    <div class="sec-rule"></div>
+  </div>
+
+  <div class="two-col-note mb" style="margin-bottom:24px">
+    <div class="note-box"><div class="note-label">Off-chain DB</div><div class="note-body">PostgreSQL via Supabase. Stores social graph, content, sessions, matching data, fiat transaction records. Source of truth for non-economic state.</div></div>
+    <div class="note-box"><div class="note-label">On-chain state</div><div class="note-body">Ethereum (Base L2). Stores SFT ownership, prices, cash balances, badge credentials. Indexed by The Graph for fast reads. Source of truth for economic state.</div></div>
+  </div>
+
+  <!-- USERS TABLE -->
+  <div class="schema-table">
+    <div class="schema-header"><div class="schema-table-name">users</div><span class="schema-tag offchain">off-chain</span><span style="margin-left:auto;font-size:11px;color:var(--text-dim)">Core identity record</span></div>
+    <div class="schema-body">
+      <div class="schema-row" style="background:var(--deep)"><div class="schema-cell" style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:9px">FIELD</div><div class="schema-cell" style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:9px">TYPE</div><div class="schema-cell" style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:9px">DESCRIPTION</div><div class="schema-cell" style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:9px">KEY</div></div>
+      <div class="schema-row"><div class="schema-cell field">id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">Primary identifier</div><div class="schema-cell key"><span class="key-badge key-pk">PK</span></div></div>
+      <div class="schema-row"><div class="schema-cell field">wallet_address</div><div class="schema-cell type">varchar(42)</div><div class="schema-cell desc">Ethereum address — links to on-chain SFT</div><div class="schema-cell key"><span class="key-badge key-idx">IDX</span></div></div>
+      <div class="schema-row"><div class="schema-cell field">token_id</div><div class="schema-cell type">bigint</div><div class="schema-cell desc">On-chain SFT token ID from PetsRegistry</div><div class="schema-cell key"><span class="key-badge key-idx">IDX</span></div></div>
+      <div class="schema-row"><div class="schema-cell field">email</div><div class="schema-cell type">varchar(255)</div><div class="schema-cell desc">Encrypted, optional (SIWE preferred)</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">username</div><div class="schema-cell type">varchar(50)</div><div class="schema-cell desc">Unique display name</div><div class="schema-cell key"><span class="key-badge key-idx">IDX</span></div></div>
+      <div class="schema-row"><div class="schema-cell field">display_name</div><div class="schema-cell type">varchar(100)</div><div class="schema-cell desc">Public name shown on profile</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">bio</div><div class="schema-cell type">text</div><div class="schema-cell desc">User description</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">avatar_ipfs_hash</div><div class="schema-cell type">varchar(100)</div><div class="schema-cell desc">Profile photo CID on IPFS</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">gender</div><div class="schema-cell type">enum</div><div class="schema-cell desc">male / female / non-binary / prefer_not</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">birth_date</div><div class="schema-cell type">date</div><div class="schema-cell desc">For age verification</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">location_city</div><div class="schema-cell type">varchar(100)</div><div class="schema-cell desc">City-level location for country rankings</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">country_code</div><div class="schema-cell type">char(2)</div><div class="schema-cell desc">ISO country for leaderboard segmentation</div><div class="schema-cell key"><span class="key-badge key-idx">IDX</span></div></div>
+      <div class="schema-row"><div class="schema-cell field">is_verified</div><div class="schema-cell type">boolean</div><div class="schema-cell desc">Identity verification passed</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">is_creator</div><div class="schema-cell type">boolean</div><div class="schema-cell desc">Creator tier — can mint SFT passes</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">status</div><div class="schema-cell type">enum</div><div class="schema-cell desc">active / suspended / deactivated / ghost</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">last_login_at</div><div class="schema-cell type">timestamptz</div><div class="schema-cell desc">For 4-hour bonus eligibility check</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">bonus_claimed_at</div><div class="schema-cell type">timestamptz</div><div class="schema-cell desc">Last bonus claim timestamp</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">personality_vector</div><div class="schema-cell type">jsonb</div><div class="schema-cell desc">18-dimension vector for matching algorithm</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">created_at</div><div class="schema-cell type">timestamptz</div><div class="schema-cell desc">Account creation timestamp</div><div class="schema-cell key"></div></div>
+    </div>
+  </div>
+
+  <!-- PETS TABLE -->
+  <div class="schema-table">
+    <div class="schema-header"><div class="schema-table-name">pets_state</div><span class="schema-tag hybrid">hybrid mirror</span><span style="margin-left:auto;font-size:11px;color:var(--text-dim)">Read cache of on-chain state via The Graph</span></div>
+    <div class="schema-body">
+      <div class="schema-row"><div class="schema-cell field">token_id</div><div class="schema-cell type">bigint</div><div class="schema-cell desc">SFT token ID (maps to users.token_id)</div><div class="schema-cell key"><span class="key-badge key-pk">PK</span></div></div>
+      <div class="schema-row"><div class="schema-cell field">owner_address</div><div class="schema-cell type">varchar(42)</div><div class="schema-cell desc">Current owner wallet address</div><div class="schema-cell key"><span class="key-badge key-idx">IDX</span></div></div>
+      <div class="schema-row"><div class="schema-cell field">user_address</div><div class="schema-cell type">varchar(42)</div><div class="schema-cell desc">The profile's own wallet (permanent)</div><div class="schema-cell key"><span class="key-badge key-fk">FK</span></div></div>
+      <div class="schema-row"><div class="schema-cell field">current_price_wei</div><div class="schema-cell type">numeric(78)</div><div class="schema-cell desc">Current market price in wei</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">total_purchases</div><div class="schema-cell type">integer</div><div class="schema-cell desc">Total times this pet has been bought</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">is_locked</div><div class="schema-cell type">boolean</div><div class="schema-cell desc">Lock status (auto-expires)</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">lock_expiry</div><div class="schema-cell type">timestamptz</div><div class="schema-cell desc">When lock auto-expires</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">pet_status</div><div class="schema-cell type">enum</div><div class="schema-cell desc">active / ghost / burned</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">last_synced_block</div><div class="schema-cell type">bigint</div><div class="schema-cell desc">Last Ethereum block synced from</div><div class="schema-cell key"></div></div>
+    </div>
+  </div>
+
+  <!-- TRANSACTIONS -->
+  <div class="schema-table">
+    <div class="schema-header"><div class="schema-table-name">pet_transactions</div><span class="schema-tag hybrid">hybrid mirror</span><span style="margin-left:auto;font-size:11px;color:var(--text-dim)">Indexed from PetPurchased events</span></div>
+    <div class="schema-body">
+      <div class="schema-row"><div class="schema-cell field">id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">Internal ID</div><div class="schema-cell key"><span class="key-badge key-pk">PK</span></div></div>
+      <div class="schema-row"><div class="schema-cell field">tx_hash</div><div class="schema-cell type">varchar(66)</div><div class="schema-cell desc">Ethereum transaction hash</div><div class="schema-cell key"><span class="key-badge key-idx">IDX</span></div></div>
+      <div class="schema-row"><div class="schema-cell field">token_id</div><div class="schema-cell type">bigint</div><div class="schema-cell desc">Which pet was traded</div><div class="schema-cell key"><span class="key-badge key-fk">FK</span></div></div>
+      <div class="schema-row"><div class="schema-cell field">from_address</div><div class="schema-cell type">varchar(42)</div><div class="schema-cell desc">Previous owner address</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">to_address</div><div class="schema-cell type">varchar(42)</div><div class="schema-cell desc">New owner (buyer) address</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">sale_price_wei</div><div class="schema-cell type">numeric(78)</div><div class="schema-cell desc">Sale price in wei</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">new_price_wei</div><div class="schema-cell type">numeric(78)</div><div class="schema-cell desc">Price after 10% increase</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">profit_to_pet_wei</div><div class="schema-cell type">numeric(78)</div><div class="schema-cell desc">50% profit distributed to pet profile</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">profit_to_seller_wei</div><div class="schema-cell type">numeric(78)</div><div class="schema-cell desc">50% profit to previous owner</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">block_number</div><div class="schema-cell type">bigint</div><div class="schema-cell desc">Ethereum block number</div><div class="schema-cell key"></div></div>
+      <div class="schema-row"><div class="schema-cell field">created_at</div><div class="schema-cell type">timestamptz</div><div class="schema-cell desc">Block timestamp</div><div class="schema-cell key"></div></div>
+    </div>
+  </div>
+
+  <!-- OTHER TABLES — 2 col -->
+  <div class="g2">
+    <div class="schema-table">
+      <div class="schema-header"><div class="schema-table-name">matches</div><span class="schema-tag offchain">off-chain</span></div>
+      <div class="schema-body">
+        <div class="schema-row"><div class="schema-cell field">id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">Match ID</div><div class="schema-cell key"><span class="key-badge key-pk">PK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">user_a_id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">First user</div><div class="schema-cell key"><span class="key-badge key-fk">FK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">user_b_id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">Second user</div><div class="schema-cell key"><span class="key-badge key-fk">FK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">compatibility_score</div><div class="schema-cell type">float</div><div class="schema-cell desc">0–1 vector similarity</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">status</div><div class="schema-cell type">enum</div><div class="schema-cell desc">pending / matched / unmatched</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">matched_at</div><div class="schema-cell type">timestamptz</div><div class="schema-cell desc">When mutual like occurred</div><div class="schema-cell key"></div></div>
+      </div>
+    </div>
+    <div class="schema-table">
+      <div class="schema-header"><div class="schema-table-name">messages</div><span class="schema-tag offchain">off-chain</span></div>
+      <div class="schema-body">
+        <div class="schema-row"><div class="schema-cell field">id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">Message ID</div><div class="schema-cell key"><span class="key-badge key-pk">PK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">match_id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">Parent match</div><div class="schema-cell key"><span class="key-badge key-fk">FK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">sender_id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">Sender user ID</div><div class="schema-cell key"><span class="key-badge key-fk">FK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">content</div><div class="schema-cell type">text</div><div class="schema-cell desc">Encrypted message body</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">msg_type</div><div class="schema-cell type">enum</div><div class="schema-cell desc">text / image / gif / audio</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">sent_at</div><div class="schema-cell type">timestamptz</div><div class="schema-cell desc">Message timestamp</div><div class="schema-cell key"></div></div>
+      </div>
+    </div>
+    <div class="schema-table">
+      <div class="schema-header"><div class="schema-table-name">wish_list</div><span class="schema-tag offchain">off-chain</span></div>
+      <div class="schema-body">
+        <div class="schema-row"><div class="schema-cell field">id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">Record ID</div><div class="schema-cell key"><span class="key-badge key-pk">PK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">wisher_id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">User who added to wishlist</div><div class="schema-cell key"><span class="key-badge key-fk">FK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">target_token_id</div><div class="schema-cell type">bigint</div><div class="schema-cell desc">Target pet's token ID</div><div class="schema-cell key"><span class="key-badge key-fk">FK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">added_at</div><div class="schema-cell type">timestamptz</div><div class="schema-cell desc">When wishlisted</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">note</div><div class="schema-cell type">text</div><div class="schema-cell desc">Optional private note</div><div class="schema-cell key"></div></div>
+      </div>
+    </div>
+    <div class="schema-table">
+      <div class="schema-header"><div class="schema-table-name">fiat_transactions</div><span class="schema-tag offchain">off-chain</span></div>
+      <div class="schema-body">
+        <div class="schema-row"><div class="schema-cell field">id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">Transaction ID</div><div class="schema-cell key"><span class="key-badge key-pk">PK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">user_id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">User who initiated</div><div class="schema-cell key"><span class="key-badge key-fk">FK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">provider</div><div class="schema-cell type">enum</div><div class="schema-cell desc">transak / moonpay / ramp</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">type</div><div class="schema-cell type">enum</div><div class="schema-cell desc">onramp / offramp</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">fiat_amount</div><div class="schema-cell type">decimal(18,2)</div><div class="schema-cell desc">Fiat amount</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">fiat_currency</div><div class="schema-cell type">char(3)</div><div class="schema-cell desc">USD / EUR / INR / GBP</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">crypto_amount_wei</div><div class="schema-cell type">numeric(78)</div><div class="schema-cell desc">ETH amount in wei</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">status</div><div class="schema-cell type">enum</div><div class="schema-cell desc">pending / completed / failed</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">provider_ref</div><div class="schema-cell type">varchar(100)</div><div class="schema-cell desc">Provider's transaction reference</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">created_at</div><div class="schema-cell type">timestamptz</div><div class="schema-cell desc">Transaction initiated at</div><div class="schema-cell key"></div></div>
+      </div>
+    </div>
+    <div class="schema-table">
+      <div class="schema-header"><div class="schema-table-name">creator_passes</div><span class="schema-tag onchain">on-chain</span></div>
+      <div class="schema-body">
+        <div class="schema-row"><div class="schema-cell field">id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">DB record ID</div><div class="schema-cell key"><span class="key-badge key-pk">PK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">creator_id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">Creator user ID</div><div class="schema-cell key"><span class="key-badge key-fk">FK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">token_id</div><div class="schema-cell type">bigint</div><div class="schema-cell desc">ERC-1155 token ID</div><div class="schema-cell key"><span class="key-badge key-idx">IDX</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">contract_address</div><div class="schema-cell type">varchar(42)</div><div class="schema-cell desc">Deployed SFT pass contract</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">price_wei</div><div class="schema-cell type">numeric(78)</div><div class="schema-cell desc">Price per pass in ETH wei</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">max_supply</div><div class="schema-cell type">integer</div><div class="schema-cell desc">Max passes (null = unlimited)</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">royalty_bps</div><div class="schema-cell type">smallint</div><div class="schema-cell desc">Creator royalty in basis points</div><div class="schema-cell key"></div></div>
+      </div>
+    </div>
+    <div class="schema-table">
+      <div class="schema-header"><div class="schema-table-name">rankings_snapshot</div><span class="schema-tag hybrid">hybrid</span></div>
+      <div class="schema-body">
+        <div class="schema-row"><div class="schema-cell field">id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">Snapshot ID</div><div class="schema-cell key"><span class="key-badge key-pk">PK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">user_id</div><div class="schema-cell type">uuid</div><div class="schema-cell desc">Ranked user</div><div class="schema-cell key"><span class="key-badge key-fk">FK</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">period_type</div><div class="schema-cell type">enum</div><div class="schema-cell desc">daily / weekly / monthly</div><div class="schema-cell key"><span class="key-badge key-idx">IDX</span></div></div>
+        <div class="schema-row"><div class="schema-cell field">assets_rank</div><div class="schema-cell type">integer</div><div class="schema-cell desc">Rank by total assets</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">value_rank</div><div class="schema-cell type">integer</div><div class="schema-cell desc">Rank by personal value</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">country_rank</div><div class="schema-cell type">integer</div><div class="schema-cell desc">Rank within country</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">badge_tier</div><div class="schema-cell type">enum</div><div class="schema-cell desc">bronze/silver/gold/diamond/master</div><div class="schema-cell key"></div></div>
+        <div class="schema-row"><div class="schema-cell field">snapshot_at</div><div class="schema-cell type">timestamptz</div><div class="schema-cell desc">When computed</div><div class="schema-cell key"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONTRACTS ── -->
+<div class="section" id="contracts">
+  <div class="sec-header">
+    <div class="sec-tag">§06</div>
+    <div class="sec-title">Smart Contract Architecture</div>
+    <div class="sec-rule"></div>
+  </div>
+
+  <div class="two-col-note mb" style="margin-bottom:24px">
+    <div class="note-box"><div class="note-label">Chain</div><div class="note-body"><strong class="hl">Base L2</strong> (Ethereum rollup, Coinbase-backed). EVM-compatible. Near-zero gas. Existing SocialFi tooling and user community. Friend.tech's home chain.</div></div>
+    <div class="note-box"><div class="note-label">Security Model</div><div class="note-body">Multisig treasury (3-of-5). Pausable contracts (admin emergency). OpenZeppelin base contracts. Mandatory two independent audits + Tenderly monitoring before mainnet.</div></div>
+  </div>
+
+  <div class="g2">
+    <div class="contract-card">
+      <div class="contract-header"><div class="contract-name">PetsRegistry.sol</div><div class="contract-std">ERC-1155</div></div>
+      <div class="contract-body">
+        <div class="card-body mb" style="margin-bottom:12px">Mints a unique SFT for every new user. Sets initial market price. Maintains token ID → wallet address mapping. Manages ghost status on deactivation.</div>
+        <div class="fn-list">
+          <div class="fn-item"><div class="fn-name">mintProfile()</div><div class="fn-desc">Called on user signup. Mints SFT, sets starting price, emits ProfileMinted event.</div></div>
+          <div class="fn-item"><div class="fn-name">ghostProfile()</div><div class="fn-desc">On deactivation (user-signed). Freezes price, sets status = ghost, disables transfers.</div></div>
+          <div class="fn-item"><div class="fn-name">getTokenByAddress()</div><div class="fn-desc">Returns token ID for a given wallet address.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="contract-card">
+      <div class="contract-header"><div class="contract-name">PetsMarket.sol</div><div class="contract-std">Core Trading</div></div>
+      <div class="contract-body">
+        <div class="card-body mb" style="margin-bottom:12px">The heart of the protocol. Enforces 10% price invariant. Handles 50/50 profit split. Manages locks. Collects 2.5% platform fee to treasury multisig.</div>
+        <div class="fn-list">
+          <div class="fn-item"><div class="fn-name">buy(tokenId)</div><div class="fn-desc">Core trade function. Checks lock + balance, executes price × 1.1 increase, splits profit 50/50, emits PetPurchased. Uses basis points math throughout.</div></div>
+          <div class="fn-item"><div class="fn-name">lockPet(tokenId, duration)</div><div class="fn-desc">Owner locks a pet for a set duration. Auto-expires at block.timestamp. No manual unlock needed.</div></div>
+          <div class="fn-item"><div class="fn-name">buyAgain(tokenId)</div><div class="fn-desc">Re-acquire an owned pet at incremental cost (price diff only). Both parties must be ranked.</div></div>
+          <div class="fn-item"><div class="fn-name">giftCash(tokenId, amount)</div><div class="fn-desc">Ranked owner transfers Pets Cash to a pet. Max 10 per 24h window. Tracked by timestamp mapping.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="contract-card">
+      <div class="contract-header"><div class="contract-name">PetsCash.sol</div><div class="contract-std">ERC-20</div></div>
+      <div class="contract-body">
+        <div class="card-body mb" style="margin-bottom:12px">In-game currency. Minted via signed bonus claims. Transferred in all trade settlements. Bridgeable to Bae4U Gold (premium). Burnable for token sinks (premium features, tournament entry).</div>
+        <div class="fn-list">
+          <div class="fn-item"><div class="fn-name">claimBonus(sig, timestamp)</div><div class="fn-desc">User submits EIP-712 signed claim. Contract verifies signature and 4-hour cooldown, then mints bonus amount. Backend signer never holds owner keys.</div></div>
+          <div class="fn-item"><div class="fn-name">mintFromMarket()</div><div class="fn-desc">Called only by PetsMarket — distributes profit splits on trade settlement.</div></div>
+          <div class="fn-item"><div class="fn-name">burn(amount)</div><div class="fn-desc">Burns tokens from caller's balance. Used for premium feature purchases (token sink mechanic).</div></div>
+          <div class="fn-item"><div class="fn-name">convertToGold(amount)</div><div class="fn-desc">Burns Pets Cash, records Gold credit off-chain. One-way conversion for premium acceleration.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="contract-card">
+      <div class="contract-header"><div class="contract-name">PetsRanking.sol</div><div class="contract-std">ERC-1155 Badges</div></div>
+      <div class="contract-body">
+        <div class="card-body mb" style="margin-bottom:12px">Issues badge SFTs (Bronze → Master) when users cross asset thresholds. Weekly/monthly resets triggered by Chainlink Automation. Verifies signed proofs from backend before minting.</div>
+        <div class="fn-list">
+          <div class="fn-item"><div class="fn-name">issueBadge(addr, tier, proof)</div><div class="fn-desc">Verifies backend-signed ranking proof, then mints badge SFT. Badges are on-chain credentials — owned, not just displayed.</div></div>
+          <div class="fn-item"><div class="fn-name">weeklyReset()</div><div class="fn-desc">Called by Chainlink Automation every Monday 00:00 UTC. Snapshots current standings, triggers badge issuance queue.</div></div>
+          <div class="fn-item"><div class="fn-name">getActiveBadge(address)</div><div class="fn-desc">Returns current highest badge tier for a given wallet.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CRYPTO ↔ FIAT ── -->
+<div class="section" id="fiat">
+  <div class="sec-header">
+    <div class="sec-tag">§07</div>
+    <div class="sec-title">Crypto ↔ Fiat Services</div>
+    <div class="sec-rule"></div>
+  </div>
+
+  <div class="protocol-box mb" style="margin-bottom:24px">
+    <div class="protocol-title">Why this matters</div>
+    <div class="protocol-desc">Bae4U lives or dies by mass adoption. Mass adoption requires users to never hit a "get crypto first" wall. <strong>Fiat on-ramp is not an optional feature — it is the acquisition funnel for every non-crypto-native user.</strong> Conversely, creators and power users must be able to withdraw earnings to real bank accounts. Both flows must feel as seamless as an App Store purchase.</div>
+  </div>
+
+  <div class="g3 mb" style="margin-bottom:24px">
+    <div class="ramp-card">
+      <div class="ramp-icon" style="background:var(--blue-dim)">💳</div>
+      <div>
+        <div class="ramp-name">Transak</div>
+        <div class="ramp-desc">Primary on-ramp + off-ramp. Supports 160+ countries, 100+ fiat currencies, credit card, bank transfer, UPI (India), and PayID. SDK embeds directly in app — no redirect.</div>
+        <div class="ramp-tags">
+          <span class="ramp-tag">On-ramp</span><span class="ramp-tag">Off-ramp</span><span class="ramp-tag">SDK embed</span><span class="ramp-tag">UPI / India</span><span class="ramp-tag">160+ countries</span>
+        </div>
+      </div>
+    </div>
+    <div class="ramp-card">
+      <div class="ramp-icon" style="background:var(--green-dim)">🌙</div>
+      <div>
+        <div class="ramp-name">MoonPay</div>
+        <div class="ramp-desc">Fallback on-ramp for markets where Transak has lower coverage. Best in class for US + EU credit card purchases. Widget integration. High conversion rates.</div>
+        <div class="ramp-tags">
+          <span class="ramp-tag">On-ramp</span><span class="ramp-tag">US/EU primary</span><span class="ramp-tag">Widget</span><span class="ramp-tag">High conversion</span>
+        </div>
+      </div>
+    </div>
+    <div class="ramp-card">
+      <div class="ramp-icon" style="background:var(--gold-dim)">⚡</div>
+      <div>
+        <div class="ramp-name">Ramp Network</div>
+        <div class="ramp-desc">Tertiary ramp. Particularly strong in emerging markets. Used as a routing fallback when primary providers are unavailable or return errors.</div>
+        <div class="ramp-tags">
+          <span class="ramp-tag">On-ramp</span><span class="ramp-tag">Emerging markets</span><span class="ramp-tag">Fallback</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-label mb" style="margin-bottom:16px;font-size:11px">On-Ramp Flow (User buys Bae4U Gold with fiat)</div>
+  <div class="flow-diagram mb" style="margin-bottom:20px">
+    <div class="flow-row">
+      <div class="flow-node fn-user"><div class="fn-title">User taps</div><div class="fn-sub">"Buy Gold"</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node fn-backend"><div class="fn-title">Backend selects ramp</div><div class="fn-sub">Transak → MoonPay fallback</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node fn-neutral"><div class="fn-title">Ramp widget opens</div><div class="fn-sub">In-app, no redirect</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node fn-neutral"><div class="fn-title">User pays fiat</div><div class="fn-sub">Card / UPI / bank</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node fn-chain"><div class="fn-title">ETH to wallet</div><div class="fn-sub">Embedded wallet</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node fn-chain"><div class="fn-title">Auto-convert</div><div class="fn-sub">ETH → Pets Cash</div></div>
+    </div>
+  </div>
+
+  <div class="card-label mb" style="margin-bottom:16px;font-size:11px">Off-Ramp Flow (Creator withdraws earnings to bank)</div>
+  <div class="flow-diagram">
+    <div class="flow-row">
+      <div class="flow-node fn-partner"><div class="fn-title">Creator requests</div><div class="fn-sub">withdraw ETH</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node fn-backend"><div class="fn-title">KYC check</div><div class="fn-sub">One-time verification</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node fn-backend"><div class="fn-title">Transak off-ramp</div><div class="fn-sub">API call</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node fn-neutral"><div class="fn-title">ETH leaves wallet</div><div class="fn-sub">To Transak custody</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node fn-neutral"><div class="fn-title">Bank transfer</div><div class="fn-sub">1–3 business days</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node fn-backend"><div class="fn-title">Webhook confirm</div><div class="fn-sub">Update DB record</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PROTOCOL LAYER ── -->
+<div class="section" id="protocol">
+  <div class="sec-header">
+    <div class="sec-tag">§08</div>
+    <div class="sec-title">Protocol Layer — Web3 Positioning</div>
+    <div class="sec-rule"></div>
+  </div>
+
+  <div class="g2 mb" style="margin-bottom:24px">
+    <div class="protocol-box">
+      <div class="protocol-title">What makes this a protocol, not an app</div>
+      <div class="protocol-desc">A protocol is composable. Any developer can build on top of PetsMarket's buy() function. Any marketplace can list Pets Cash. Any wallet can hold badge SFTs. <strong>Bae4U the app</strong> is one interface to <strong>the Pets Protocol</strong> — just like Uniswap the interface sits on top of the Uniswap Protocol. The protocol persists even if Bae4U the company disappears.</div>
+    </div>
+    <div class="protocol-box">
+      <div class="protocol-title">Revenue model at protocol level</div>
+      <div class="protocol-desc"><strong>2.5% platform fee</strong> on every pet transaction (flows to multisig treasury). <strong>5% royalty</strong> on secondary SFT pass sales. <strong>Premium features</strong> burn Pets Cash (token sink). <strong>Fiat on-ramp spread</strong> (1–2% on Transak embedded). <strong>Creator revenue share</strong> — 85% to creator, 15% to protocol on pass sales.</div>
+    </div>
+  </div>
+
+  <div class="g3">
+    <div class="card card-g">
+      <div class="card-label">Composability</div>
+      <div class="card-title">Open protocol contracts</div>
+      <div class="card-body">Any dApp can integrate PetsMarket.sol. Third-party marketplaces can list SFT profiles. Badge credentials can be used as access passes in any token-gated system. Protocol-level openness drives ecosystem growth.</div>
+    </div>
+    <div class="card card-b">
+      <div class="card-label">Identity Moat</div>
+      <div class="card-title">On-chain reputation layer</div>
+      <div class="card-body">A user's SFT token ID + transaction history + badge credentials form an on-chain reputation that follows them across Web3. This is the identity primitive no centralized dating app can replicate. Verified humans with provable social history.</div>
+    </div>
+    <div class="card card-gold">
+      <div class="card-label">Token Economics</div>
+      <div class="card-title">Designed for longevity</div>
+      <div class="card-body">Six minting sources (controlled inflation) + multiple burn sinks (weekly tournament entry, premium badges, boost features). Deflationary pressure increases with platform scale. Tokenomics designed so Cash has value independent of ETH price.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 7-DAY SPRINT ── -->
+<div class="section" id="sprint">
+  <div class="sec-header">
+    <div class="sec-tag">§09</div>
+    <div class="sec-title">7-Day Build & Ship Plan</div>
+    <div class="sec-rule"></div>
+  </div>
+
+  <div class="two-col-note mb" style="margin-bottom:28px">
+    <div class="note-box"><div class="note-label">Team Structure</div><div class="note-body"><strong style="color:var(--pink)">Frontend (FE)</strong>: 2 engineers — React Native + Next.js. <strong style="color:var(--blue)">Backend (BE)</strong>: 2 engineers — Fastify + DB + EIP-712 + Fiat integrations. <strong style="color:var(--green)">Blockchain (BC)</strong>: 1 engineer — Solidity + Hardhat + The Graph.</div></div>
+    <div class="note-box"><div class="note-label">MVP Scope</div><div class="note-body">Working Pets economy on Base testnet. Dating profiles + basic matching. Transak on-ramp. Admin panel. The Graph indexing. Ship to testflight / staging by Day 7. Mainnet after audit.</div></div>
+  </div>
+
+  <!-- Day 1 -->
+  <div class="day-card">
+    <div class="day-header">
+      <div class="day-num">DAY 1</div>
+      <div class="day-title">Foundation — Repo setup, smart contracts deployed to testnet, auth working</div>
+      <div class="day-tag" style="color:var(--green);border-color:rgba(0,232,122,0.3);background:var(--green-dim)">Infrastructure</div>
+    </div>
+    <div class="day-body">
+      <div class="team-col">
+        <div class="team-head fe">Frontend</div>
+        <div class="task-item">Monorepo setup — Expo + Next.js in pnpm workspace</div>
+        <div class="task-item">Coinbase Embedded Wallet SDK integration</div>
+        <div class="task-item">SIWE (Sign-In with Ethereum) auth flow</div>
+        <div class="task-item">Design system tokens + navigation structure</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head be">Backend</div>
+        <div class="task-item">Fastify boilerplate + GraphQL schema init</div>
+        <div class="task-item">PostgreSQL schema migration (all tables)</div>
+        <div class="task-item">JWT + SIWE session middleware</div>
+        <div class="task-item">Supabase realtime + storage config</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head bc">Blockchain</div>
+        <div class="task-item critical">PetsRegistry.sol written + tested</div>
+        <div class="task-item critical">PetsMarket.sol written — buy() with 10% rule</div>
+        <div class="task-item">Hardhat config for Base Sepolia testnet</div>
+        <div class="task-item">Deploy all 4 contracts to Base Sepolia</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Day 2 -->
+  <div class="day-card">
+    <div class="day-header">
+      <div class="day-num">DAY 2</div>
+      <div class="day-title">Core Pets Economy — Buy/sell live, profit split verified, user SFTs minting</div>
+      <div class="day-tag" style="color:var(--pink);border-color:rgba(255,77,138,0.3);background:var(--pink-dim)">Economy</div>
+    </div>
+    <div class="day-body">
+      <div class="team-col">
+        <div class="team-head fe">Frontend</div>
+        <div class="task-item">Pets tab UI — browse, filter, buy button</div>
+        <div class="task-item">Portfolio view — owned pets grid</div>
+        <div class="task-item">Transaction confirmation UX (gas-abstracted)</div>
+        <div class="task-item">Value + price display components</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head be">Backend</div>
+        <div class="task-item critical">EIP-712 signer service — login bonus claims</div>
+        <div class="task-item">pets_state sync from contract events</div>
+        <div class="task-item">pet_transactions table population</div>
+        <div class="task-item">Wish list CRUD endpoints</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head bc">Blockchain</div>
+        <div class="task-item critical">PetsCash.sol — claimBonus() with EIP-712 verify</div>
+        <div class="task-item">100% unit test coverage on profit split math</div>
+        <div class="task-item">Basis points arithmetic audit — rounding policy doc</div>
+        <div class="task-item">The Graph subgraph scaffold</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Day 3 -->
+  <div class="day-card">
+    <div class="day-header">
+      <div class="day-num">DAY 3</div>
+      <div class="day-title">Dating Layer — Profiles, matching algorithm, personality vectors, chat</div>
+      <div class="day-tag" style="color:var(--gold);border-color:rgba(232,184,75,0.3);background:var(--gold-dim)">Social</div>
+    </div>
+    <div class="day-body">
+      <div class="team-col">
+        <div class="team-head fe">Frontend</div>
+        <div class="task-item">Profile creation flow — 18-dim personality quiz</div>
+        <div class="task-item">Discovery / swipe screen with filters</div>
+        <div class="task-item">Match notification + chat screen</div>
+        <div class="task-item">Interest community post UI</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head be">Backend</div>
+        <div class="task-item">Pinecone vector DB — personality embedding</div>
+        <div class="task-item">Matching algorithm — cosine similarity + geo filter</div>
+        <div class="task-item critical">Socket.io realtime chat service</div>
+        <div class="task-item">Messages table + encryption at rest</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head bc">Blockchain</div>
+        <div class="task-item">The Graph subgraph — PetPurchased event indexing</div>
+        <div class="task-item">Rankings computation script (reads from subgraph)</div>
+        <div class="task-item">PetsRanking.sol — badge SFT mint with proof verify</div>
+        <div class="task-item">Lock mechanic tests — auto-expiry validation</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Day 4 -->
+  <div class="day-card">
+    <div class="day-header">
+      <div class="day-num">DAY 4</div>
+      <div class="day-title">Crypto ↔ Fiat + Creator Flow — Transak on-ramp, SFT pass minting, creator dashboard</div>
+      <div class="day-tag" style="color:var(--teal);border-color:rgba(0,212,200,0.3);background:var(--teal-dim)">Monetisation</div>
+    </div>
+    <div class="day-body">
+      <div class="team-col">
+        <div class="team-head fe">Frontend</div>
+        <div class="task-item ship">Transak SDK embed — "Buy Gold" modal</div>
+        <div class="task-item">Creator dashboard — earnings, pass management</div>
+        <div class="task-item">SFT pass purchase UI (gated content unlock)</div>
+        <div class="task-item">Rankings leaderboard with badge display</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head be">Backend</div>
+        <div class="task-item ship">Transak webhook handler — fiat_transactions table</div>
+        <div class="task-item">MoonPay fallback routing logic</div>
+        <div class="task-item">Creator KYC application + admin review queue</div>
+        <div class="task-item">Token-gate middleware — validates SFT ownership</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head bc">Blockchain</div>
+        <div class="task-item ship">Creator SFT pass contract — ERC-1155 + royalty</div>
+        <div class="task-item">Chainlink Automation config — weekly reset trigger</div>
+        <div class="task-item">Treasury multisig setup (3-of-5 Gnosis Safe)</div>
+        <div class="task-item">Platform fee collection test — 2.5% verification</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Day 5 -->
+  <div class="day-card">
+    <div class="day-header">
+      <div class="day-num">DAY 5</div>
+      <div class="day-title">Admin Panel + Moderation — Full admin flow, reporting, analytics integration</div>
+      <div class="day-tag" style="color:var(--red);border-color:rgba(255,77,77,0.3);background:var(--red-dim)">Operations</div>
+    </div>
+    <div class="day-body">
+      <div class="team-col">
+        <div class="team-head fe">Frontend</div>
+        <div class="task-item">Admin panel — Next.js separate deployment</div>
+        <div class="task-item">User management — search, suspend, ghost</div>
+        <div class="task-item">Creator approval workflow UI</div>
+        <div class="task-item">Fiat transaction monitoring table</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head be">Backend</div>
+        <div class="task-item">Admin role RBAC middleware</div>
+        <div class="task-item">User report handling + moderation queue</div>
+        <div class="task-item">Mixpanel event tracking — key user actions</div>
+        <div class="task-item">Datadog APM + alert rules</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head bc">Blockchain</div>
+        <div class="task-item">Tenderly monitoring — contract event alerts</div>
+        <div class="task-item">Pause mechanism test — emergency stop</div>
+        <div class="task-item">The Graph production deployment</div>
+        <div class="task-item">Gas estimation benchmarks — document all functions</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Day 6 -->
+  <div class="day-card">
+    <div class="day-header">
+      <div class="day-num">DAY 6</div>
+      <div class="day-title">Integration + QA — End-to-end test all flows, load test, fix critical bugs</div>
+      <div class="day-tag" style="color:var(--blue);border-color:rgba(59,158,255,0.3);background:var(--blue-dim)">QA</div>
+    </div>
+    <div class="day-body">
+      <div class="team-col">
+        <div class="team-head fe">Frontend</div>
+        <div class="task-item">Full E2E user journey test — signup to badge</div>
+        <div class="task-item">Creator flow test — mint pass to withdrawal</div>
+        <div class="task-item">Fiat on-ramp test — sandbox Transak</div>
+        <div class="task-item">Performance audit — Lighthouse + bundle size</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head be">Backend</div>
+        <div class="task-item">Load test — 1K concurrent users chat + match</div>
+        <div class="task-item">API rate limiting + DDoS protection</div>
+        <div class="task-item">Webhook reliability — retry logic for Transak</div>
+        <div class="task-item">DB query optimization — add missing indices</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head bc">Blockchain</div>
+        <div class="task-item critical">Re-entrancy attack test on buy()</div>
+        <div class="task-item critical">Profit split precision test — 10K transactions</div>
+        <div class="task-item">Front-running mitigation — deadline parameter</div>
+        <div class="task-item">Subgraph query performance — pagination checks</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Day 7 -->
+  <div class="day-card">
+    <div class="day-header">
+      <div class="day-num">DAY 7</div>
+      <div class="day-title">Ship — Testflight + staging deployment, team demo, mainnet preparation</div>
+      <div class="day-tag" style="color:var(--gold);border-color:rgba(232,184,75,0.3);background:var(--gold-dim)">🚀 SHIP</div>
+    </div>
+    <div class="day-body">
+      <div class="team-col">
+        <div class="team-head fe">Frontend</div>
+        <div class="task-item ship">TestFlight (iOS) + Play Store (Android) build</div>
+        <div class="task-item ship">Staging web deploy (Vercel)</div>
+        <div class="task-item">App Store assets — screenshots, description</div>
+        <div class="task-item">Onboarding walkthrough — first-time user flow</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head be">Backend</div>
+        <div class="task-item ship">Production ECS Fargate deploy</div>
+        <div class="task-item ship">Environment secrets audit — no keys in code</div>
+        <div class="task-item">Backup + disaster recovery — RDS automated snapshots</div>
+        <div class="task-item">Runbook documentation — on-call procedures</div>
+      </div>
+      <div class="team-col">
+        <div class="team-head bc">Blockchain</div>
+        <div class="task-item ship">Contracts verified on Basescan</div>
+        <div class="task-item ship">Audit firm engaged — scope doc submitted</div>
+        <div class="task-item">Mainnet deployment checklist — 20-point review</div>
+        <div class="task-item">Bug bounty program draft — Immunefi listing prep</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- POST-SPRINT -->
+  <div class="card card-dark mt" style="margin-top:20px">
+    <div class="card-label">Post-Sprint · Week 2–4 · Path to Mainnet</div>
+    <div class="card-title">Mainnet is gated by audit + compliance</div>
+    <div class="card-body">
+      Two independent smart contract audits (target: Spearbit + Trail of Bits). Regulatory review of Pets Cash token classification in key markets (US, EU, India). Transak production KYC onboarding (takes 5–10 business days). Immunefi bug bounty launch. Creator whitelist invite rollout (50 vetted creators first wave). Mainnet deploy upon clean audit reports.
+    </div>
+  </div>
+</div>
+
+<!-- ── RISKS ── -->
+<div class="section" id="risks">
+  <div class="sec-header">
+    <div class="sec-tag">§10</div>
+    <div class="sec-title">Risk Register</div>
+    <div class="sec-rule"></div>
+  </div>
+
+  <div class="g2">
+    <div>
+      <div class="card-label mb" style="margin-bottom:12px;font-size:10px">Technical Risks</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="note-box" style="border-left:2px solid var(--red)">
+          <div class="note-label" style="color:var(--red)">Critical — Smart contract exploit</div>
+          <div class="note-body">Re-entrancy or precision error in buy(). Mitigation: CEI pattern, two audits, basis points math, 100% test coverage on profit split before mainnet.</div>
+        </div>
+        <div class="note-box" style="border-left:2px solid var(--red)">
+          <div class="note-label" style="color:var(--red)">Critical — Rounding error at scale</div>
+          <div class="note-body">Integer division in 50/50 split leaks wei at scale. Mitigation: document rounding policy, always use × 11000 / 10000, excess wei goes to pet (documented).</div>
+        </div>
+        <div class="note-box" style="border-left:2px solid var(--pink)">
+          <div class="note-label" style="color:var(--pink)">High — Gas UX friction</div>
+          <div class="note-body">Any visible gas prompt kills mainstream adoption. Mitigation: Paymaster contract sponsors all gas, embedded wallet, never surface "approve transaction" to users.</div>
+        </div>
+        <div class="note-box" style="border-left:2px solid var(--pink)">
+          <div class="note-label" style="color:var(--pink)">High — Bot front-running</div>
+          <div class="note-body">Bots buy new low-priced accounts before humans. Mitigation: first-owner claim cooldown, rate limiting on-chain, off-chain bot detection layer.</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card-label mb" style="margin-bottom:12px;font-size:10px">Product + Market Risks</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="note-box" style="border-left:2px solid var(--red)">
+          <div class="note-label" style="color:var(--red)">Critical — Token crash kills engagement</div>
+          <div class="note-body">Pets Cash price crash → users feel poor → churn. Mitigation: dating utility independent of token price. Token sinks. Dating-first onboarding where crypto is invisible.</div>
+        </div>
+        <div class="note-box" style="border-left:2px solid var(--pink)">
+          <div class="note-label" style="color:var(--pink)">High — Whale dominance kills new users</div>
+          <div class="note-body">Top 0.1% own all rankings (Friend.tech precedent). Mitigation: country rankings, activity bracket tiers, weekly resets ensure fresh competition windows.</div>
+        </div>
+        <div class="note-box" style="border-left:2px solid var(--pink)">
+          <div class="note-label" style="color:var(--pink)">High — Dating safety + harassment</div>
+          <div class="note-body">Pets mechanic can feel dehumanising without framing. Mitigation: identity verification layer, opt-out of Pets discovery, strong community guidelines, moderation queue.</div>
+        </div>
+        <div class="note-box" style="border-left:2px solid var(--gold)">
+          <div class="note-label" style="color:var(--gold)">Medium — Regulatory (securities)</div>
+          <div class="note-body">Pets Cash may be classified as a security in US/EU. Mitigation: legal opinion before mainnet, utility token framing, no speculative marketing, Howey test analysis.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div style="padding:40px 0 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:gap;gap:16px">
+  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim)">Bae4U Product Plan v1.0 · Confidential · Product Development Department</div>
+  <div style="display:flex;gap:8px">
+    <span class="pill pill-g">Base L2</span>
+    <span class="pill pill-b">7-Day MVP</span>
+    <span class="pill pill-gold">ERC-20 + ERC-1155</span>
+  </div>
+</div>
+
+</div><!-- /doc-wrap -->
+
+<script>
+const navLinks = document.querySelectorAll('.nav-link');
+const sections = document.querySelectorAll('.section, .cover');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting && e.intersectionRatio > 0.2){
+      const id = e.target.id;
+      navLinks.forEach(l => {
+        l.classList.toggle('active', l.getAttribute('href') === '#'+id);
+      });
+    }
+  });
+},{threshold:[0.2]});
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
