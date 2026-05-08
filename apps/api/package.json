@@ -21,8 +21,11 @@
     "pimlico-e2e": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/pimlico-e2e.ts",
     "prod-health": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/production-health.ts",
     "migrate:fantasy": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-fantasy.ts",
+    "migrate:fantasy-bae": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-fantasy-bae.ts",
     "fantasy-e2e": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/fantasy-e2e.ts",
-    "gameflow-v2": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/gameflow-v2-e2e.ts"
+    "fantasy-bae-e2e": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/fantasy-bae-e2e.ts",
+    "gameflow-v2": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/gameflow-v2-e2e.ts",
+    "migrate-performance": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-performance.ts"
   },
   "dependencies": {
     "@coinbase/cdp-sdk": "^1.48.2",

@@ -10,6 +10,7 @@ import dbPlugin    from "./plugins/db";
 import redisPlugin from "./plugins/redis";
 import authPlugin  from "./plugins/auth";
 import socketPlugin from "./plugins/socket";
+import { rateLimiterWithAdminBypass } from "./middleware/rateLimiter";
 
 import authRoutes     from "./routes/auth";
 import usersRoutes    from "./routes/users";
@@ -124,6 +125,14 @@ async function bootstrap() {
   // verify it is talking to the genuine Railway backend before reading any data.
   app.addHook("onSend", async (_req, reply) => {
     reply.header("X-Cert-Sha256", TLS_PINS.sha256);
+  });
+
+  // Rate limiting hook (applies to all routes except health)
+  app.addHook("preHandler", async (req, reply) => {
+    // Skip rate limiting for health check
+    if (req.routeOptions.url === "/health") return;
+    // Apply rate limiting
+    return rateLimiterWithAdminBypass(req, reply);
   });
 
   // Health check (no auth required)

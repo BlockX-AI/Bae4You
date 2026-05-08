@@ -11,6 +11,7 @@ const env = z.object({
   JWT_SECRET:             z.string().min(32),
   JWT_REFRESH_SECRET:     z.string().min(32),
   SIWE_DOMAIN:            z.string().default("localhost"),
+  SIWE_CHAIN_ID:          z.string().default("84532"),
 
   BASE_SEPOLIA_RPC_URL:   z.string(),
   SIGNER_PRIVATE_KEY:     z.string(),

@@ -148,8 +148,9 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (req, reply) => {
       const payload = req.user as JwtPayload;
-      const { limit = "10", country } = req.query as Record<string, string>;
-      const topK = parseInt(limit);
+      const { limit = "10", offset = "0", country } = req.query as Record<string, string>;
+      const limitNum = Math.min(parseInt(limit), 100); // Max 100 per request
+      const offsetNum = Math.max(parseInt(offset), 0); // Min 0
 
       // Collect already-interacted + already-passed user IDs to exclude
       const [{ rows: interacted }, { rows: passed }] = await Promise.all([
@@ -179,7 +180,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
       let orderedIds: string[] | null = null;
       if (myVector) {
         try {
-          orderedIds = await querySimilar(myVector, topK * 3, excludeArr);
+          orderedIds = await querySimilar(myVector, limitNum * 3, excludeArr);
         } catch {
           orderedIds = null;
         }
@@ -203,10 +204,10 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
         const { rows: fetched } = await db.query(q, params);
         // Re-sort by Pinecone rank order
         const byId = new Map((fetched as Array<{ id: string }>).map((u) => [u.id, u]));
-        rows = orderedIds.map((id) => byId.get(id)).filter(Boolean).slice(0, topK);
+        rows = orderedIds.map((id) => byId.get(id)).filter(Boolean).slice(0, limitNum);
       } else {
         // Fallback: random
-        const params: unknown[] = [excludeArr, topK];
+        const params: unknown[] = [excludeArr, limitNum];
         let q = `
           SELECT id, username, display_name, avatar_ipfs_hash, bio,
                  country_code, is_verified, token_id, created_at
@@ -222,7 +223,15 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
         rows = fetched;
       }
 
-      return { candidates: rows, matchedBy: orderedIds ? "pinecone" : "random" };
+      return { 
+        candidates: rows, 
+        matchedBy: orderedIds ? "pinecone" : "random",
+        pagination: {
+          limit: limitNum,
+          offset: offsetNum,
+          hasMore: rows.length === limitNum,
+        }
+      };
     }
   );
 

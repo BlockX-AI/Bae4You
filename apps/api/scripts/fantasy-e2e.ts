@@ -58,14 +58,14 @@ async function siweLogin(): Promise<{ jwt: string; userId: string; walletAddress
   const wallet  = new ethers.Wallet(DEPLOYER_KEY);
   const addr    = wallet.address;
 
-  const { data: nonceData } = await api.get(`/auth/nonce?address=${addr}`);
+  const { data: nonceData } = await api.get(`/auth/nonce/${addr}`);
   const nonce = nonceData.nonce;
 
   const msg = new SiweMessage({
-    domain: "localhost",
+    domain: "baebackend-production.up.railway.app",
     address: addr,
     statement: "Sign in to Bae4U",
-    uri: "http://localhost",
+    uri: "https://baebackend-production.up.railway.app",
     version: "1",
     chainId: 84532,
     nonce,
@@ -78,7 +78,7 @@ async function siweLogin(): Promise<{ jwt: string; userId: string; walletAddress
   });
 
   return {
-    jwt:           loginData.jwt,
+    jwt:           loginData.accessToken,
     userId:        loginData.user?.id ?? loginData.userId,
     walletAddress: addr,
   };

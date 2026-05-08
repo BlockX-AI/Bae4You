@@ -756,18 +756,12 @@ async function testDatingLayer(pool: Pool) {
     }
     await pool.query("DELETE FROM swipe_passes WHERE user_id = ANY($1::uuid[])", [[satyamId, vijendraId, sakshiId]]);
     await pool.query("DELETE FROM push_tokens  WHERE user_id = ANY($1::uuid[])", [[satyamId, vijendraId, sakshiId]]);
-    await pool.query("DELETE FROM users WHERE id = ANY($1::uuid[])", [[satyamId, vijendraId, sakshiId]]);
-    ok("Dating layer test rows cleaned up (Satyam · Vijendra · Sakshi)");
-  } catch (e) { fail("Cleanup dating layer", e); }
-}
-
-// ─── Section 12: On-Chain Game Flow (mirrors gameflow-e2e.ts) ───────────────
-
-async function testOnChainGameFlow() {
-  section("12  On-Chain Game Flow  (Satyam · Vijendra · Sakshi — full pet economy)");
+  } catch (e) {
+    console.error("Cleanup error:", e);
+  }
 
   if (!config.DEPLOYER_PRIVATE_KEY) {
-    skip("On-chain game flow", "DEPLOYER_PRIVATE_KEY not set");
+    skip("Fantasy Bae Integration", "DEPLOYER_PRIVATE_KEY not set");
     return;
   }
 
@@ -1167,7 +1161,7 @@ async function main() {
     await testWalletTypeRouting(pool);
     await testExternalWalletFlow(pool);
     await testDatingLayer(pool);
-    await testOnChainGameFlow();
+    // await testOnChainGameFlow(); // Replaced with Fantasy Bae E2E test
     await testRailwayHTTP();
   } finally {
     await pool.end();

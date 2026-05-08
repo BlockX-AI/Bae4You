@@ -10,13 +10,24 @@ const heroesRoutes: FastifyPluginAsync = async (fastify) => {
     "/leaderboard",
     { preHandler: fastify.authenticate },
     async (req, _reply) => {
-      const { week, year, limit = "50" } = req.query as Record<string, string>;
+      const { week, year, limit = "50", offset = "0" } = req.query as Record<string, string>;
+      const limitNum = Math.min(parseInt(limit), 100); // Max 100 per request
+      const offsetNum = Math.max(parseInt(offset), 0); // Min 0
+      
       const board = await getHeroLeaderboard(
         week  ? parseInt(week)  : undefined,
         year  ? parseInt(year)  : undefined,
-        Math.min(parseInt(limit), 100)
+        limitNum,
+        offsetNum
       );
-      return { heroes: board };
+      return { 
+        heroes: board,
+        pagination: {
+          limit: limitNum,
+          offset: offsetNum,
+          hasMore: board.length === limitNum,
+        }
+      };
     }
   );
 

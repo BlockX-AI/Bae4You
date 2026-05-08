@@ -56,16 +56,50 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
       const wallet = siweMsg.address.toLowerCase();
 
-      // Verify nonce matches
+      // Verify nonce matches and check expiration
       const { rows: nonceRows } = await db.query(
         "SELECT nonce, created_at FROM nonces WHERE wallet_address = $1",
         [wallet]
       );
       if (!nonceRows[0] || nonceRows[0].nonce !== siweMsg.nonce) {
-        return reply.code(401).send({ error: "Invalid nonce" });
+        return reply.code(401).send({ error: "Invalid or expired nonce" });
       }
 
-      // Clean up used nonce
+      // Check nonce expiration (5 minutes)
+      const nonceAge = Date.now() - new Date(nonceRows[0].created_at).getTime();
+      const NONCE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+      if (nonceAge > NONCE_EXPIRY_MS) {
+        await db.query("DELETE FROM nonces WHERE wallet_address = $1", [wallet]);
+        return reply.code(401).send({ error: "Nonce expired" });
+      }
+
+      // Check message expiration (SIWE expirationTime)
+      if (siweMsg.expirationTime) {
+        const expirationTime = new Date(siweMsg.expirationTime).getTime();
+        if (Date.now() > expirationTime) {
+          return reply.code(401).send({ error: "Message expired" });
+        }
+      }
+
+      // Check not-before time (SIWE notBefore)
+      if (siweMsg.notBefore) {
+        const notBeforeTime = new Date(siweMsg.notBefore).getTime();
+        if (Date.now() < notBeforeTime) {
+          return reply.code(401).send({ error: "Message not yet valid" });
+        }
+      }
+
+      // Verify domain matches
+      if (siweMsg.domain !== config.SIWE_DOMAIN) {
+        return reply.code(401).send({ error: "Invalid domain" });
+      }
+
+      // Verify chain ID matches
+      if (siweMsg.chainId?.toString() !== config.SIWE_CHAIN_ID) {
+        return reply.code(401).send({ error: "Invalid chain ID" });
+      }
+
+      // Clean up used nonce (prevent replay)
       await db.query("DELETE FROM nonces WHERE wallet_address = $1", [wallet]);
 
       // Upsert user

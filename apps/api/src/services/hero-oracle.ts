@@ -181,7 +181,8 @@ async function upsertHeroScores(scores: HeroScore[]): Promise<void> {
 export async function getHeroLeaderboard(
   week?: number,
   year?: number,
-  limit = 50
+  limit = 50,
+  offset = 0
 ): Promise<Array<HeroScore & { rank: number; displayName: string | null; avatarHash: string | null }>> {
   const { week: cw, year: cy } = currentWeekYear();
   const w = week ?? cw;
@@ -200,8 +201,8 @@ export async function getHeroLeaderboard(
     JOIN users u ON u.id = hs.user_id
     WHERE hs.week_number = $1 AND hs.year_number = $2
     ORDER BY hs.raw_score DESC
-    LIMIT $3
-  `, [w, y, limit]);
+    LIMIT $3 OFFSET $4
+  `, [w, y, limit, offset]);
 
   return result.rows.map((row, i) => ({
     rank:         i + 1,

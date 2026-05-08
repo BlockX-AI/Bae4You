@@ -1,0 +1,58 @@
+{
+  "name": "bae4u-load-tests",
+  "version": "1.0.0",
+  "description": "Production-grade k6 load tests for Bae4U/Fantasy Bae",
+  "scripts": {
+    "test:smoke": "k6 run smoke-test.js",
+    "test:mobile": "k6 run mobile-session.js",
+    "test:login-burst": "k6 run login-burst.js",
+    "test:leaderboard": "k6 run leaderboard-hot-read.js",
+    "test:discover": "k6 run discover-swipe-flow.js",
+    "test:cards": "k6 run cards-market-flow.js",
+    "test:tournament": "k6 run tournament-flow.js",
+    "test:tx-data": "k6 run tx-data-generation.js",
+    "test:spike": "k6 run spike-test.js",
+    "test:endurance": "k6 run endurance-test.js",
+    "test:all": "npm run test:smoke && npm run test:mobile && npm run test:login-burst && npm run test:leaderboard",
+    "test:critical": "npm run test:smoke && npm run test:mobile && npm run test:discover",
+    "test:stress": "npm run test:spike && npm run test:login-burst",
+    "test:production": "npm run test:smoke && npm run test:mobile && npm run test:discover && npm run test:cards && npm run test:leaderboard",
+    "test:full": "npm run test:smoke && npm run test:mobile && npm run test:login-burst && npm run test:leaderboard && npm run test:discover && npm run test:cards && npm run test:tournament && npm run test:tx-data",
+    "test:quick": "k6 run smoke-test.js --vus 10 --duration 30s",
+    "test:dev": "k6 run mobile-session.js --vus 50 --duration 5m",
+    "test:staging": "BASE_URL=https://staging.bae4u.com k6 run mobile-session.js",
+    "test:prod": "BASE_URL=https://baebackend-production.up.railway.app k6 run mobile-session.js",
+    "report:smoke": "k6 run smoke-test.js --out json=smoke-results.json",
+    "report:mobile": "k6 run mobile-session.js --out json=mobile-results.json",
+    "report:all": "npm run report:smoke && npm run report:mobile && npm run report:login-burst && npm run report:leaderboard",
+    "cloud:smoke": "k6 cloud run smoke-test.js",
+    "cloud:mobile": "k6 cloud run mobile-session.js",
+    "cloud:spike": "k6 cloud run spike-test.js"
+  },
+  "keywords": [
+    "k6",
+    "load-testing",
+    "performance-testing",
+    "bae4u",
+    "fantasy-bae",
+    "dating-app",
+    "blockchain",
+    "nft"
+  ],
+  "author": "Bae4U Performance Team",
+  "license": "MIT",
+  "devDependencies": {
+    "k6": "^0.47.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bae4u/load-tests.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bae4u/load-tests/issues"
+  },
+  "homepage": "https://github.com/bae4u/load-tests#readme"
+}
