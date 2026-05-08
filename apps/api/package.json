@@ -34,6 +34,7 @@
     "@fastify/swagger-ui": "^4.0.1",
     "@pinecone-database/pinecone": "^7.2.0",
     "axios": "^1.6.7",
+    "bs58": "^6.0.0",
     "bullmq": "^5.4.2",
     "crypto-js": "^4.2.0",
     "dotenv": "^16.4.5",
