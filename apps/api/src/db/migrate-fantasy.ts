@@ -1,8 +1,16 @@
 import "dotenv/config";
-import { db } from "./client";
+import { Pool } from "pg";
 
 async function run() {
-  await db.query(`
+  const dbUrl = process.env.DATABASE_URL ?? "";
+  const needSsl = dbUrl.includes("sslmode=require");
+  const pool = new Pool({
+    connectionString: dbUrl,
+    ssl: needSsl ? { rejectUnauthorized: false } : false,
+  });
+
+  console.log("[migrate-fantasy] Running Fantasy Bae migration...");
+  await pool.query(`
     -- ──────────────────────────────────────────────────────────────
     -- Fantasy Bae DB migration
     -- New tables: hero_scores, bae_cards, card_states,
@@ -116,7 +124,7 @@ async function run() {
   console.log("✅  Fantasy Bae tables created:");
   console.log("    hero_scores, bae_cards, card_states,");
   console.log("    tournaments, tournament_decks, couple_cards");
-  await db.end?.();
+  await pool.end();
 }
 
 run().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
