@@ -25,4 +25,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
   CMD wget -qO- http://localhost:3000/health || exit 1
 
-CMD ["sh", "-c", "node apps/api/dist/db/migrate.js && node apps/api/dist/index.js"]
+CMD ["sh", "-c", "node apps/api/dist/db/migrate.js && node apps/api/dist/db/migrate-fantasy.js && node apps/api/dist/index.js"]
