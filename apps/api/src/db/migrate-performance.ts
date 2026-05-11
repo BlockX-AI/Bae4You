@@ -43,7 +43,7 @@ async function migratePerformanceIndexes() {
       console.log("3. Adding idx_hero_scores_weekly...");
       await db.query(`
         CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_hero_scores_weekly 
-        ON hero_scores (week_number, year_number, score DESC)
+        ON hero_scores (week_number, year_number, raw_score DESC)
       `);
     } else {
       console.log("3. Skipping idx_hero_scores_weekly - table 'hero_scores' not found");
