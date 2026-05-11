@@ -50,11 +50,25 @@ async function main() {
 
   // ── Load deployments ──────────────────────────────────────────────────────
   const depPath = path.join(__dirname, "../../../packages/contracts/deployments.json");
-  if (!fs.existsSync(depPath)) {
-    console.error("❌ deployments.json not found — run: pnpm --filter=contracts deploy");
-    process.exit(1);
+  let dep: Record<string, string>;
+  if (fs.existsSync(depPath)) {
+    dep = JSON.parse(fs.readFileSync(depPath, "utf-8"));
+  } else {
+    console.warn("⚠️  deployments.json not found — falling back to env vars");
+    dep = {
+      PetsCash:          process.env.PETS_CASH_ADDRESS       ?? "",
+      PetsRegistry:      process.env.PETS_REGISTRY_ADDRESS   ?? "",
+      PetsMarket:        process.env.PETS_MARKET_ADDRESS     ?? "",
+      BaeCardRegistry:   process.env.BAE_CARD_REGISTRY_ADDRESS ?? "",
+      BAE_CARD_MARKET_ADDRESS: process.env.BAE_CARD_MARKET_ADDRESS ?? "",
+      TournamentEngine:  process.env.TOURNAMENT_ENGINE_ADDRESS ?? "",
+      CoupleCard:        process.env.COUPLE_CARD_ADDRESS      ?? "",
+    };
+    if (!dep.PetsCash || !dep.PetsRegistry) {
+      console.error("❌ Required env vars PETS_CASH_ADDRESS and PETS_REGISTRY_ADDRESS must be set");
+      process.exit(1);
+    }
   }
-  const dep = JSON.parse(fs.readFileSync(depPath, "utf-8"));
   console.log("\nDeployed contracts:");
   console.log("  PetsCash:        ", dep.PetsCash);
   console.log("  PetsRegistry:    ", dep.PetsRegistry);

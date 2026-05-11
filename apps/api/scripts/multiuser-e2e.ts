@@ -103,10 +103,11 @@ async function main() {
   // ── 1. Create 3 users ───────────────────────────────────────────────────────
   sec("1  Create 3 custodial wallets + DB rows");
   try {
+    const suffix = Date.now().toString(36);
     const [alice, bob, carol] = await Promise.all([
-      createUser(pool, "Vijendra"),
-      createUser(pool, "Satyam"),
-      createUser(pool, "Sakshi"),
+      createUser(pool, `Vijendra_${suffix}`),
+      createUser(pool, `Satyam_${suffix}`),
+      createUser(pool, `Sakshi_${suffix}`),
     ]);
     users.push(alice, bob, carol);
     for (const u of users) ok(`${u.name} created`, `wallet=${u.wallet.address.slice(0,10)}… id=${u.id}`);

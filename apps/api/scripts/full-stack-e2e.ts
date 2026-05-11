@@ -576,13 +576,14 @@ async function testDatingLayer(pool: Pool) {
   const addrSatyam   = ethers.Wallet.createRandom().address.toLowerCase();
   const addrVijendra = ethers.Wallet.createRandom().address.toLowerCase();
   const addrSakshi   = ethers.Wallet.createRandom().address.toLowerCase();
+  const uSuffix = Date.now().toString(36);
   let satyamId = "", vijendraId = "", sakshiId = "";
 
   try {
     const [rs, rv, rk] = await Promise.all([
-      pool.query(`INSERT INTO users (wallet_address, username, display_name) VALUES ($1,'satyam','Satyam') RETURNING id`, [addrSatyam]),
-      pool.query(`INSERT INTO users (wallet_address, username, display_name) VALUES ($1,'vijendra','Vijendra') RETURNING id`, [addrVijendra]),
-      pool.query(`INSERT INTO users (wallet_address, username, display_name) VALUES ($1,'sakshi','Sakshi') RETURNING id`, [addrSakshi]),
+      pool.query(`INSERT INTO users (wallet_address, username, display_name) VALUES ($1,$2,'Satyam') RETURNING id`, [addrSatyam, `satyam_${uSuffix}`]),
+      pool.query(`INSERT INTO users (wallet_address, username, display_name) VALUES ($1,$2,'Vijendra') RETURNING id`, [addrVijendra, `vijendra_${uSuffix}`]),
+      pool.query(`INSERT INTO users (wallet_address, username, display_name) VALUES ($1,$2,'Sakshi') RETURNING id`, [addrSakshi, `sakshi_${uSuffix}`]),
     ]);
     satyamId   = rs.rows[0].id;
     vijendraId = rv.rows[0].id;
