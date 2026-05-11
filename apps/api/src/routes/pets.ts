@@ -15,7 +15,9 @@ const petsRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (req, reply) => {
       const { page = "1", limit = "20", country } = req.query as Record<string, string>;
-      const offset = (parseInt(page) - 1) * parseInt(limit);
+      const pageNum  = Math.max(1, parseInt(page)  || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
+      const offset   = (pageNum - 1) * limitNum;
 
       let query = `
         SELECT
@@ -35,10 +37,10 @@ const petsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       query += ` ORDER BY p.current_price_wei DESC LIMIT $${idx++} OFFSET $${idx++}`;
-      params.push(parseInt(limit), offset);
+      params.push(limitNum, offset);
 
       const { rows } = await db.query(query, params);
-      return { pets: rows, page: parseInt(page), limit: parseInt(limit) };
+      return { pets: rows, page: pageNum, limit: limitNum };
     }
   );
 
@@ -48,6 +50,7 @@ const petsRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (req, reply) => {
       const tokenId = parseInt(req.params.tokenId);
+      if (isNaN(tokenId) || tokenId <= 0) return reply.code(400).send({ error: "Invalid token ID" });
       const { rows } = await db.query(
         `SELECT p.*, u.username, u.display_name, u.avatar_ipfs_hash, u.bio, u.country_code, u.is_verified
          FROM pets_state p
@@ -83,13 +86,15 @@ const petsRoutes: FastifyPluginAsync = async (fastify) => {
     "/history/:tokenId",
     { preHandler: fastify.authenticate },
     async (req, reply) => {
+      const tokenId = parseInt(req.params.tokenId);
+      if (isNaN(tokenId) || tokenId <= 0) return reply.code(400).send({ error: "Invalid token ID" });
       const { rows } = await db.query(
         `SELECT tx_hash, from_address, to_address, sale_price_wei, new_price_wei, block_number, created_at
          FROM pet_transactions
          WHERE token_id = $1
          ORDER BY block_number DESC
          LIMIT 50`,
-        [parseInt(req.params.tokenId)]
+        [tokenId]
       );
       return { history: rows };
     }
@@ -146,9 +151,11 @@ const petsRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (req, reply) => {
       const payload = req.user as JwtPayload;
+      const tokenId = parseInt(req.params.tokenId);
+      if (isNaN(tokenId) || tokenId <= 0) return reply.code(400).send({ error: "Invalid token ID" });
       await db.query(
         "DELETE FROM wish_list WHERE wisher_id = $1 AND target_token_id = $2",
-        [payload.userId, parseInt(req.params.tokenId)]
+        [payload.userId, tokenId]
       );
       return { success: true };
     }

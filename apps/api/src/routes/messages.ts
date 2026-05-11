@@ -2,6 +2,8 @@ import { FastifyPluginAsync } from "fastify";
 import { db } from "../db/client";
 import type { JwtPayload } from "../plugins/auth";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const messagesRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /messages/:matchId — load message history
   fastify.get<{ Params: { matchId: string } }>(
@@ -10,6 +12,7 @@ const messagesRoutes: FastifyPluginAsync = async (fastify) => {
     async (req, reply) => {
       const payload = req.user as JwtPayload;
       const { matchId } = req.params;
+      if (!UUID_RE.test(matchId)) return reply.code(400).send({ error: "Invalid matchId" });
       const { before, limit = "50" } = req.query as Record<string, string>;
 
       // Verify user is part of this match
@@ -19,7 +22,8 @@ const messagesRoutes: FastifyPluginAsync = async (fastify) => {
       );
       if (!matchRows[0]) return reply.code(403).send({ error: "Not your match" });
 
-      const params: unknown[] = [matchId, parseInt(limit)];
+      const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+      const params: unknown[] = [matchId, limitNum];
       let query = `
         SELECT m.id, m.sender_id, m.content, m.msg_type, m.sent_at,
                u.username, u.display_name, u.avatar_ipfs_hash

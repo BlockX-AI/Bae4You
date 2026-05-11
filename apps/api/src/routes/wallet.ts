@@ -65,8 +65,8 @@ const walletRoutes: FastifyPluginAsync = async (fastify) => {
     async (req, reply) => {
       const payload = req.user as JwtPayload;
       const { page = "1", limit = "20" } = req.query as Record<string, string>;
-      const pageNum  = Math.max(1, parseInt(page));
-      const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
+      const pageNum  = Math.max(1, parseInt(page)  || 1);
+      const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 20));
       const offset   = (pageNum - 1) * limitNum;
 
       const { rows: userRows } = await db.query(
@@ -79,22 +79,30 @@ const walletRoutes: FastifyPluginAsync = async (fastify) => {
 
       const address = userRows[0].wallet_address.toLowerCase();
 
-      const { rows, rowCount } = await db.query(
-        `SELECT pt.id, pt.token_id, pt.tx_hash, pt.tx_type,
-                pt.from_address, pt.to_address, pt.price_wei, pt.created_at,
-                u.username AS token_username, u.display_name AS token_display_name
+      const { rows } = await db.query(
+        `SELECT pt.id, pt.token_id, pt.tx_hash,
+                CASE WHEN LOWER(pt.to_address) = $1 THEN 'buy' ELSE 'sell' END AS tx_type,
+                pt.from_address, pt.to_address, pt.sale_price_wei AS price_wei, pt.created_at,
+                (SELECT username    FROM users WHERE LOWER(wallet_address) =
+                   CASE WHEN LOWER(pt.to_address) = $1 THEN pt.from_address ELSE pt.to_address END
+                 LIMIT 1) AS counterparty_username,
+                (SELECT display_name FROM users WHERE LOWER(wallet_address) =
+                   CASE WHEN LOWER(pt.to_address) = $1 THEN pt.from_address ELSE pt.to_address END
+                 LIMIT 1) AS counterparty_display_name,
+                COUNT(*) OVER() AS total_count
          FROM pet_transactions pt
-         LEFT JOIN users u ON LOWER(u.wallet_address) = pt.from_address
-                           OR LOWER(u.wallet_address) = pt.to_address
          WHERE LOWER(pt.from_address) = $1 OR LOWER(pt.to_address) = $1
          ORDER BY pt.created_at DESC
          LIMIT $2 OFFSET $3`,
         [address, limitNum, offset]
       );
 
+      const total = rows.length > 0 ? parseInt(rows[0].total_count, 10) : 0;
+      const txns  = rows.map(({ total_count: _tc, ...r }) => r);
+
       return {
-        transactions: rows,
-        pagination: { page: pageNum, limit: limitNum, total: rowCount ?? 0 },
+        transactions: txns,
+        pagination: { page: pageNum, limit: limitNum, total },
       };
     }
   );

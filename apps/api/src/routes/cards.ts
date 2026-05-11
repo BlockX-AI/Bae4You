@@ -25,13 +25,15 @@ const cardsRoutes: FastifyPluginAsync = async (fastify) => {
         LEFT JOIN card_states cs ON cs.token_id = bc.token_id
         LEFT JOIN users u ON LOWER(u.wallet_address) = LOWER(bc.subject_address)
       `;
+      const limitNum  = Math.min(200, Math.max(1, parseInt(limit)  || 50));
+      const offsetNum = Math.max(0, parseInt(offset) || 0);
       const params: (string | number)[] = [];
       if (rarity) {
         params.push(rarity);
         query += ` WHERE bc.rarity = $${params.length}::card_rarity_t`;
       }
-      params.push(parseInt(limit));
-      params.push(parseInt(offset));
+      params.push(limitNum);
+      params.push(offsetNum);
       query += ` ORDER BY cs.current_price_wei DESC NULLS LAST LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
       const { rows } = await db.query(query, params);
@@ -50,6 +52,7 @@ const cardsRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (req, reply) => {
       const tid = parseInt(req.params.tokenId);
+      if (isNaN(tid) || tid <= 0) return reply.code(400).send({ error: "Invalid token ID" });
       const { rows } = await db.query(
         `SELECT bc.token_id, bc.subject_address, bc.rarity, bc.minted_at,
                 cs.owner_address, cs.current_price_wei, cs.total_trades,
@@ -135,6 +138,7 @@ const cardsRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (req, reply) => {
       const tid = parseInt(req.params.tokenId);
+      if (isNaN(tid) || tid <= 0) return reply.code(400).send({ error: "Invalid token ID" });
       const payload = req.user as JwtPayload;
 
       const { rows } = await db.query(
@@ -147,14 +151,18 @@ const cardsRoutes: FastifyPluginAsync = async (fastify) => {
       );
       if (!card[0]) return reply.code(404).send({ error: "Card not listed" });
 
+      if (!config.BAE_CARD_MARKET_ADDRESS) {
+        return reply.code(503).send({ error: "Card market contract not configured" });
+      }
+
       const abi = ["function buyCard(uint256 tokenId) external"];
       const iface = new ethers.Interface(abi);
 
       return {
-        to:       process.env.BAE_CARD_MARKET_ADDRESS,
-        data:     iface.encodeFunctionData("buyCard", [tid]),
-        value:    "0",
-        price_wei:card[0].current_price_wei,
+        to:        config.BAE_CARD_MARKET_ADDRESS,
+        data:      iface.encodeFunctionData("buyCard", [tid]),
+        value:     "0",
+        price_wei: card[0].current_price_wei,
       };
     }
   );
