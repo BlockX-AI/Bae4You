@@ -93,6 +93,8 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   // POST /matches/like — like someone (body: { targetUserId })
   fastify.post<{ Body: { targetUserId: string } }>(
     "/like",
@@ -101,6 +103,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
       const payload  = req.user as JwtPayload;
       const targetId = (req.body as { targetUserId?: string }).targetUserId;
       if (!targetId) return reply.code(400).send({ error: "targetUserId required" });
+      if (!UUID_RE.test(targetId)) return reply.code(400).send({ error: "Invalid targetUserId" });
       return likeSomeone(fastify, payload.userId, targetId, reply);
     }
   );
@@ -113,6 +116,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
       const payload  = req.user as JwtPayload;
       const targetId = (req.body as { targetUserId?: string }).targetUserId;
       if (!targetId) return reply.code(400).send({ error: "targetUserId required" });
+      if (!UUID_RE.test(targetId)) return reply.code(400).send({ error: "Invalid targetUserId" });
       return passSomeone(payload.userId, targetId, reply);
     }
   );
@@ -123,6 +127,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (req, reply) => {
       const payload = req.user as JwtPayload;
+      if (!UUID_RE.test(req.params.targetUserId)) return reply.code(400).send({ error: "Invalid targetUserId" });
       return likeSomeone(null, payload.userId, req.params.targetUserId, reply);
     }
   );
@@ -133,11 +138,14 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (req, reply) => {
       const payload = req.user as JwtPayload;
-      await db.query(
+      const { rows } = await db.query(
         `UPDATE matches SET status = 'unmatched'
-         WHERE id = $1 AND (user_a_id = $2 OR user_b_id = $2)`,
+         WHERE id = $1 AND (user_a_id = $2 OR user_b_id = $2)
+           AND status = 'matched'
+         RETURNING id`,
         [req.params.matchId, payload.userId]
       );
+      if (!rows[0]) return reply.code(404).send({ error: "Active match not found" });
       return { success: true };
     }
   );
@@ -149,8 +157,8 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
     async (req, reply) => {
       const payload = req.user as JwtPayload;
       const { limit = "10", offset = "0", country } = req.query as Record<string, string>;
-      const limitNum = Math.min(parseInt(limit), 100); // Max 100 per request
-      const offsetNum = Math.max(parseInt(offset), 0); // Min 0
+      const limitNum  = Math.min(Math.max(1, parseInt(limit)  || 10), 100);
+      const offsetNum = Math.max(0, parseInt(offset) || 0);
 
       // Collect already-interacted + already-passed user IDs to exclude
       const [{ rows: interacted }, { rows: passed }] = await Promise.all([
@@ -204,10 +212,10 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
         const { rows: fetched } = await db.query(q, params);
         // Re-sort by Pinecone rank order
         const byId = new Map((fetched as Array<{ id: string }>).map((u) => [u.id, u]));
-        rows = orderedIds.map((id) => byId.get(id)).filter(Boolean).slice(0, limitNum);
+        rows = orderedIds.map((id) => byId.get(id)).filter(Boolean).slice(offsetNum, offsetNum + limitNum);
       } else {
         // Fallback: random
-        const params: unknown[] = [excludeArr, limitNum];
+        const params: unknown[] = [excludeArr, limitNum, offsetNum];
         let q = `
           SELECT id, username, display_name, avatar_ipfs_hash, bio,
                  country_code, is_verified, token_id, created_at
@@ -215,10 +223,10 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
           WHERE id != ALL($1::uuid[]) AND status = 'active'
         `;
         if (country) {
-          q += ` AND country_code = $3`;
+          q += ` AND country_code = $4`;
           params.push(country.toUpperCase());
         }
-        q += ` ORDER BY RANDOM() LIMIT $2`;
+        q += ` ORDER BY RANDOM() LIMIT $2 OFFSET $3`;
         const { rows: fetched } = await db.query(q, params);
         rows = fetched;
       }
@@ -241,6 +249,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (req, reply) => {
       const payload = req.user as JwtPayload;
+      if (!UUID_RE.test(req.params.targetUserId)) return reply.code(400).send({ error: "Invalid targetUserId" });
       return passSomeone(payload.userId, req.params.targetUserId, reply);
     }
   );

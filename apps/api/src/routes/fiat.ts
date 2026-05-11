@@ -104,26 +104,26 @@ const fiatRoutes: FastifyPluginAsync = async (fastify) => {
       );
 
       if (userRows[0]) {
-        await db.query(
-          `INSERT INTO fiat_transactions (user_id, provider, type, fiat_amount, fiat_currency, crypto_amount_wei, status, provider_ref)
-           VALUES ($1, 'transak', 'onramp', $2, $3, $4, $5, $6)
-           ON CONFLICT (provider_ref) DO UPDATE SET status = $5
-           WHERE fiat_transactions.provider_ref = $6`,
-          [
-            userRows[0].id,
-            fiatAmount,
-            fiatCurrency,
-            cryptoAmount ? Math.floor(Number(cryptoAmount) * 1e18).toString() : null,
-            ourStatus,
-            String(providerRef),
-          ]
-        ).catch(() => {
-          // ON CONFLICT requires unique index — just upsert instead
-          db.query(
-            `UPDATE fiat_transactions SET status = $1 WHERE provider_ref = $2`,
-            [ourStatus, String(providerRef)]
-          );
-        });
+        // Try UPDATE first (idempotent for repeat webhook delivery); INSERT if no existing row.
+        const { rowCount } = await db.query(
+          `UPDATE fiat_transactions SET status = $1 WHERE provider_ref = $2`,
+          [ourStatus, String(providerRef)]
+        );
+        if (!rowCount) {
+          await db.query(
+            `INSERT INTO fiat_transactions
+               (user_id, provider, type, fiat_amount, fiat_currency, crypto_amount_wei, status, provider_ref)
+             VALUES ($1, 'transak', 'onramp', $2, $3, $4, $5, $6)`,
+            [
+              userRows[0].id,
+              fiatAmount,
+              fiatCurrency,
+              cryptoAmount ? Math.floor(Number(cryptoAmount) * 1e18).toString() : null,
+              ourStatus,
+              String(providerRef),
+            ]
+          ).catch(() => {});
+        }
       }
 
       return { received: true };

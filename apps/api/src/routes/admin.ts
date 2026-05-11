@@ -2,6 +2,8 @@ import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { db } from "../db/client";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const adminRoutes: FastifyPluginAsync = async (fastify) => {
   // All admin routes require admin role
   fastify.addHook("preHandler", fastify.requireAdmin);
@@ -11,32 +13,39 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     "/users",
     async (req, reply) => {
       const { status, page = "1", limit = "50", search } = req.query as Record<string, string>;
-      const offset = (parseInt(page) - 1) * parseInt(limit);
+      const pageNum  = Math.max(1, parseInt(page)  || 1);
+      const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+      const offset   = (pageNum - 1) * limitNum;
 
       const params: unknown[] = [];
-      let query = `
-        SELECT id, wallet_address, token_id, username, display_name, email,
-               country_code, is_verified, is_creator, role, status, last_login_at, created_at
-        FROM users WHERE 1=1
-      `;
+      const countParams: unknown[] = [];
+      let baseWhere = "WHERE 1=1";
       let i = 1;
 
       if (status) {
-        query += ` AND status = $${i++}`;
+        baseWhere += ` AND status = $${i++}`;
         params.push(status);
+        countParams.push(status);
       }
       if (search) {
-        query += ` AND (username ILIKE $${i} OR display_name ILIKE $${i} OR wallet_address ILIKE $${i})`;
+        baseWhere += ` AND (username ILIKE $${i} OR display_name ILIKE $${i} OR wallet_address ILIKE $${i})`;
         params.push(`%${search}%`);
+        countParams.push(`%${search}%`);
         i++;
       }
 
-      query += ` ORDER BY created_at DESC LIMIT $${i++} OFFSET $${i++}`;
-      params.push(parseInt(limit), offset);
+      const listQuery  = `SELECT id, wallet_address, token_id, username, display_name, email,
+               country_code, is_verified, is_creator, role, status, last_login_at, created_at
+        FROM users ${baseWhere} ORDER BY created_at DESC LIMIT $${i++} OFFSET $${i++}`;
+      params.push(limitNum, offset);
 
-      const { rows } = await db.query(query, params);
-      const { rows: countRows } = await db.query("SELECT COUNT(*) FROM users");
-      return { users: rows, total: parseInt(countRows[0].count), page: parseInt(page) };
+      const countQuery = `SELECT COUNT(*) FROM users ${baseWhere}`;
+
+      const [{ rows }, { rows: countRows }] = await Promise.all([
+        db.query(listQuery, params),
+        db.query(countQuery, countParams),
+      ]);
+      return { users: rows, total: parseInt(countRows[0].count), page: pageNum };
     }
   );
 
@@ -44,6 +53,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put<{ Params: { id: string } }>(
     "/users/:id/suspend",
     async (req, reply) => {
+      if (!UUID_RE.test(req.params.id)) return reply.code(400).send({ error: "Invalid user id" });
       const { reason } = req.body as { reason?: string };
       await db.query(
         "UPDATE users SET status = 'suspended' WHERE id = $1",
@@ -57,6 +67,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put<{ Params: { id: string } }>(
     "/users/:id/activate",
     async (req, reply) => {
+      if (!UUID_RE.test(req.params.id)) return reply.code(400).send({ error: "Invalid user id" });
       await db.query("UPDATE users SET status = 'active' WHERE id = $1", [req.params.id]);
       return { success: true };
     }
@@ -66,6 +77,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put<{ Params: { id: string } }>(
     "/users/:id/verify",
     async (req, reply) => {
+      if (!UUID_RE.test(req.params.id)) return reply.code(400).send({ error: "Invalid user id" });
       await db.query("UPDATE users SET is_verified = true WHERE id = $1", [req.params.id]);
       return { success: true };
     }
@@ -75,6 +87,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put<{ Params: { id: string } }>(
     "/creator/:id/approve",
     async (req, reply) => {
+      if (!UUID_RE.test(req.params.id)) return reply.code(400).send({ error: "Invalid user id" });
       await db.query(
         "UPDATE users SET is_creator = true WHERE id = $1",
         [req.params.id]

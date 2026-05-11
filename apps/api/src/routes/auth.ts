@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from "fastify";
 import { ethers } from "ethers";
 import { SiweMessage } from "siwe";
-import { z } from "zod";
+import jwt from "jsonwebtoken";
 import { db } from "../db/client";
 import { config } from "../config";
 import { getUserTokenId } from "../services/token-gate";
@@ -99,10 +99,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.code(401).send({ error: "Invalid chain ID" });
       }
 
-      // Clean up used nonce (prevent replay)
-      await db.query("DELETE FROM nonces WHERE wallet_address = $1", [wallet]);
-
-      // Upsert user
+      // Upsert user first — only consume nonce after successful upsert
       const { rows } = await db.query(
         `INSERT INTO users (wallet_address, last_login_at)
          VALUES ($1, NOW())
@@ -111,6 +108,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         [wallet]
       );
       const user = rows[0];
+
+      if (user.status === "suspended") {
+        return reply.code(403).send({ error: "Account suspended" });
+      }
+
+      // Consume nonce now — user is verified and not suspended
+      await db.query("DELETE FROM nonces WHERE wallet_address = $1", [wallet]);
 
       // First time: no token_id yet — mint SFT on-chain via deployer wallet
       if (!user.token_id) {
@@ -132,12 +136,6 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
           const tx1 = await registry.mintProfile(wallet, startingPrice);
           const receipt1 = await tx1.wait();
-
-          // Get the returned tokenId from the event or static call
-          const tokenId = await registry.mintProfile.staticCall(wallet, startingPrice).catch(() => {
-            // If static call fails (already minted), read from chain
-            return null;
-          });
 
           if (receipt1 && receipt1.status === 1) {
             // Parse tokenId from emitted ProfileMinted event
@@ -174,18 +172,19 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      if (user.status === "suspended") {
-        return reply.code(403).send({ error: "Account suspended" });
-      }
-
-      const accessToken = fastify.jwt.sign({
-        userId: user.id,
-        wallet: user.wallet_address,
-        role:   user.role,
-      });
+      const accessToken  = fastify.jwt.sign(
+        { userId: user.id, wallet: user.wallet_address, role: user.role },
+        { expiresIn: "1h" }
+      );
+      const refreshToken = jwt.sign(
+        { userId: user.id, wallet: user.wallet_address, role: user.role, type: "refresh" },
+        config.JWT_REFRESH_SECRET,
+        { expiresIn: "30d" }
+      );
 
       return {
         accessToken,
+        refreshToken,
         user: {
           id:             user.id,
           wallet:         user.wallet_address,
@@ -196,6 +195,45 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
           bonusClaimedAt: user.bonus_claimed_at,
         },
       };
+    }
+  );
+
+  // POST /auth/refresh — exchange a valid refresh token for a new access token
+  fastify.post(
+    "/refresh",
+    async (req, reply) => {
+      const { refreshToken } = req.body as { refreshToken?: string };
+      if (!refreshToken) {
+        return reply.code(400).send({ error: "refreshToken required" });
+      }
+
+      let decoded: { userId: string; wallet: string; role: string; type?: string };
+      try {
+        decoded = jwt.verify(refreshToken, config.JWT_REFRESH_SECRET) as {
+          userId: string; wallet: string; role: string; type?: string;
+        };
+      } catch {
+        return reply.code(401).send({ error: "Invalid or expired refresh token" });
+      }
+
+      if (decoded.type !== "refresh") {
+        return reply.code(401).send({ error: "Not a refresh token" });
+      }
+
+      const { rows } = await db.query(
+        "SELECT id, wallet_address, role, status FROM users WHERE id = $1",
+        [decoded.userId]
+      );
+      if (!rows[0] || rows[0].status === "suspended") {
+        return reply.code(403).send({ error: "Account unavailable" });
+      }
+
+      const newAccessToken = fastify.jwt.sign(
+        { userId: rows[0].id, wallet: rows[0].wallet_address, role: rows[0].role },
+        { expiresIn: "1h" }
+      );
+
+      return { accessToken: newAccessToken };
     }
   );
 };

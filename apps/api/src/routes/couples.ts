@@ -8,6 +8,8 @@ const COUPLE_TYPEHASH = ethers.keccak256(
   ethers.toUtf8Bytes("CoupleProof(address userA,address userB,bytes32 matchId,uint256 timestamp)")
 );
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const couplesRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /couples/:matchId — get couple card for a match
@@ -16,6 +18,7 @@ const couplesRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (req, reply) => {
       const { matchId } = req.params;
+      if (!UUID_RE.test(matchId)) return reply.code(400).send({ error: "Invalid matchId" });
       const payload     = req.user as JwtPayload;
 
       const { rows } = await db.query(
@@ -46,6 +49,7 @@ const couplesRoutes: FastifyPluginAsync = async (fastify) => {
     async (req, reply) => {
       const payload = req.user as JwtPayload;
       const { matchId } = req.body as { matchId: string };
+      if (!matchId || !UUID_RE.test(matchId)) return reply.code(400).send({ error: "Invalid matchId" });
 
       const { rows: matchRows } = await db.query(
         `SELECT m.id, m.user_a_id, m.user_b_id, m.status,
@@ -80,7 +84,11 @@ const couplesRoutes: FastifyPluginAsync = async (fastify) => {
       );
       if (existing[0]) return reply.code(409).send({ error: "Couple card already minted for this match" });
 
-      const signer    = new ethers.Wallet(config.DEPLOYER_PRIVATE_KEY);
+      if (!config.COUPLE_CARD_ADDRESS) {
+        return reply.code(503).send({ error: "Couple card contract not configured" });
+      }
+
+      const signer    = new ethers.Wallet(config.SIGNER_PRIVATE_KEY);
       const timestamp = Math.floor(Date.now() / 1000);
 
       const matchIdBytes32 = ethers.zeroPadValue(
@@ -91,8 +99,8 @@ const couplesRoutes: FastifyPluginAsync = async (fastify) => {
       const domain = {
         name: "Bae4U",
         version: "1",
-        chainId: 84532,
-        verifyingContract: process.env.COUPLE_CARD_ADDRESS ?? ethers.ZeroAddress,
+        chainId: parseInt(config.CHAIN_ID),
+        verifyingContract: config.COUPLE_CARD_ADDRESS,
       };
 
       const types = {
@@ -121,7 +129,7 @@ const couplesRoutes: FastifyPluginAsync = async (fastify) => {
           timestamp,
           sig,
         },
-        contract: process.env.COUPLE_CARD_ADDRESS,
+        contract: config.COUPLE_CARD_ADDRESS,
         message:  "Submit proof to CoupleCard.mintCouple() on-chain",
       };
     }
@@ -139,6 +147,7 @@ const couplesRoutes: FastifyPluginAsync = async (fastify) => {
         tokenIdB: number;
         txHash: string;
       };
+      if (!matchId || !UUID_RE.test(matchId)) return reply.code(400).send({ error: "Invalid matchId" });
 
       const { rows: matchRows } = await db.query(
         `SELECT user_a_id, user_b_id FROM matches WHERE id = $1`, [matchId]
