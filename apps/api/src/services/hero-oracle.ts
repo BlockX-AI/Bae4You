@@ -14,11 +14,17 @@ export interface HeroScore {
 }
 
 function currentWeekYear(): { week: number; year: number } {
-  const now = new Date();
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  const dayOfYear = Math.floor((now.getTime() - startOfYear.getTime()) / 86400000);
-  const week = Math.ceil((dayOfYear + startOfYear.getDay() + 1) / 7);
-  return { week, year: now.getFullYear() };
+  const now = new Date(Date.UTC(
+    new Date().getFullYear(),
+    new Date().getMonth(),
+    new Date().getDate()
+  ));
+  // ISO 8601: week containing Thursday is in the year it belongs to
+  const dayOfWeek  = now.getUTCDay() || 7; // 1=Mon ... 7=Sun
+  now.setUTCDate(now.getUTCDate() + 4 - dayOfWeek); // Thursday of current week
+  const yearStart  = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+  const week       = Math.ceil(((now.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return { week, year: now.getUTCFullYear() };
 }
 
 /**
@@ -259,7 +265,9 @@ export async function getUserHeroScore(
 }
 
 function weekStartDate(week: number, year: number): Date {
-  const firstDay = new Date(year, 0, 1);
-  const dayOffset = (week - 1) * 7 - firstDay.getDay() + 1;
-  return new Date(year, 0, 1 + dayOffset);
+  // ISO 8601: find the Monday of the given ISO week
+  const jan4       = new Date(Date.UTC(year, 0, 4)); // Jan 4 is always in ISO week 1
+  const dayOfWeek  = jan4.getUTCDay() || 7;
+  const week1Mon   = new Date(jan4.getTime() - (dayOfWeek - 1) * 86400000);
+  return new Date(week1Mon.getTime() + (week - 1) * 7 * 86400000);
 }

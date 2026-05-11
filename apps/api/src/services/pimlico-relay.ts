@@ -74,14 +74,21 @@ export async function buildSmartAccountRelay(
   async function sendCalls(
     calls: { to: Address; data: Hex; value?: bigint }[]
   ): Promise<{ txHash: Hex; blockNumber: number }> {
-    const txHash = await smartAccountClient.sendTransaction({
-      to:    calls[0].to,
-      data:  calls[0].data,
-      value: calls[0].value ?? 0n,
-    });
+    let lastTxHash: Hex = "0x";
+    let lastBlockNumber = 0;
 
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash as Hex });
-    return { txHash: txHash as Hex, blockNumber: Number(receipt.blockNumber) };
+    for (const call of calls) {
+      const txHash = await smartAccountClient.sendTransaction({
+        to:    call.to,
+        data:  call.data,
+        value: call.value ?? 0n,
+      });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash as Hex });
+      lastTxHash       = txHash as Hex;
+      lastBlockNumber  = Number(receipt.blockNumber);
+    }
+
+    return { txHash: lastTxHash, blockNumber: lastBlockNumber };
   }
 
   return { address: account.address, sendCalls };

@@ -42,11 +42,20 @@ export async function syncPetPurchasedEvents(): Promise<number> {
     const salePriceBig = BigInt(salePrice.toString());
     const newPriceBig  = BigInt(newPrice.toString());
 
-    // Calculate profit splits to record (matching contract logic)
-    const feeBps     = 250n;
-    const basis      = 10000n;
-    const fee        = (salePriceBig * feeBps) / basis;
-    const afterFee   = salePriceBig - fee;
+    // Calculate profit splits matching PetsMarket contract logic:
+    // fee = 2.5% of salePrice; after_fee = salePrice - fee
+    // prev_price = newPrice / 1.1 (10% markup rule)
+    // profit = after_fee - prev_price; split 50/50 between subject (pet profile) and seller
+    const feeBps       = 250n;
+    const basis        = 10000n;
+    const fee          = (salePriceBig * feeBps) / basis;
+    const afterFee     = salePriceBig - fee;
+    // newPrice = salePrice * 1.1, so salePrice = newPrice / 1.1 = newPrice * 10 / 11
+    const prevPrice    = (newPriceBig * 10n) / 11n;
+    const profit       = afterFee > prevPrice ? afterFee - prevPrice : 0n;
+    const halfProfit   = profit / 2n;
+    const profitToPet  = halfProfit;
+    const profitToSeller = afterFee - profitToPet;
 
     // Upsert pets_state
     await db.query(
@@ -68,8 +77,10 @@ export async function syncPetPurchasedEvents(): Promise<number> {
     if (exists.rows.length === 0) {
       await db.query(
         `INSERT INTO pet_transactions
-           (tx_hash, token_id, from_address, to_address, sale_price_wei, new_price_wei, block_number)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+           (tx_hash, token_id, from_address, to_address,
+            sale_price_wei, new_price_wei, block_number,
+            profit_to_pet_wei, profit_to_seller_wei)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           txHash,
           tokenIdNum,
@@ -78,6 +89,8 @@ export async function syncPetPurchasedEvents(): Promise<number> {
           salePriceBig.toString(),
           newPriceBig.toString(),
           blockNum,
+          profitToPet.toString(),
+          profitToSeller.toString(),
         ]
       );
     }
