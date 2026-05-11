@@ -27,6 +27,8 @@ import heroesRoutes      from "./routes/heroes";
 import cardsRoutes       from "./routes/cards";
 import tournamentsRoutes from "./routes/tournaments";
 import couplesRoutes     from "./routes/couples";
+import metadataRoutes   from "./routes/metadata";
+import imagesRoutes    from "./routes/images";
 
 import { config } from "./config";
 
@@ -160,6 +162,8 @@ async function bootstrap() {
   await app.register(cardsRoutes,       { prefix: "/cards"       });
   await app.register(tournamentsRoutes, { prefix: "/tournaments" });
   await app.register(couplesRoutes,     { prefix: "/couples"     });
+  await app.register(metadataRoutes,   { prefix: ""            });
+  await app.register(imagesRoutes,    { prefix: ""            });
 
   // Global error handler
   app.setErrorHandler((error, req, reply) => {

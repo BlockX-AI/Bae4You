@@ -46,9 +46,8 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
     fastify.log.info({ userId: socket.userId }, "[socket] client connected");
 
     socket.on("join:match", async (matchId: string) => {
-      // Verify this user is part of the match
       const { rows } = await db.query(
-        "SELECT id FROM matches WHERE id = $1 AND (user_a_id = (SELECT id FROM users WHERE id = $2) OR user_b_id = (SELECT id FROM users WHERE id = $2)) AND status = 'matched'",
+        "SELECT id FROM matches WHERE id = $1 AND (user_a_id = $2 OR user_b_id = $2) AND status = 'matched'",
         [matchId, socket.userId]
       );
       if (rows.length === 0) {
@@ -59,12 +58,24 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
       socket.emit("joined:match", { matchId });
     });
 
+    const VALID_MSG_TYPES = new Set(["text", "image", "gif", "audio"]);
+
     socket.on("send:message", async (data: { matchId: string; content: string; type?: string }) => {
-      const { matchId, content, type = "text" } = data;
+      const { matchId, content } = data;
+      const type = VALID_MSG_TYPES.has(data.type ?? "") ? data.type! : "text";
 
       if (!content?.trim()) return;
 
       try {
+        const { rows: authRows } = await db.query(
+          "SELECT id FROM matches WHERE id = $1 AND (user_a_id = $2 OR user_b_id = $2) AND status = 'matched'",
+          [matchId, socket.userId]
+        );
+        if (authRows.length === 0) {
+          socket.emit("error", { message: "Not part of this match" });
+          return;
+        }
+
         const { rows } = await db.query(
           "INSERT INTO messages (match_id, sender_id, content, msg_type) VALUES ($1, $2, $3, $4) RETURNING *",
           [matchId, socket.userId, content.trim(), type]
@@ -105,16 +116,26 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
       }
     });
 
-    socket.on("typing:start", ({ matchId }: { matchId: string }) => {
+    async function assertInMatch(matchId: string): Promise<boolean> {
+      const { rows } = await db.query(
+        "SELECT id FROM matches WHERE id = $1 AND (user_a_id = $2 OR user_b_id = $2) AND status = 'matched'",
+        [matchId, socket.userId]
+      );
+      return rows.length > 0;
+    }
+
+    socket.on("typing:start", async ({ matchId }: { matchId: string }) => {
+      if (!await assertInMatch(matchId)) return;
       socket.to(`match:${matchId}`).emit("peer:typing", { userId: socket.userId });
     });
 
-    socket.on("typing:stop", ({ matchId }: { matchId: string }) => {
+    socket.on("typing:stop", async ({ matchId }: { matchId: string }) => {
+      if (!await assertInMatch(matchId)) return;
       socket.to(`match:${matchId}`).emit("peer:stopped-typing", { userId: socket.userId });
     });
 
     socket.on("mark:read", async ({ matchId }: { matchId: string }) => {
-      // Broadcast to room so the sender sees double-tick
+      if (!await assertInMatch(matchId)) return;
       socket.to(`match:${matchId}`).emit("messages:read", {
         matchId,
         readBy: socket.userId,

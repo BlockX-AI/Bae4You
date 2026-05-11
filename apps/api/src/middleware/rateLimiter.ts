@@ -15,7 +15,8 @@ const RATE_LIMITS: Record<string, RateLimitConfig> = {
 };
 
 function getRateLimitKey(identifier: string, path: string): string {
-  const normalizedPath = path.split('/')[1] || 'default';
+  // Use full path (sanitised) so /auth/nonce and /auth/siwe have separate counters
+  const normalizedPath = path.replace(/[^a-z0-9/_-]/gi, "_").slice(0, 80) || "default";
   return `rate_limit:${normalizedPath}:${identifier}`;
 }
 
@@ -36,8 +37,7 @@ function getRateLimitConfig(path: string): RateLimitConfig {
 }
 
 function getClientIdentifier(req: FastifyRequest): string {
-  // Try to get user ID from JWT first
-  const userId = (req as any).userId;
+  const userId = (req as any).user?.userId;
   if (userId) {
     return `user:${userId}`;
   }
@@ -104,10 +104,22 @@ export async function rateLimiter(
   }
 }
 
-// Admin bypass function
+// Admin bypass function — decode (not verify) the Bearer JWT so we can check role
+// even though this middleware runs before fastify.authenticate.
+// Access control is still enforced by fastify.requireAdmin; this only affects throttling.
 export function adminBypass(req: FastifyRequest): boolean {
-  const isAdmin = (req as any).isAdmin;
-  return !!isAdmin;
+  // First try already-decoded user (in case authenticate ran before us)
+  if ((req as any).user?.role === "admin") return true;
+  try {
+    const auth = req.headers.authorization ?? "";
+    if (!auth.startsWith("Bearer ")) return false;
+    const payloadB64 = auth.split(".")[1];
+    if (!payloadB64) return false;
+    const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8"));
+    return payload?.role === "admin";
+  } catch {
+    return false;
+  }
 }
 
 // Rate limiter middleware with admin bypass
