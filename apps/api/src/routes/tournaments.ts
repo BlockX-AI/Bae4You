@@ -33,16 +33,21 @@ const tournamentsRoutes: FastifyPluginAsync = async (fastify) => {
       if (!rows[0]) return { tournament: null };
 
       const { rows: standings } = await db.query(
-        `SELECT COUNT(*) AS total_players,
-                SUM(prize_pool_wei) / COUNT(*) AS avg_prize
+        `SELECT COUNT(*) AS total_players
          FROM tournament_decks
          WHERE tournament_id = $1`,
         [rows[0].id]
       );
 
+      const totalPlayers = parseInt(standings[0]?.total_players ?? "0", 10);
+      const prizePoolWei = BigInt(rows[0].prize_pool_wei ?? "0");
+      const avgPrize     = totalPlayers > 0
+        ? (prizePoolWei / BigInt(totalPlayers)).toString()
+        : "0";
+
       return {
         tournament: rows[0],
-        stats: standings[0] ?? { total_players: 0, avg_prize: "0" },
+        stats: { total_players: totalPlayers, avg_prize: avgPrize },
       };
     }
   );

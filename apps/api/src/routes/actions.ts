@@ -131,6 +131,7 @@ const actionsRoutes: FastifyPluginAsync = async (fastify) => {
     async (req, reply) => {
       const payload = req.user as JwtPayload;
       const tokenId = parseInt(req.params.tokenId);
+      if (isNaN(tokenId) || tokenId <= 0) return reply.code(400).send({ error: "Invalid token ID" });
 
       const parsed = lockSchema.safeParse(req.body);
       if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });

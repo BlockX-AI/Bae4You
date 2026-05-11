@@ -20,36 +20,41 @@ const bonusRoutes: FastifyPluginAsync = async (fastify) => {
     async (req, reply) => {
       const payload = req.user as JwtPayload;
 
-      const { rows } = await db.query(
-        "SELECT wallet_address, bonus_claimed_at FROM users WHERE id = $1",
+      const { rows: userRows } = await db.query(
+        "SELECT wallet_address FROM users WHERE id = $1",
         [payload.userId]
       );
-      if (!rows[0]) return reply.code(404).send({ error: "User not found" });
+      if (!userRows[0]) return reply.code(404).send({ error: "User not found" });
 
-      const { wallet_address, bonus_claimed_at } = rows[0];
+      const { wallet_address } = userRows[0];
 
-      if (bonus_claimed_at) {
-        const lastClaim = new Date(bonus_claimed_at).getTime();
-        const now       = Date.now();
-        if (now - lastClaim < BONUS_COOLDOWN_MS) {
-          const nextClaim = new Date(lastClaim + BONUS_COOLDOWN_MS);
-          return reply.code(429).send({
-            error:     "Cooldown active",
-            nextClaimAt: nextClaim.toISOString(),
-            cooldownMs:  BONUS_COOLDOWN_MS - (now - lastClaim),
-          });
-        }
+      // Atomic: only update if cooldown has elapsed. Prevents race conditions.
+      const { rows: updated } = await db.query(
+        `UPDATE users
+         SET bonus_claimed_at = NOW()
+         WHERE id = $1
+           AND (bonus_claimed_at IS NULL
+                OR bonus_claimed_at < NOW() - INTERVAL '4 hours')
+         RETURNING bonus_claimed_at`,
+        [payload.userId]
+      );
+
+      if (updated.length === 0) {
+        const { rows: cur } = await db.query(
+          "SELECT bonus_claimed_at FROM users WHERE id = $1", [payload.userId]
+        );
+        const lastClaim = new Date(cur[0].bonus_claimed_at).getTime();
+        const nextClaim = new Date(lastClaim + BONUS_COOLDOWN_MS);
+        return reply.code(429).send({
+          error:       "Cooldown active",
+          nextClaimAt: nextClaim.toISOString(),
+          cooldownMs:  nextClaim.getTime() - Date.now(),
+        });
       }
 
       const amount    = BigInt(config.BONUS_AMOUNT_PCASH);
       const timestamp = Math.floor(Date.now() / 1000);
       const sig       = await signBonusClaim(wallet_address, amount, timestamp);
-
-      // Record in DB immediately — if user doesn't submit on-chain, they lose the sig
-      await db.query(
-        "UPDATE users SET bonus_claimed_at = NOW() WHERE id = $1",
-        [payload.userId]
-      );
 
       return {
         signature:  sig,

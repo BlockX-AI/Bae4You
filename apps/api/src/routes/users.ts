@@ -23,6 +23,8 @@ const updateSchema = z.object({
   personalityVector: z.record(z.unknown()).optional(),
 });
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const usersRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /users/me
   fastify.get(
@@ -49,6 +51,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (req, reply) => {
       const { id } = req.params;
+      if (!UUID_RE.test(id)) return reply.code(400).send({ error: "Invalid user id" });
       const { rows } = await db.query(
         `SELECT id, wallet_address, token_id, username, display_name, bio,
                 avatar_ipfs_hash, birth_date, location_city, country_code,
@@ -90,10 +93,23 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       values.push(payload.userId);
-      const { rows } = await db.query(
-        `UPDATE users SET ${updates.join(", ")} WHERE id = $${i} RETURNING id, username, display_name, bio`,
-        values
-      );
+      let rows: Record<string, unknown>[];
+      try {
+        const result = await db.query(
+          `UPDATE users SET ${updates.join(", ")} WHERE id = $${i} RETURNING id, username, display_name, bio`,
+          values
+        );
+        rows = result.rows;
+      } catch (err: unknown) {
+        const pgErr = err as { code?: string; constraint?: string };
+        if (pgErr.code === "23505") {
+          if (pgErr.constraint?.includes("username")) {
+            return reply.code(409).send({ error: "Username already taken" });
+          }
+          return reply.code(409).send({ error: "Conflict: duplicate value" });
+        }
+        throw err;
+      }
 
       if (data.personalityVector) {
         upsertPersonality(payload.userId, data.personalityVector as Record<string, number>).catch(() => {});

@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from "fastify";
 import { db } from "../db/client";
 import { getUserBadgeProof } from "../services/ranking-engine";
 import type { JwtPayload } from "../plugins/auth";
+import { config } from "../config";
 
 const rankingsRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /rankings/global — top 100 by assets
@@ -15,15 +16,16 @@ const rankingsRoutes: FastifyPluginAsync = async (fastify) => {
         `SELECT r.assets_rank, r.badge_tier, r.snapshot_at,
                 u.id, u.username, u.display_name, u.avatar_ipfs_hash,
                 u.wallet_address, u.country_code, u.is_verified,
-                p.current_price_wei
+                (SELECT current_price_wei FROM pets_state
+                 WHERE LOWER(user_address) = LOWER(u.wallet_address)
+                 ORDER BY current_price_wei DESC LIMIT 1) AS current_price_wei
          FROM rankings_snapshot r
          JOIN users u ON u.id = r.user_id
-         LEFT JOIN pets_state p ON p.user_address = u.wallet_address
          WHERE r.period_type = 'weekly'
            AND r.snapshot_at = (SELECT MAX(snapshot_at) FROM rankings_snapshot WHERE period_type = 'weekly')
          ORDER BY r.assets_rank ASC
          LIMIT $1`,
-        [parseInt(limit)]
+        [Math.min(parseInt(limit) || 100, 200)]
       );
       return { rankings: rows };
     }
@@ -40,17 +42,18 @@ const rankingsRoutes: FastifyPluginAsync = async (fastify) => {
       const { rows } = await db.query(
         `SELECT r.country_rank, r.badge_tier,
                 u.username, u.display_name, u.avatar_ipfs_hash, u.is_verified,
-                p.current_price_wei
+                (SELECT current_price_wei FROM pets_state
+                 WHERE LOWER(user_address) = LOWER(u.wallet_address)
+                 ORDER BY current_price_wei DESC LIMIT 1) AS current_price_wei
          FROM rankings_snapshot r
          JOIN users u ON u.id = r.user_id
-         LEFT JOIN pets_state p ON p.user_address = u.wallet_address
          WHERE r.period_type = 'weekly'
            AND u.country_code = $1
            AND r.snapshot_at = (SELECT MAX(snapshot_at) FROM rankings_snapshot WHERE period_type = 'weekly')
            AND r.country_rank IS NOT NULL
          ORDER BY r.country_rank ASC
          LIMIT $2`,
-        [code, parseInt(limit)]
+        [code, Math.min(parseInt(limit) || 50, 200)]
       );
       return { country: code, rankings: rows };
     }
@@ -77,7 +80,7 @@ const rankingsRoutes: FastifyPluginAsync = async (fastify) => {
       return {
         rank:       rows[0] ?? null,
         badgeProof,
-        contractAddress: process.env.PETS_RANKING_ADDRESS,
+        contractAddress: config.PETS_RANKING_ADDRESS,
         message: badgeProof
           ? "Submit badgeProof.proof to PetsRanking.issueBadge() to mint your badge on-chain"
           : "No badge earned in latest snapshot",
