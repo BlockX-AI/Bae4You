@@ -140,4 +140,114 @@ describe("PetsMarket", () => {
       await expect(market.connect(bob).buy(aliceTokenId)).to.not.be.reverted;
     });
   });
+
+  describe("initPet()", () => {
+    it("reverts on double init", async () => {
+      const { market, admin, alice, aliceTokenId, STARTING } = await loadFixture(deployFixture);
+      await expect(
+        market.connect(admin).initPet(aliceTokenId, alice.address, STARTING)
+      ).to.be.revertedWith("PetsMarket: already init");
+    });
+
+    it("non-admin cannot initPet", async () => {
+      const { reg, market, bob, STARTING } = await loadFixture(deployFixture);
+      const bobTokenId = await reg.connect((await ethers.getSigners())[0]).mintProfile.staticCall(bob.address, STARTING);
+      await reg.connect((await ethers.getSigners())[0]).mintProfile(bob.address, STARTING);
+      await expect(
+        market.connect(bob).initPet(bobTokenId, bob.address, STARTING)
+      ).to.be.reverted;
+    });
+  });
+
+  describe("lockPet() auto-expiry", () => {
+    it("lock auto-expires after duration", async () => {
+      const { market, bob, carol, aliceTokenId } = await loadFixture(deployFixture);
+      await market.connect(bob).buy(aliceTokenId);
+      await market.connect(bob).lockPet(aliceTokenId, 3600); // 1 hour
+
+      expect(await market.isLocked(aliceTokenId)).to.be.true;
+
+      await ethers.provider.send("evm_increaseTime", [3601]);
+      await ethers.provider.send("evm_mine", []);
+
+      expect(await market.isLocked(aliceTokenId)).to.be.false;
+      await expect(market.connect(carol).buy(aliceTokenId)).to.not.be.reverted;
+    });
+
+    it("reverts on duration exceeding MAX_LOCK", async () => {
+      const { market, bob, aliceTokenId } = await loadFixture(deployFixture);
+      await market.connect(bob).buy(aliceTokenId);
+      const MAX_LOCK = 7 * 24 * 60 * 60;
+      await expect(
+        market.connect(bob).lockPet(aliceTokenId, MAX_LOCK + 1)
+      ).to.be.revertedWith("PetsMarket: invalid duration");
+    });
+  });
+
+  describe("giftCash()", () => {
+    it("owner can gift PCASH to the pet profile", async () => {
+      const { cash, market, alice, bob, aliceTokenId } = await loadFixture(deployFixture);
+
+      await market.connect(bob).buy(aliceTokenId);
+      await cash.connect(bob).approve(await market.getAddress(), ethers.MaxUint256);
+
+      const aliceBalBefore = await cash.balanceOf(alice.address);
+      const giftAmount = ethers.parseEther("50");
+      await market.connect(bob).giftCash(aliceTokenId, giftAmount);
+
+      const aliceBalAfter = await cash.balanceOf(alice.address);
+      expect(aliceBalAfter - aliceBalBefore).to.equal(giftAmount);
+    });
+
+    it("non-owner cannot gift", async () => {
+      const { market, carol, aliceTokenId } = await loadFixture(deployFixture);
+      await expect(
+        market.connect(carol).giftCash(aliceTokenId, ethers.parseEther("10"))
+      ).to.be.revertedWith("PetsMarket: not owner");
+    });
+
+    it("enforces daily gift limit of 10", async () => {
+      const { cash, market, bob, aliceTokenId } = await loadFixture(deployFixture);
+      await market.connect(bob).buy(aliceTokenId);
+      await cash.connect(bob).approve(await market.getAddress(), ethers.MaxUint256);
+
+      const smallGift = ethers.parseEther("1");
+      for (let i = 0; i < 10; i++) {
+        await market.connect(bob).giftCash(aliceTokenId, smallGift);
+      }
+
+      await expect(
+        market.connect(bob).giftCash(aliceTokenId, smallGift)
+      ).to.be.revertedWith("PetsMarket: daily gift limit");
+    });
+  });
+
+  describe("profit split — second buyer", () => {
+    it("second buyer: prev owner (bob) earns cost + half profit", async () => {
+      const { cash, market, bob, carol, aliceTokenId, STARTING } = await loadFixture(deployFixture);
+
+      await market.connect(bob).buy(aliceTokenId);
+      const newPrice = (STARTING * 11000n) / 10000n; // 1100
+
+      const bobBalBefore = await cash.balanceOf(bob.address);
+      await market.connect(carol).buy(aliceTokenId);
+      const bobBalAfter = await cash.balanceOf(bob.address);
+
+      // bob paid 1000, price now 1100
+      // fee = 1100 * 250/10000 = 27 (floor)
+      // afterFee = 1100 - 27 = 1073
+      // cost = 1000 (bob paid 1000)
+      // profit = 1073 - 1000 = 73
+      // half = 36
+      // bob gets: cost + half = 1000 + 36 = 1036
+      const fee      = (newPrice * 250n) / 10000n;
+      const afterFee = newPrice - fee;
+      const cost     = STARTING;
+      const profit   = afterFee - cost;
+      const half     = profit / 2n;
+      const expected = cost + half;
+
+      expect(bobBalAfter - bobBalBefore).to.equal(expected);
+    });
+  });
 });

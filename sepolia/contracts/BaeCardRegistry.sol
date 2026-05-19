@@ -75,7 +75,7 @@ contract BaeCardRegistry is ERC721Enumerable, AccessControl {
         cards[tokenId] = CardInfo(subject, rarity, block.timestamp);
         _subjectCards[subject].push(tokenId);
 
-        _safeMint(msg.sender, tokenId);
+        _mint(msg.sender, tokenId);
         emit CardMinted(subject, tokenId, rarity);
         return tokenId;
     }
