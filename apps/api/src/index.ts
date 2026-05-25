@@ -198,7 +198,7 @@ async function bootstrap() {
   await app.register(bitmojiRoutes,   { prefix: "/users"      });
 
   // Global error handler
-  app.setErrorHandler((error, req, reply) => {
+  app.setErrorHandler((error: Error & { statusCode?: number }, req, reply) => {
     app.log.error({ err: error, url: req.url }, "Unhandled error");
     reply.code(error.statusCode ?? 500).send({
       error: config.NODE_ENV === "production" ? "Internal Server Error" : error.message,
