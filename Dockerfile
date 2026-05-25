@@ -1,5 +1,10 @@
 FROM node:20-alpine
 
+# System libraries required by canvas (native module) and sharp
+RUN apk add --no-cache \
+    cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev pixman-dev \
+    python3 make g++ pkgconfig fontconfig
+
 RUN npm install -g pnpm@9.0.0
 
 WORKDIR /app
@@ -12,6 +17,7 @@ RUN pnpm install --frozen-lockfile --filter=api...
 
 COPY apps/api/src apps/api/src
 COPY apps/api/tsconfig.json apps/api/
+COPY apps/api/public apps/api/public
 
 RUN pnpm --filter=api build
 
