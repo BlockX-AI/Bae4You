@@ -61,6 +61,8 @@ const env = z.object({
   REPLICATE_API_TOKEN:       z.string().optional(),
   RPM_APP_ID:               z.string().optional(),
   RPM_API_KEY:              z.string().optional(),
+
+  TEAM_SECRET:              z.string().optional(), // internal team testing password
 });
 
 const parsed = env.safeParse(process.env);

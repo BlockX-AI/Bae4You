@@ -406,28 +406,30 @@
       div.id = 'loginForm';
       div.style.cssText = 'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:20px;margin-bottom:20px;';
       div.innerHTML = `
-        <h3 style="margin:0 0 12px;font-size:1rem;">🔐 Login to Continue</h3>
-        <input id="loginEmail" type="email" placeholder="Email" style="width:100%;padding:10px;margin-bottom:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;">
-        <input id="loginPass"  type="password" placeholder="Password" style="width:100%;padding:10px;margin-bottom:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;">
-        <button id="loginBtn" style="width:100%;padding:12px;background:linear-gradient(90deg,#667eea,#764ba2);border:none;border-radius:8px;color:#fff;font-weight:700;cursor:pointer;">Login</button>
+        <h3 style="margin:0 0 4px;font-size:1rem;">🔐 Team Access</h3>
+        <p style="font-size:0.75rem;color:#888;margin-bottom:12px;">Enter your name + team password to generate avatars</p>
+        <input id="loginName"   type="text"     placeholder="Your name (e.g. Prakhar)" style="width:100%;padding:10px;margin-bottom:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;">
+        <input id="loginSecret" type="password" placeholder="Team password" style="width:100%;padding:10px;margin-bottom:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;">
+        <button id="loginBtn" style="width:100%;padding:12px;background:linear-gradient(90deg,#667eea,#764ba2);border:none;border-radius:8px;color:#fff;font-weight:700;cursor:pointer;font-size:1rem;">Join Team Test →</button>
         <p id="loginError" style="color:#f87171;font-size:0.8rem;margin-top:8px;display:none;"></p>`;
-      // Insert before camera card
       document.getElementById('cameraCard').before(div);
       document.getElementById('loginBtn').addEventListener('click', async () => {
-        const email = document.getElementById('loginEmail').value;
-        const pass  = document.getElementById('loginPass').value;
-        const errEl = document.getElementById('loginError');
+        const name   = document.getElementById('loginName').value.trim();
+        const secret = document.getElementById('loginSecret').value;
+        const errEl  = document.getElementById('loginError');
         errEl.style.display = 'none';
+        if (!name)   { errEl.textContent = 'Enter your name'; errEl.style.display='block'; return; }
+        if (!secret) { errEl.textContent = 'Enter team password'; errEl.style.display='block'; return; }
         try {
-          const res = await fetch(API_BASE + '/auth/login', {
+          const res = await fetch(API_BASE + '/auth/team-login', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password: pass }),
+            body: JSON.stringify({ name, secret }),
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Login failed');
-          localStorage.setItem('token', data.token || data.accessToken);
+          localStorage.setItem('token', data.token);
           div.style.display = 'none';
-          if (tokenStatus) tokenStatus.textContent = '✅ Logged in';
+          if (tokenStatus) tokenStatus.textContent = `✅ Welcome, ${name}!`;
         } catch (e) {
           errEl.textContent = e.message;
           errEl.style.display = 'block';

@@ -236,6 +236,35 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       return { accessToken: newAccessToken };
     }
   );
+
+  // POST /auth/team-login — internal team testing only (requires TEAM_SECRET env var)
+  fastify.post("/team-login", async (req, reply) => {
+    const { secret, name } = req.body as { secret?: string; name?: string };
+
+    if (!config.TEAM_SECRET) {
+      return reply.code(404).send({ error: "Not found" });
+    }
+    if (secret !== config.TEAM_SECRET) {
+      return reply.code(401).send({ error: "Invalid team secret" });
+    }
+
+    const memberName  = (name ?? "tester").trim().toLowerCase().replace(/\s+/g, "-").slice(0, 20);
+    const fakeWallet  = `0xTEAM${memberName.padEnd(35, "0").slice(0, 35)}`;
+    const memberId    = `00000000-team-0000-0000-${memberName.padEnd(12, "0").slice(0, 12)}`;
+
+    await db.query(`
+      INSERT INTO users (id, wallet_address, role, wallet_type, created_at)
+      VALUES ($1, $2, 'user', 'self_custody', NOW())
+      ON CONFLICT (id) DO NOTHING
+    `, [memberId, fakeWallet]);
+
+    const token = fastify.jwt.sign(
+      { userId: memberId, wallet: fakeWallet, role: "user" },
+      { expiresIn: "7d" }
+    );
+
+    return { token, userId: memberId, name: memberName };
+  });
 };
 
 export default authRoutes;
