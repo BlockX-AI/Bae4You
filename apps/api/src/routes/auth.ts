@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from "fastify";
 import { ethers } from "ethers";
 import { SiweMessage } from "siwe";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { db } from "../db/client";
 import { config } from "../config";
 import { getUserTokenId } from "../services/token-gate";
@@ -249,8 +250,9 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const memberName  = (name ?? "tester").trim().toLowerCase().replace(/\s+/g, "-").slice(0, 20);
-    const fakeWallet  = `0xTEAM${memberName.padEnd(35, "0").slice(0, 35)}`;
-    const memberId    = `00000000-team-0000-0000-${memberName.padEnd(12, "0").slice(0, 12)}`;
+    const h           = crypto.createHash("md5").update(`team:${memberName}`).digest("hex");
+    const memberId    = `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`;
+    const fakeWallet  = `0x${h.slice(0, 40)}`;
 
     await db.query(`
       INSERT INTO users (id, wallet_address, role, wallet_type, created_at)
