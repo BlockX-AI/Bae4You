@@ -340,9 +340,10 @@
         <thead><tr><th>Frame</th><th>Sharp</th><th>Bright</th><th>Face</th><th>Total</th></tr></thead>
         <tbody id="scoresBody"></tbody>
       </table>
-      <div style="display:flex; gap:10px; margin-top:20px;">
-        <button id="regenerateBtn" style="flex:1; background:linear-gradient(90deg,#a78bfa,#764ba2);">🎨 Regenerate (Same Photo)</button>
-        <button id="newKycBtn" style="flex:1; background:rgba(255,255,255,0.1);">🔄 New KYC</button>
+      <div style="display:flex; gap:10px; margin-top:20px; flex-wrap:wrap;">
+        <button id="downloadBtn" style="flex:1; min-width:120px; background:linear-gradient(90deg,#22c55e,#16a34a);">⬇️ Download</button>
+        <button id="regenerateBtn" style="flex:1; min-width:120px; background:linear-gradient(90deg,#a78bfa,#764ba2);">🎨 Regenerate</button>
+        <button id="newKycBtn" style="flex:1; min-width:120px; background:rgba(255,255,255,0.1);">🔄 New KYC</button>
       </div>
     </div>
   </div>
@@ -650,17 +651,42 @@
         });
 
         // ── USE BACKEND HUGGINGFACE AI FOR ALL STYLES ─────────────────────────────
-        loadingMsg.textContent = `Generating ${selectedStyle} avatar via HuggingFace AI...`;
+        const MESSAGES = [
+          `🎨 Generating ${selectedStyle} avatar via HuggingFace AI...`,
+          `🔍 Detecting gender & skin tone from your photo...`,
+          `✏️ Building personalised style prompt...`,
+          `⚡ FLUX.1 is rendering your avatar (this takes ~30s)...`,
+          `🎭 Almost done — adding final details...`,
+        ];
+        let msgIdx = 0;
+        loadingMsg.textContent = MESSAGES[0];
+        const msgTimer = setInterval(() => { msgIdx = Math.min(msgIdx+1, MESSAGES.length-1); loadingMsg.textContent = MESSAGES[msgIdx]; }, 8000);
+
         const formData = new FormData();
         capturedBlobs.forEach((b, i) => formData.append(`frame${i}`, b, `frame${i}.jpg`));
         const gender = genderSelect.value;
         if (gender) formData.append('gender', gender);
         formData.append('style', selectedStyle);
-        const res = await fetch(API_BASE + '/users/me/avatar/kyc-frames', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
-          body: formData,
-        });
+
+        const controller = new AbortController();
+        const timeoutId  = setTimeout(() => controller.abort(), 120000); // 2 min hard timeout
+
+        let res;
+        try {
+          res = await fetch(API_BASE + '/users/me/avatar/kyc-frames', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
+            body: formData,
+            signal: controller.signal,
+          });
+        } catch (fetchErr) {
+          clearInterval(msgTimer); clearTimeout(timeoutId);
+          if (fetchErr.name === 'AbortError') throw new Error('⏰ Generation timed out (>2 min). HuggingFace may be busy — try again.');
+          throw fetchErr;
+        }
+        clearInterval(msgTimer); clearTimeout(timeoutId);
+
+        if (res.status === 401) { localStorage.removeItem('token'); showLoginForm(); throw new Error('Session expired — please log in again.'); }
         if (res.status === 429) { const e = await res.json().catch(()=>({error:'Rate limit exceeded'})); throw new Error('⏳ ' + (e.error || 'Daily avatar limit reached. Try again tomorrow.')); }
         if (!res.ok) { const e = await res.json().catch(()=>({error:res.statusText})); throw new Error(e.error||'Server error'); }
         const data = await res.json();
@@ -899,7 +925,7 @@
       document.getElementById('skinValue').textContent      = data.traits?.skinTone || '-';
       document.getElementById('hairValue').textContent      = data.traits?.hairColor || '-';
       document.getElementById('providerValue').textContent  = data.provider || '-';
-      document.getElementById('cidValue').textContent       = data.cid || '-';
+      document.getElementById('cidValue').textContent       = data.cid || (data.url?.startsWith('data:') ? '(inline base64 — IPFS not configured)' : '-');
       const quotaEl = document.getElementById('quotaValue');
       if (quotaEl && data.dailyQuota) {
         const q = data.dailyQuota;
@@ -924,6 +950,16 @@
         tbody.appendChild(tr);
       });
     }
+
+    // ── Download avatar ────────────────────────────────────────────────────────
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      const img = document.getElementById('avatarImg');
+      if (!img.src) return;
+      const a = document.createElement('a');
+      a.href = img.src;
+      a.download = `bae4u-avatar-${Date.now()}.png`;
+      a.click();
+    });
 
     // ── New KYC ───────────────────────────────────────────────────────────────
     newKycBtn.addEventListener('click', () => {

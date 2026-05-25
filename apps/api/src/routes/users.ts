@@ -327,11 +327,8 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         const errorMsg = err instanceof Error ? err.message : "AI generation failed";
         console.error("[avatar] AI generation failed:", errorMsg);
         return reply.code(502).send({
-          error: "All AI providers failed. Please check your API credits:\n" +
-                 "- FAL.ai: Balance may be exhausted\n" +
-                 "- Replicate: Payment required (402)\n" +
-                 "- HuggingFace: img2img not supported on free tier\n" +
-                 `Details: ${errorMsg}`
+          error: `Avatar generation failed: ${errorMsg}. ` +
+                 "Check that HUGGINGFACE_TOKEN is set in Railway environment variables.",
         });
       }
 
