@@ -4,10 +4,10 @@ import fastifyStatic from "@fastify/static";
 import path from "path";
 
 export default async function imagesRoutes(fastify: FastifyInstance) {
-  // Serve static images
+  // Serve entire public folder at root (covers /video-kyc-test.html, /images/*, etc.)
   await fastify.register(fastifyStatic, {
     root: path.join(__dirname, "../../public"),
-    prefix: "/images/",
+    prefix: "/",
   });
 
   // Generate profile image - /images/profile/:tokenId.png

@@ -1,5 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { ImageComposer } from "../services/image-composer";
+import { db } from "../db/client";
+import { ipfsGatewayUrl } from "../services/ipfs";
 
 export default async function metadataRoutes(fastify: FastifyInstance) {
   // Profile NFT metadata - /metadata/:tokenId.json
@@ -7,23 +9,50 @@ export default async function metadataRoutes(fastify: FastifyInstance) {
     "/metadata/:tokenId.json",
     async (request: FastifyRequest<{ Params: { tokenId: string } }>, reply: FastifyReply) => {
       const { tokenId } = request.params;
-      
+      const tid = parseInt(tokenId);
+      if (isNaN(tid)) return reply.code(400).send({ error: "Invalid tokenId" });
+
       try {
-        // TODO: Fetch user data from database based on tokenId
-        // For now, return a placeholder
-        const imageUrl = `https://api.bae4u.com/images/profile/${tokenId}.png`;
-        
+        const { rows } = await db.query(
+          `SELECT username, display_name, bio, ai_art_ipfs_hash, avatar_ipfs_hash,
+                  is_verified, is_creator, location_city, country_code, created_at
+           FROM users WHERE token_id = $1`,
+          [tid]
+        );
+
+        const user = rows[0];
+
+        // Prefer AI-generated Spider-Verse art → fallback to regular avatar → fallback to generated image
+        let imageUrl: string;
+        if (user?.ai_art_ipfs_hash) {
+          imageUrl = ipfsGatewayUrl(user.ai_art_ipfs_hash);
+        } else if (user?.avatar_ipfs_hash) {
+          imageUrl = ipfsGatewayUrl(user.avatar_ipfs_hash);
+        } else {
+          imageUrl = `https://api.bae4u.com/images/profile/${tokenId}.png`;
+        }
+
+        const attributes: Array<{ trait_type: string; value: string | boolean | number }> = [
+          { trait_type: "Type",       value: "Bae Profile" },
+          { trait_type: "Token ID",   value: tid },
+          { trait_type: "Art Style",  value: user?.ai_art_ipfs_hash ? "Spider-Verse AI Art" : "Photo" },
+        ];
+
+        if (user?.is_verified)  attributes.push({ trait_type: "Verified",  value: true });
+        if (user?.is_creator)   attributes.push({ trait_type: "Creator",   value: true });
+        if (user?.location_city) attributes.push({ trait_type: "City",     value: user.location_city });
+        if (user?.country_code)  attributes.push({ trait_type: "Country",  value: user.country_code });
+
         const metadata = {
-          name: `Bae Profile #${tokenId}`,
-          description: "Your profile picture as an NFT on Bae4U",
-          image: imageUrl,
-          attributes: [
-            { trait_type: "Type", value: "Profile" },
-            { trait_type: "Token ID", value: tokenId },
-          ],
+          name:        user?.display_name ? `${user.display_name} #${tokenId}` : `Bae Profile #${tokenId}`,
+          description: user?.bio ?? "A Bae4U profile NFT — tradeable social identity on Base.",
+          image:       imageUrl,
+          external_url: `https://bae4u.com/profile/${tokenId}`,
+          attributes,
         };
 
         reply.header("Content-Type", "application/json");
+        reply.header("Cache-Control", user?.ai_art_ipfs_hash ? "public, max-age=86400" : "public, max-age=300");
         return metadata;
       } catch (error) {
         reply.code(500).send({ error: "Failed to generate metadata" });

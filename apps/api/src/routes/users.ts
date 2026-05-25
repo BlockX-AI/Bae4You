@@ -5,6 +5,10 @@ import type { JwtPayload } from "../plugins/auth";
 import { uploadToIPFS, ipfsGatewayUrl } from "../services/ipfs";
 import { registerPushToken, removePushToken } from "../services/push";
 import { upsertPersonality } from "../services/pinecone-match";
+import { generateAiAvatar, generateAvatarInStyle, type AiAvatarResult, type FaceToManyStyle, type Gender } from "../services/ai-avatar";
+import { selectBestKycFrame, normaliseKycFrame } from "../services/video-kyc";
+import { generateBitmojiFromPhoto } from "../services/bitmoji-service";
+import { config } from "../config";
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -161,6 +165,207 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       );
 
       return { cid, url: ipfsGatewayUrl(cid) };
+    }
+  );
+
+  // POST /users/me/avatar/ai-art — generate Spider-Verse style NFT portrait
+  // Multipart: field "photo" (image file) + field "gender" (male|female|other)
+  fastify.post(
+    "/me/avatar/ai-art",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+
+      if (!config.FAL_KEY && !config.HUGGINGFACE_TOKEN) {
+        return reply.code(503).send({ error: "AI art generation not configured — set FAL_KEY or HUGGINGFACE_TOKEN" });
+      }
+
+      const parts = req.parts();
+      let photoBuffer: Buffer | null = null;
+      let photoMime   = "image/jpeg";
+      let gender: Gender | undefined;
+
+      for await (const part of parts) {
+        if (part.type === "file" && part.fieldname === "photo") {
+          if (!ALLOWED_MIME.has(part.mimetype)) {
+            return reply.code(415).send({ error: "Only JPEG, PNG, and WebP images are accepted" });
+          }
+          photoMime = part.mimetype;
+          const chunks: Buffer[] = [];
+          for await (const chunk of part.file) chunks.push(chunk as Buffer);
+          photoBuffer = Buffer.concat(chunks);
+          if (photoBuffer.length > 10 * 1024 * 1024) {
+            return reply.code(413).send({ error: "File exceeds 10 MB limit" });
+          }
+        } else if (part.type === "field" && part.fieldname === "gender") {
+          const val = (part.value as string).toLowerCase();
+          if (val === "male" || val === "female" || val === "other") {
+            gender = val as Gender;
+          }
+        }
+      }
+
+      if (!photoBuffer) {
+        return reply.code(400).send({ error: "No photo provided — send multipart field 'photo'" });
+      }
+
+      let aiResult: Awaited<ReturnType<typeof generateAiAvatar>>;
+      try {
+        aiResult = await generateAiAvatar(photoBuffer, photoMime, gender, config.FAL_KEY, config.HUGGINGFACE_TOKEN, config.REPLICATE_TOKEN);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "AI generation failed";
+        return reply.code(502).send({ error: msg });
+      }
+
+      const name = `ai-avatar-${payload.userId}-${Date.now()}.png`;
+      let cid: string;
+      try {
+        cid = await uploadToIPFS(aiResult.buffer, name, "image/png");
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "IPFS upload failed";
+        return reply.code(502).send({ error: msg });
+      }
+
+      await db.query(
+        "UPDATE users SET ai_art_ipfs_hash = $1 WHERE id = $2",
+        [cid, payload.userId]
+      );
+
+      return {
+        cid,
+        url:      ipfsGatewayUrl(cid),
+        gender:   aiResult.gender,
+        traits:   aiResult.traits,
+        seed:     aiResult.seed,
+        prompt:   aiResult.prompt,
+        provider: aiResult.provider,
+      };
+    }
+  );
+
+  // POST /users/me/avatar/kyc-frames
+  // ─────────────────────────────────────────────────────────────────────────
+  // Video KYC avatar generation.
+  // The mobile app sends 1-5 photo frames captured during the KYC countdown.
+  // The server picks the sharpest, most face-visible frame, then generates a
+  // face-preserving NFT avatar via fofr/face-to-many (InstantID).
+  //
+  // Multipart fields:
+  //   frame0…frame4  image/jpeg or image/png   (at least one required)
+  //   gender         "male" | "female" | "other"  (optional hint)
+  fastify.post(
+    "/me/avatar/kyc-frames",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+
+      const parts = req.parts();
+      const frames: Buffer[] = [];
+      let gender: Gender | undefined;
+
+      const VALID_STYLES: (FaceToManyStyle | "Bitmoji-Flat")[] = ["3D","Emoji","Video game","Pixels","Clay","Toy","LEGO","Anime","Claymation","Comic","Bitmoji-Flat"];
+      let avatarStyle: FaceToManyStyle | "Bitmoji-Flat" | undefined;
+
+      for await (const part of parts) {
+        if (part.type === "file" && part.fieldname.startsWith("frame")) {
+          const chunks: Buffer[] = [];
+          for await (const chunk of part.file) chunks.push(chunk as Buffer);
+          frames.push(Buffer.concat(chunks));
+        } else if (part.type === "field" && part.fieldname === "gender") {
+          const val = (part as { value: string }).value;
+          if (val === "male" || val === "female" || val === "other") gender = val;
+        } else if (part.type === "field" && part.fieldname === "style") {
+          const val = (part as { value: string }).value as FaceToManyStyle | "Bitmoji-Flat";
+          if (VALID_STYLES.includes(val)) avatarStyle = val;
+        }
+      }
+
+      if (frames.length === 0) {
+        return reply.code(400).send({ error: "Send at least one frame field (frame0…frame4)" });
+      }
+
+      // ── Rate limit: 10 avatar generations per user per day ──────────────────
+      const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+      const rateKey = `avatar_rate:${payload.userId}:${today}`;
+      const DAILY_LIMIT = 10;
+      const currentCount = await fastify.redis.incr(rateKey);
+      if (currentCount === 1) await fastify.redis.expire(rateKey, 86400); // expires in 24h
+      if (currentCount > DAILY_LIMIT) {
+        return reply.code(429).send({
+          error: `Daily avatar limit reached (${DAILY_LIMIT}/day). Try again tomorrow.`,
+          retryAfter: "24h",
+        });
+      }
+
+      const { bestFrame, scores } = await selectBestKycFrame(frames);
+      const normalisedFrame = await normaliseKycFrame(bestFrame);
+
+      let aiBuffer:   Buffer;
+      let aiProvider: string;
+      let aiResult:   AiAvatarResult | null = null;
+      try {
+        if (avatarStyle === "Bitmoji-Flat") {
+          // DiceBear flat-cartoon pipeline — no Replicate needed
+          const bmGender = (gender === "male" || gender === "female") ? gender : undefined;
+          const bm = await generateBitmojiFromPhoto(normalisedFrame, { style: "avataaars", gender: bmGender, generateStickers: false, avatarSize: 512 });
+          aiBuffer   = bm.avatar.buffer;
+          aiProvider = "dicebear/avataaars (bitmoji-flat)";
+        } else if (avatarStyle) {
+          const r = await generateAvatarInStyle(normalisedFrame, "image/jpeg", avatarStyle, config.REPLICATE_API_TOKEN, config.FAL_KEY, config.HUGGINGFACE_TOKEN, gender);
+          aiBuffer   = r.buffer;
+          aiProvider = r.provider;
+        } else {
+          aiResult   = await generateAiAvatar(
+            normalisedFrame, "image/jpeg", gender,
+            config.FAL_KEY, config.HUGGINGFACE_TOKEN, config.REPLICATE_API_TOKEN,
+          );
+          aiBuffer   = aiResult.buffer;
+          aiProvider = aiResult.provider;
+        }
+      } catch (err: unknown) {
+        // All AI providers failed - return error message explaining payment/balance issues
+        const errorMsg = err instanceof Error ? err.message : "AI generation failed";
+        console.error("[avatar] AI generation failed:", errorMsg);
+        return reply.code(502).send({
+          error: "All AI providers failed. Please check your API credits:\n" +
+                 "- FAL.ai: Balance may be exhausted\n" +
+                 "- Replicate: Payment required (402)\n" +
+                 "- HuggingFace: img2img not supported on free tier\n" +
+                 `Details: ${errorMsg}`
+        });
+      }
+
+      const name = `kyc-avatar-${payload.userId}-${Date.now()}.png`;
+
+      let cid: string | null = null;
+      let avatarUrl: string;
+
+      try {
+        cid = await uploadToIPFS(aiBuffer, name, "image/png");
+        avatarUrl = ipfsGatewayUrl(cid);
+        await db.query(
+          "UPDATE users SET ai_art_ipfs_hash = $1 WHERE id = $2",
+          [cid, payload.userId]
+        );
+      } catch {
+        // IPFS not configured or failed — return avatar as inline data URL so the
+        // test page can still display it without PINATA set up
+        avatarUrl = `data:image/png;base64,${aiBuffer.toString("base64")}`;
+      }
+
+      return {
+        cid,
+        url:          avatarUrl,
+        framesReceived: frames.length,
+        bestFrameIndex: scores[0].index,
+        frameScores:  scores,
+        style:        avatarStyle ?? null,
+        gender:       aiResult?.gender,
+        traits:       aiResult?.traits,
+        provider:     aiProvider,
+        prompt:       aiResult?.prompt,
+        dailyQuota:   { used: currentCount, limit: DAILY_LIMIT, remaining: DAILY_LIMIT - currentCount },
+      };
     }
   );
 

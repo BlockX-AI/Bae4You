@@ -1,6 +1,7 @@
 import fp from "fastify-plugin";
 import { FastifyPluginAsync } from "fastify";
 import { Server, Socket } from "socket.io";
+import { createServer } from "http";
 import { config } from "../config";
 import { db } from "../db/client";
 import { sendPushToUser } from "../services/push";
@@ -18,7 +19,11 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
     /localhost/,
   ];
 
-  const io = new Server(fastify.server, {
+  // Standalone HTTP server so Socket.IO does NOT intercept Fastify requests
+  const ioHttpServer = createServer();
+  const SOCKET_PORT = parseInt(config.PORT) + 1; // e.g. 3002 when API is 3001
+
+  const io = new Server(ioHttpServer, {
     cors: {
       origin: config.NODE_ENV === "production" ? allowedOrigins : "*",
       methods: ["GET", "POST"],
@@ -150,8 +155,18 @@ const socketPlugin: FastifyPluginAsync = async (fastify) => {
 
   fastify.decorate("io", io);
 
+  // Start standalone Socket.IO server
+  await new Promise<void>((resolve, reject) => {
+    ioHttpServer.listen(SOCKET_PORT, "0.0.0.0", () => {
+      fastify.log.info(`🔌 Socket.IO listening on port ${SOCKET_PORT}`);
+      resolve();
+    });
+    ioHttpServer.on("error", reject);
+  });
+
   fastify.addHook("onClose", async () => {
     io.close();
+    ioHttpServer.close();
   });
 };
 

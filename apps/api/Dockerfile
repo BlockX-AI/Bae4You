@@ -21,6 +21,7 @@ ENV NODE_ENV=production
 COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=deps   /app/apps/api/node_modules ./node_modules
 COPY apps/api/src/db/schema.sql ./src/db/schema.sql
+COPY apps/api/public/ ./public/
 
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \

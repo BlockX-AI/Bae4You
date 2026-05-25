@@ -29,8 +29,12 @@ import tournamentsRoutes from "./routes/tournaments";
 import couplesRoutes     from "./routes/couples";
 import metadataRoutes   from "./routes/metadata";
 import imagesRoutes    from "./routes/images";
+import bitmojiRoutes   from "./routes/bitmoji";
 
 import { config } from "./config";
+import { db } from "./db/client";
+import fs   from "fs";
+import path from "path";
 
 // TLS certificate fingerprints for the Railway deployment.
 // React Native uses these for certificate pinning (react-native-ssl-pinning).
@@ -86,6 +90,7 @@ async function bootstrap() {
         { name: "cards",       description: "Fantasy Bae — Bae Card NFT market" },
         { name: "tournaments", description: "Fantasy Bae — weekly tournament engine" },
         { name: "couples",     description: "Fantasy Bae — Couple Card co-minting" },
+        { name: "bitmoji",     description: "AI Identity Engine — avatar, stickers, couple generation" },
       ],
     },
   });
@@ -97,9 +102,9 @@ async function bootstrap() {
     staticCSP: true,
   });
 
-  // Multipart — used for avatar uploads (5 MB limit)
+  // Multipart — used for avatar uploads (10 MB limit, 2 files for couple endpoint)
   await app.register(multipart, {
-    limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+    limits: { fileSize: 10 * 1024 * 1024, files: 10 },
   });
 
   // Security middleware
@@ -112,7 +117,7 @@ async function bootstrap() {
           /\.expo\.dev$/,
           /localhost/,
         ]
-      : true,
+      : true, // allow all origins in dev (includes localhost:8080 for KYC test)
     credentials: true,
   });
   await app.register(helmet, { contentSecurityPolicy: false });
@@ -136,6 +141,32 @@ async function bootstrap() {
     // Apply rate limiting
     return rateLimiterWithAdminBypass(req, reply);
   });
+
+  // ── Video KYC test page (served directly — bypasses static handler ambiguity)
+  const KYC_HTML = path.resolve(__dirname, "../public/video-kyc-test.html");
+  app.get("/video-kyc-test.html", async (_req, reply) => {
+    try {
+      const html = fs.readFileSync(KYC_HTML, "utf-8");
+      return reply.type("text/html").send(html);
+    } catch {
+      return reply.code(404).send("Not found");
+    }
+  });
+
+  // ── DEV-ONLY: generate a test JWT for the video KYC test page
+  if (config.NODE_ENV !== "production") {
+    app.get("/dev/token", async (_req, reply) => {
+      const DEV_USER_ID = "00000000-0000-0000-0000-000000000001";
+      // Upsert a throw-away test user so the UPDATE query in kyc-frames succeeds
+      await db.query(`
+        INSERT INTO users (id, wallet_address, role, wallet_type, created_at)
+        VALUES ($1, '0xDEV000000000000000000000000000000000000', 'user', 'self_custody', NOW())
+        ON CONFLICT (id) DO NOTHING
+      `, [DEV_USER_ID]);
+      const token = app.jwt.sign({ userId: DEV_USER_ID, wallet: "0xDEV", role: "user" }, { expiresIn: "24h" });
+      return reply.send({ token });
+    });
+  }
 
   // Health check (no auth required)
   app.get("/health", async () => ({
@@ -164,6 +195,7 @@ async function bootstrap() {
   await app.register(couplesRoutes,     { prefix: "/couples"     });
   await app.register(metadataRoutes,   { prefix: ""            });
   await app.register(imagesRoutes,    { prefix: ""            });
+  await app.register(bitmojiRoutes,   { prefix: "/users"      });
 
   // Global error handler
   app.setErrorHandler((error, req, reply) => {

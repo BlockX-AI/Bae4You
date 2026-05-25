@@ -54,6 +54,13 @@ const env = z.object({
   PINECONE_PROJECT_ID:      z.string().optional(),
 
   EXPO_ACCESS_TOKEN:        z.string().optional(),
+
+  FAL_KEY:                  z.string().optional(),
+  HUGGINGFACE_TOKEN:        z.string().optional(),
+  REPLICATE_TOKEN:          z.string().optional(),
+  REPLICATE_API_TOKEN:       z.string().optional(),
+  RPM_APP_ID:               z.string().optional(),
+  RPM_API_KEY:              z.string().optional(),
 });
 
 const parsed = env.safeParse(process.env);
