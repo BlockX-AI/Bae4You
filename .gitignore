@@ -1,5 +1,7 @@
 node_modules
 dist
+.ENV
+.ENV
 
 deployments.json
 cache
