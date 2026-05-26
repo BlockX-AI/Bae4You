@@ -539,7 +539,7 @@ async function generateViaHuggingFace(
   }
 
   // All img2img models failed - fall back to text-to-image with gender-aware prompts
-  console.warn("[ai-avatar] all img2img models failed, falling back to text-to-image");
+  console.warn("[ai-avatar] HF img2img models failed, falling back to text-to-image");
   const result = await hf.textToImage({
     model: "black-forest-labs/FLUX.1-schnell",
     inputs: prompt,
@@ -553,6 +553,47 @@ async function generateViaHuggingFace(
 
   const arrayBuf = await (result as unknown as Blob).arrayBuffer();
   return Buffer.from(arrayBuf);
+}
+
+// ─── Cloudflare Workers AI ────────────────────────────────────────────────────
+
+/**
+ * Generate avatar via Cloudflare Workers AI (free tier — 10k req/day).
+ * Uses img2img when photo is provided, otherwise text-to-image.
+ */
+async function generateViaCloudflare(
+  photoBuffer: Buffer,
+  prompt:      string,
+  accountId:   string,
+  apiToken:    string,
+  negativePrompt?: string,
+): Promise<Buffer> {
+  const IMG2IMG_MODEL = "@cf/runwayml/stable-diffusion-v1-5-img2img";
+  const TXT2IMG_MODEL = "@cf/bytedance/stable-diffusion-xl-lightning";
+
+  const baseUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run`;
+  const headers  = { "Authorization": `Bearer ${apiToken}`, "Content-Type": "application/json" };
+
+  // Try img2img first (preserves identity from photo)
+  try {
+    const imageB64 = photoBuffer.toString("base64");
+    const body = { prompt, image: imageB64, strength: 0.65, num_steps: 20, negative_prompt: negativePrompt || NEGATIVE_PROMPT };
+    const res  = await fetch(`${baseUrl}/${IMG2IMG_MODEL}`, { method: "POST", headers, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(`CF img2img ${res.status}: ${await res.text()}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    console.log("[ai-avatar] Cloudflare img2img success");
+    return buf;
+  } catch (err) {
+    console.warn("[ai-avatar] Cloudflare img2img failed:", err instanceof Error ? err.message.slice(0, 120) : String(err));
+  }
+
+  // Fallback to text-to-image
+  const body = { prompt, num_steps: 20, negative_prompt: negativePrompt || NEGATIVE_PROMPT };
+  const res  = await fetch(`${baseUrl}/${TXT2IMG_MODEL}`, { method: "POST", headers, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(`CF text2img ${res.status}: ${await res.text()}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  console.log("[ai-avatar] Cloudflare text-to-image success");
+  return buf;
 }
 
 // ─── Public entry point ───────────────────────────────────────────────────────
@@ -657,6 +698,8 @@ export async function generateAvatarInStyle(
   falApiKey?:  string,
   hfToken?:    string,
   gender?:     Gender,
+  cfAccountId?: string,
+  cfApiToken?:  string,
 ): Promise<{ buffer: Buffer; provider: string; style: FaceToManyStyle }> {
 
   // 1. Backend gender detection from the actual photo (free HuggingFace classifier)
@@ -722,13 +765,29 @@ export async function generateAvatarInStyle(
     }
   }
 
-  // 3. HuggingFace text-to-image fallback (free, uses trait-enriched prompt)
-  if (hfToken) {
-    const buffer = await generateViaHuggingFace(photoBuffer, mimeType, prompt, hfToken, negGender);
-    return { buffer, provider: `huggingface/flux-schnell (${style})`, style };
+  // 3. Cloudflare Workers AI (free — 10k/day, img2img supported)
+  if (cfAccountId && cfApiToken) {
+    try {
+      const buffer = await generateViaCloudflare(photoBuffer, prompt, cfAccountId, cfApiToken, negGender);
+      return { buffer, provider: `cloudflare/sdxl-lightning (${style})`, style };
+    } catch (err) {
+      console.error("[ai-avatar] Cloudflare failed:", err instanceof Error ? err.message : String(err));
+      // fall through to HuggingFace
+    }
   }
 
-  throw new Error("No AI provider available — add REPLICATE_API_TOKEN, FAL_KEY, or HUGGINGFACE_TOKEN to .env");
+  // 4. HuggingFace text-to-image fallback (free tier — resets monthly)
+  if (hfToken) {
+    try {
+      const buffer = await generateViaHuggingFace(photoBuffer, mimeType, prompt, hfToken, negGender);
+      return { buffer, provider: `huggingface/flux-schnell (${style})`, style };
+    } catch (err) {
+      console.error("[ai-avatar] HuggingFace failed:", err instanceof Error ? err.message : String(err));
+      // fall through to DiceBear
+    }
+  }
+
+  throw new Error("No AI provider available. Set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN in Railway Variables.");
 }
 
 // Export AI_PROMPTS for backward-compat with test scripts

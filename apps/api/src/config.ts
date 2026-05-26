@@ -63,6 +63,9 @@ const env = z.object({
   RPM_API_KEY:              z.string().optional(),
 
   TEAM_SECRET:              z.string().optional(), // internal team testing password
+
+  CLOUDFLARE_ACCOUNT_ID:    z.string().optional(),
+  CLOUDFLARE_API_TOKEN:     z.string().optional(),
 });
 
 const parsed = env.safeParse(process.env);

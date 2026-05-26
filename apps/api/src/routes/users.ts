@@ -311,7 +311,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
           aiBuffer   = bm.avatar.buffer;
           aiProvider = "dicebear/avataaars (bitmoji-flat)";
         } else if (avatarStyle) {
-          const r = await generateAvatarInStyle(normalisedFrame, "image/jpeg", avatarStyle, config.REPLICATE_API_TOKEN, config.FAL_KEY, config.HUGGINGFACE_TOKEN, gender);
+          const r = await generateAvatarInStyle(normalisedFrame, "image/jpeg", avatarStyle, config.REPLICATE_API_TOKEN, config.FAL_KEY, config.HUGGINGFACE_TOKEN, gender, config.CLOUDFLARE_ACCOUNT_ID, config.CLOUDFLARE_API_TOKEN);
           aiBuffer   = r.buffer;
           aiProvider = r.provider;
         } else {
