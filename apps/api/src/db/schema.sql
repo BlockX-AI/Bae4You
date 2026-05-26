@@ -234,3 +234,25 @@ CREATE TABLE IF NOT EXISTS nonces (
   nonce          VARCHAR(64)  NOT NULL,
   created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+-- Hero cards (profile cards for users)
+CREATE SEQUENCE IF NOT EXISTS hero_card_number_seq START 1;
+
+CREATE TABLE IF NOT EXISTS hero_cards (
+  id              UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id         UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  card_number     INTEGER      NOT NULL DEFAULT nextval('hero_card_number_seq'),
+  tier            VARCHAR(20)  NOT NULL CHECK (tier IN ('Common', 'Rare', 'Epic', 'Legendary')),
+  card_ipfs_hash  VARCHAR(100),
+  vibe_score      INTEGER      NOT NULL DEFAULT 0,
+  rizz_score      INTEGER      NOT NULL DEFAULT 0,
+  drip_score      INTEGER      NOT NULL DEFAULT 0,
+  aura_score      INTEGER      NOT NULL DEFAULT 0,
+  badges          JSONB,
+  generated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, card_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_hero_cards_user ON hero_cards(user_id);
+CREATE INDEX IF NOT EXISTS idx_hero_cards_number ON hero_cards(card_number);
+CREATE INDEX IF NOT EXISTS idx_hero_cards_tier ON hero_cards(tier);

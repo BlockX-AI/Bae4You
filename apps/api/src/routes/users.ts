@@ -413,14 +413,19 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Fetch user profile + stored avatar from DB
       const { rows } = await db.query(
-        `SELECT display_name, avatar_ipfs_hash, kyc_vibe_score FROM users WHERE id = $1`,
+        `SELECT display_name, location_city, birth_date, avatar_ipfs_hash FROM users WHERE id = $1`,
         [payload.userId]
       );
       if (!rows[0]) return reply.code(404).send({ error: "User not found" });
 
       const user = rows[0];
-      const vibeScore = body.vibe ?? user.kyc_vibe_score ?? 72;
+      const vibeScore = body.vibe ?? 72;
       const tier      = body.tier ?? tierFromVibe(vibeScore);
+
+      // Calculate age from birth_date
+      const age = body.age ?? (user.birth_date 
+        ? Math.floor((Date.now() - new Date(user.birth_date).getTime()) / 31557600000)
+        : 21);
 
       // Fetch avatar image (from IPFS or direct URL)
       if (!user.avatar_ipfs_hash) {
@@ -432,16 +437,16 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       if (!avatarRes.ok) return reply.code(502).send({ error: "Failed to fetch avatar from IPFS" });
       const avatarBuffer = Buffer.from(await avatarRes.arrayBuffer());
 
-      // Get next card number
-      const { rows: countRows } = await db.query(`SELECT COUNT(*) AS cnt FROM hero_cards`);
-      const cardNumber = String(Number(countRows[0]?.cnt ?? 0) + 1);
+      // Get next card number from sequence
+      const { rows: seqRows } = await db.query(`SELECT nextval('hero_card_number_seq') AS next_num`);
+      const cardNumber = Number(seqRows[0]?.next_num ?? 1);
 
       // Generate the card
       const cardBuffer = await generateHeroCard({
         avatarBuffer,
         name:       body.name ?? user.display_name ?? "USER",
-        city:       body.city ?? "INDIA",
-        age:        body.age  ?? 21,
+        city:       body.city ?? user.location_city ?? "INDIA",
+        age,
         cardNumber,
         tier,
         vibe:       vibeScore,
@@ -451,23 +456,29 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         badges:     body.badges ?? (vibeScore >= 95 ? ["OG MEMBER", "TOP 1%"] : []),
       });
 
-      // Upload card to IPFS
-      const { IpfsHash } = await (await import("../services/ipfs")).uploadToIPFS(
-        cardBuffer, "image/png", `hero-card-${payload.userId}-${Date.now()}.png`
+      // Upload card to IPFS (uploadToIPFS returns the CID string directly)
+      const ipfsHash = await uploadToIPFS(
+        cardBuffer, `hero-card-${payload.userId}-${Date.now()}.png`, "image/png"
       );
 
-      // Store in DB (best-effort)
+      // Store in DB
       await db.query(
-        `INSERT INTO hero_cards (user_id, ipfs_hash, tier, card_number, vibe_score, created_at)
-         VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT DO NOTHING`,
-        [payload.userId, IpfsHash, tier, cardNumber, vibeScore]
-      ).catch(() => {}); // table may not exist yet — silently ignore
+        `INSERT INTO hero_cards (user_id, card_number, tier, card_ipfs_hash, vibe_score, rizz_score, drip_score, aura_score, badges)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [payload.userId, cardNumber, tier, ipfsHash, vibeScore, 
+         body.rizz ?? Math.round(vibeScore * 0.97),
+         body.drip ?? Math.round(vibeScore * 0.95),
+         body.aura ?? Math.round(vibeScore * 0.92),
+         JSON.stringify(body.badges ?? (vibeScore >= 95 ? ["OG MEMBER", "TOP 1%"] : []))]
+      ).catch((e) => {
+        console.error("Failed to store hero card:", e);
+      });
 
       return {
-        cardUrl:    `https://gateway.pinata.cloud/ipfs/${IpfsHash}`,
-        ipfsHash:   IpfsHash,
+        cardUrl:    `https://gateway.pinata.cloud/ipfs/${ipfsHash}`,
+        ipfsHash,
         tier,
-        cardNumber,
+        cardNumber: String(cardNumber).padStart(4, "0"),
         vibe:       vibeScore,
       };
     }

@@ -17,11 +17,11 @@ export type CardTier = "Common" | "Rare" | "Epic" | "Legendary";
 
 export interface HeroCardInput {
   avatarBuffer: Buffer;         // KYC-generated comic avatar (any size)
-  name:         string;         // "PRAKHAR"
-  city:         string;         // "MUMBAI"
-  age:          number;         // 21
-  cardNumber:   string;         // "0042"
-  tier:         CardTier;
+  name:         string;         // "PRAKHAR" (from display_name)
+  city:         string;         // "MUMBAI" (from location_city)
+  age:          number;         // 21 (calculated from birth_date)
+  cardNumber:   number;         // Auto-assigned from sequence
+  tier:         CardTier;       // Auto-calculated from vibe score
   vibe:         number;         // 0–100
   rizz?:        number;
   drip?:        number;
@@ -55,64 +55,70 @@ interface TierLayout {
   align: "left" | "center";
 }
 
+/**
+ * Pixel-measured positions for each tier template (864×1216):
+ *  - avatar circle center/radius measured from actual template image
+ *  - coverY = y where baked-in placeholder text starts (needs to be blanked)
+ *  - name/city/stats/badges placed within the covered area
+ */
 const LAYOUTS: Record<CardTier, TierLayout> = {
   Common: {
-    avatar:   { cx: 432, cy: 375, r: 252 },
-    bgColor:  "#1a1a2e",
-    name:     { x: 55,  y: 718, size: 64, color: "#ffffff", anchor: "start"  },
-    city:     { x: 55,  y: 778, size: 28, color: "#94a3b8", anchor: "start"  },
+    avatar:   { cx: 432, cy: 430, r: 235 },
+    bgColor:  "#0d0d1a",
+    name:     { x: 432, y: 845, size: 38, color: "#ffffff", anchor: "middle" },
+    city:     { x: 432, y: 888, size: 18, color: "#94a3b8", anchor: "middle" },
     stats:    "single",
-    statsY:   828,
+    statsY:   940,
     statsColor: "#ffffff",
-    statsBg:  "#2d2f54",
+    statsBg:  "#1a1a3e",
     showStats: ["vibe"],
-    badgesY:  895,
-    badgesBg: "#3b3d6b",
+    badgesY:  1055,
+    badgesBg: "#2a2a5e",
     badgesTextColor: "#ffffff",
-    align:    "left",
+    align:    "center",
   },
   Rare: {
-    avatar:   { cx: 432, cy: 383, r: 238 },
-    bgColor:  "#12101e",
-    name:     { x: 55,  y: 728, size: 64, color: "#ffffff", anchor: "start"  },
-    city:     { x: 55,  y: 788, size: 28, color: "#94a3b8", anchor: "start"  },
+    avatar:   { cx: 432, cy: 460, r: 265 },
+    bgColor:  "#0a0814",
+    name:     { x: 432, y: 845, size: 38, color: "#c084fc", anchor: "middle" },
+    city:     { x: 432, y: 888, size: 18, color: "#a855f7", anchor: "middle" },
     stats:    "double-row",
-    statsY:   820,
-    statsColor: "#ffffff",
-    statsBg:  "#2d1b5e",
+    statsY:   930,
+    statsColor: "#c084fc",
+    statsBg:  "#1a0a3e",
     showStats: ["vibe", "rizz"],
-    badgesY:  900,
-    badgesBg: "#5b21b6",
-    badgesTextColor: "#ffffff",
-    align:    "left",
+    badgesY:  1055,
+    badgesBg: "#3b1278",
+    badgesTextColor: "#c084fc",
+    align:    "center",
   },
   Epic: {
-    avatar:   { cx: 432, cy: 340, r: 228 },
-    bgColor:  "#0d0a0e",
-    name:     { x: 432, y: 858, size: 62, color: "#ffd700", anchor: "middle" },
-    city:     { x: 432, y: 900, size: 28, color: "#c9a227", anchor: "middle" },
+    avatar:   { cx: 432, cy: 430, r: 235 },
+    bgColor:  "#080608",
+    name:     { x: 432, y: 845, size: 42, color: "#ffd700", anchor: "middle" },
+    city:     { x: 432, y: 892, size: 18, color: "#c9a227", anchor: "middle" },
     stats:    "double-row",
-    statsY:   708,
+    statsY:   930,
     statsColor: "#ffd700",
-    statsBg:  "#2a1a00",
+    statsBg:  "#1a0e00",
     showStats: ["vibe", "rizz", "drip"],
-    badgesY:  762,
-    badgesBg: "#3d2800",
+    badgesY:  1055,
+    badgesBg: "#2a1800",
     badgesTextColor: "#ffd700",
     align:    "center",
   },
   Legendary: {
-    avatar:   { cx: 432, cy: 388, r: 252 },
+    avatar:   { cx: 432, cy: 455, r: 235 },
     bgColor:  "#000000",
-    name:     { x: 432, y: 712, size: 68, color: "#ffd700", anchor: "middle" },
-    city:     { x: 432, y: 768, size: 30, color: "#c9a227", anchor: "middle" },
+    name:     { x: 432, y: 845, size: 46, color: "#ffd700", anchor: "middle" },
+    city:     { x: 432, y: 895, size: 20, color: "#c9a227", anchor: "middle" },
     stats:    "grid-2x2",
-    statsY:   800,
+    statsY:   930,
     statsColor: "#ffd700",
-    statsBg:  "#1a1200",
+    statsBg:  "#0a0800",
     showStats: ["vibe", "rizz", "drip", "aura"],
-    badgesY:  900,
-    badgesBg: "#1a1200",
+    badgesY:  1055,
+    badgesBg: "#0a0800",
     badgesTextColor: "#ffd700",
     align:    "center",
   },
@@ -140,12 +146,13 @@ function statBlocks(
   x: number, y: number,
   label: string, value: number,
   color: string, bgColor: string,
-  width = 360
 ): string {
   const blocks = 8;
   const filled  = Math.round((value / 100) * blocks);
   const bW = 22, bH = 18, bGap = 5;
-  const barsX = x + 130;
+  const labelW = 90;
+  const barsX   = x + labelW;
+  const scoreX  = barsX + blocks * (bW + bGap) + 8;
 
   let rects = "";
   for (let i = 0; i < blocks; i++) {
@@ -158,8 +165,8 @@ function statBlocks(
     <text x="${x}" y="${y}" font-size="22" font-weight="700" fill="${color}"
       font-family="Arial Black, Arial" letter-spacing="1">${label}</text>
     ${rects}
-    <text x="${x + width - 10}" y="${y}" font-size="22" font-weight="700" fill="${color}"
-      font-family="Arial Black, Arial" text-anchor="end">${value}</text>`;
+    <text x="${scoreX}" y="${y}" font-size="22" font-weight="700" fill="${color}"
+      font-family="Arial Black, Arial">${value}</text>`;
 }
 
 /** Build the complete SVG overlay: cover rects + text + stats + badges */
@@ -168,27 +175,12 @@ function buildOverlay(input: HeroCardInput, layout: TierLayout): Buffer {
   const L = layout;
   const W = 864, H = 1216;
 
-  // Cover regions to erase old placeholder text
-  const coverAreas: Array<{ x: number; y: number; w: number; h: number }> = [];
+  // No cover rectangles - place content in template's designated empty areas
+  const coverSVG = "";
 
-  // Always cover: card number top-right
-  coverAreas.push({ x: 630, y: 30,  w: 210, h: 70  });
-  // Name cover
-  coverAreas.push({ x: L.align === "center" ? 100 : 40, y: L.name.y - 65, w: L.align === "center" ? 664 : 520, h: 85  });
-  // City cover
-  coverAreas.push({ x: L.align === "center" ? 100 : 40, y: L.city.y - 35, w: L.align === "center" ? 664 : 460, h: 52  });
-  // Stats area cover
-  coverAreas.push({ x: 40, y: L.statsY - 30, w: 784, h: tier === "Legendary" ? 115 : tier === "Epic" ? 120 : 80 });
-  // Badges cover
-  coverAreas.push({ x: 40, y: L.badgesY - 10, w: 784, h: 60 });
-
-  const coverSVG = coverAreas.map(c =>
-    `<rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" fill="${L.bgColor}" />`
-  ).join("\n");
-
-  // Card number (top-right)
-  const cardNumSVG = `<text x="824" y="80" font-size="28" font-weight="700" fill="${L.name.color}"
-    font-family="Arial Black, Arial" text-anchor="end">#${cardNumber.padStart(4, "0")}</text>`;
+  // Card number (top-left) - positioned where there's no baked-in content
+  const cardNumSVG = `<text x="40" y="80" font-size="28" font-weight="700" fill="${L.name.color}"
+    font-family="Arial Black, Arial" text-anchor="start">#${String(cardNumber).padStart(4, "0")}</text>`;
 
   // Name
   const nameSVG = `<text x="${L.name.x}" y="${L.name.y}" font-size="${L.name.size}" font-weight="900"
@@ -206,23 +198,23 @@ function buildOverlay(input: HeroCardInput, layout: TierLayout): Buffer {
   const labels: Record<string, string> = { vibe: "VIBE", rizz: "RIZZ", drip: "DRIP", aura: "AURA" };
 
   if (L.stats === "single") {
-    statsSVG = statBlocks(55, L.statsY, "VIBE", vibe, L.statsColor, L.statsBg, 754);
+    statsSVG = statBlocks(432 - 150, L.statsY, "VIBE", vibe, L.statsColor, L.statsBg);
   } else if (L.stats === "double-row") {
     const show = L.showStats;
     const col1 = show[0] ?? "vibe";
     const col2 = show[1] ?? "rizz";
     const col3 = show[2];
-    statsSVG  = statBlocks(40,  L.statsY,      labels[col1], sv[col1 as keyof typeof sv] ?? 0, L.statsColor, L.statsBg, 370);
-    statsSVG += statBlocks(450, L.statsY,      labels[col2], sv[col2 as keyof typeof sv] ?? 0, L.statsColor, L.statsBg, 370);
+    statsSVG  = statBlocks(40,  L.statsY,      labels[col1], sv[col1 as keyof typeof sv] ?? 0, L.statsColor, L.statsBg);
+    statsSVG += statBlocks(450, L.statsY,      labels[col2], sv[col2 as keyof typeof sv] ?? 0, L.statsColor, L.statsBg);
     if (col3) {
-      statsSVG += statBlocks(40, L.statsY + 50, labels[col3], sv[col3 as keyof typeof sv] ?? 0, L.statsColor, L.statsBg, 370);
+      statsSVG += statBlocks(40, L.statsY + 50, labels[col3], sv[col3 as keyof typeof sv] ?? 0, L.statsColor, L.statsBg);
     }
   } else {
     // grid-2x2
-    statsSVG  = statBlocks(40,  L.statsY,      "VIBE", vibe, L.statsColor, L.statsBg, 370);
-    statsSVG += statBlocks(450, L.statsY,      "RIZZ", rizz, L.statsColor, L.statsBg, 370);
-    statsSVG += statBlocks(40,  L.statsY + 55, "DRIP", drip, L.statsColor, L.statsBg, 370);
-    statsSVG += statBlocks(450, L.statsY + 55, "AURA", aura, L.statsColor, L.statsBg, 370);
+    statsSVG  = statBlocks(40,  L.statsY,      "VIBE", vibe, L.statsColor, L.statsBg);
+    statsSVG += statBlocks(450, L.statsY,      "RIZZ", rizz, L.statsColor, L.statsBg);
+    statsSVG += statBlocks(40,  L.statsY + 55, "DRIP", drip, L.statsColor, L.statsBg);
+    statsSVG += statBlocks(450, L.statsY + 55, "AURA", aura, L.statsColor, L.statsBg);
   }
 
   // Badges
@@ -259,40 +251,65 @@ function buildOverlay(input: HeroCardInput, layout: TierLayout): Buffer {
  *
  * @returns Buffer — final 864×1216 PNG ready for IPFS upload / display
  */
+/** Create a solid-colour opaque PNG buffer (used as cover patch) */
+async function solidRect(w: number, h: number, hex: string): Promise<Buffer> {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return sharp({ create: { width: w, height: h, channels: 4,
+    background: { r, g, b, alpha: 1 } } }).png().toBuffer();
+}
+
+/**
+ * Pixel-measured cover zones for each template's baked-in placeholder text.
+ * These are Sharp opaque patches (guaranteed 100% coverage, no SVG opacity issues).
+ * Coordinates measured directly from template images.
+ *  x=60, width=744 stays inside the decorative gold border on all 4 templates.
+ *  Note: Common/Rare/Epic have baked-in card numbers (gradient bg) — we don't cover them
+ *        and don't display new card numbers to avoid visible patch artifacts.
+ *        Legendary has no baked-in number, so we can display the card number cleanly.
+ */
+const COVER_ZONES: Record<CardTier, { top: number; height: number; left?: number; width?: number }[]> = {
+  Common:    [{ top: 790, height: 320, left: 60, width: 744 }],
+  Rare:      [{ top: 790, height: 320, left: 60, width: 744 }],
+  Epic:      [{ top: 790, height: 320, left: 60, width: 744 }],
+  Legendary: [{ top: 790, height: 320, left: 60, width: 744 }],
+};
+
 export async function generateHeroCard(input: HeroCardInput): Promise<Buffer> {
   const { tier, avatarBuffer } = input;
   const layout = LAYOUTS[tier];
+  const L = layout;
 
   // 1. Load frame template
   const framePath = path.join(FRAME_DIR, `${tier.toLowerCase()}.png`);
   const frameBuffer = await sharp(framePath).toBuffer();
 
-  // 2. Circle-crop the KYC avatar
-  const circleAvatar = await cropCircle(avatarBuffer, layout.avatar.r);
+  // 2. Circle-crop the KYC avatar to fit within the template's golden ring
+  const circleAvatar = await cropCircle(avatarBuffer, L.avatar.r);
 
-  // 3. Build SVG text overlay
+  // 3. Build opaque cover patches for baked-in placeholder text (100% opaque, no SVG leakage)
+  const coverPatches: sharp.OverlayOptions[] = await Promise.all(
+    COVER_ZONES[tier].map(async ({ top, height, left = 60, width = 744 }) => ({
+      input: await solidRect(width, height, L.bgColor),
+      top,
+      left,
+      blend: "over" as const,
+    }))
+  );
+
+  // 4. Build SVG text overlay (name, city, stats, badges)
   const svgOverlay = buildOverlay(input, layout);
 
-  // 4. Composite: frame → avatar circle → text overlay
-  const result = await sharp(frameBuffer)
+  // 5. Composite: frame → cover patches → avatar → text overlay
+  return sharp(frameBuffer)
     .composite([
-      {
-        input:     circleAvatar,
-        top:       layout.avatar.cy - layout.avatar.r,
-        left:      layout.avatar.cx - layout.avatar.r,
-        blend:     "over",
-      },
-      {
-        input:     svgOverlay,
-        top:       0,
-        left:      0,
-        blend:     "over",
-      },
+      ...coverPatches,
+      { input: circleAvatar, top: L.avatar.cy - L.avatar.r, left: L.avatar.cx - L.avatar.r, blend: "over" as const },
+      { input: svgOverlay,   top: 0, left: 0, blend: "over" as const },
     ])
     .png()
     .toBuffer();
-
-  return result;
 }
 
 /** Determine card tier from vibe score */
