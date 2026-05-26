@@ -8,6 +8,7 @@ import { upsertPersonality } from "../services/pinecone-match";
 import { generateAiAvatar, generateAvatarInStyle, type AiAvatarResult, type FaceToManyStyle, type Gender } from "../services/ai-avatar";
 import { selectBestKycFrame, normaliseKycFrame } from "../services/video-kyc";
 import { generateBitmojiFromPhoto } from "../services/bitmoji-service";
+import { generateHeroCard, tierFromVibe, type CardTier } from "../services/hero-card.service";
 import { config } from "../config";
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -389,6 +390,86 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       if (!token) return reply.code(400).send({ error: "token required" });
       await removePushToken(payload.userId, token);
       return reply.code(204).send();
+    }
+  );
+
+  // POST /users/me/hero-card — generate personalized hero card from stored KYC avatar
+  fastify.post(
+    "/me/hero-card",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const body = req.body as {
+        tier?: CardTier;
+        name?: string;
+        city?: string;
+        age?: number;
+        vibe?: number;
+        rizz?: number;
+        drip?: number;
+        aura?: number;
+        badges?: string[];
+      };
+
+      // Fetch user profile + stored avatar from DB
+      const { rows } = await db.query(
+        `SELECT display_name, avatar_ipfs_hash, kyc_vibe_score FROM users WHERE id = $1`,
+        [payload.userId]
+      );
+      if (!rows[0]) return reply.code(404).send({ error: "User not found" });
+
+      const user = rows[0];
+      const vibeScore = body.vibe ?? user.kyc_vibe_score ?? 72;
+      const tier      = body.tier ?? tierFromVibe(vibeScore);
+
+      // Fetch avatar image (from IPFS or direct URL)
+      if (!user.avatar_ipfs_hash) {
+        return reply.code(400).send({ error: "No KYC avatar found. Complete Video KYC first." });
+      }
+
+      const avatarUrl = `https://gateway.pinata.cloud/ipfs/${user.avatar_ipfs_hash}`;
+      const avatarRes = await fetch(avatarUrl);
+      if (!avatarRes.ok) return reply.code(502).send({ error: "Failed to fetch avatar from IPFS" });
+      const avatarBuffer = Buffer.from(await avatarRes.arrayBuffer());
+
+      // Get next card number
+      const { rows: countRows } = await db.query(`SELECT COUNT(*) AS cnt FROM hero_cards`);
+      const cardNumber = String(Number(countRows[0]?.cnt ?? 0) + 1);
+
+      // Generate the card
+      const cardBuffer = await generateHeroCard({
+        avatarBuffer,
+        name:       body.name ?? user.display_name ?? "USER",
+        city:       body.city ?? "INDIA",
+        age:        body.age  ?? 21,
+        cardNumber,
+        tier,
+        vibe:       vibeScore,
+        rizz:       body.rizz ?? Math.round(vibeScore * 0.97),
+        drip:       body.drip ?? Math.round(vibeScore * 0.95),
+        aura:       body.aura ?? Math.round(vibeScore * 0.92),
+        badges:     body.badges ?? (vibeScore >= 95 ? ["OG MEMBER", "TOP 1%"] : []),
+      });
+
+      // Upload card to IPFS
+      const { IpfsHash } = await (await import("../services/ipfs")).uploadToIPFS(
+        cardBuffer, "image/png", `hero-card-${payload.userId}-${Date.now()}.png`
+      );
+
+      // Store in DB (best-effort)
+      await db.query(
+        `INSERT INTO hero_cards (user_id, ipfs_hash, tier, card_number, vibe_score, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT DO NOTHING`,
+        [payload.userId, IpfsHash, tier, cardNumber, vibeScore]
+      ).catch(() => {}); // table may not exist yet — silently ignore
+
+      return {
+        cardUrl:    `https://gateway.pinata.cloud/ipfs/${IpfsHash}`,
+        ipfsHash:   IpfsHash,
+        tier,
+        cardNumber,
+        vibe:       vibeScore,
+      };
     }
   );
 
