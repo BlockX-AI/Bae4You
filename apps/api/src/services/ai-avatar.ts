@@ -574,26 +574,13 @@ async function generateViaCloudflare(
   const baseUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run`;
   const headers  = { "Authorization": `Bearer ${apiToken}`, "Content-Type": "application/json" };
 
-  // Try img2img first (preserves identity from photo)
-  // Cloudflare expects image as array of uint8 values, not base64
-  try {
-    const imageArray = Array.from(photoBuffer);
-    const body = { prompt, image: imageArray, strength: 0.65, num_steps: 20, negative_prompt: negativePrompt || NEGATIVE_PROMPT };
-    const res  = await fetch(`${baseUrl}/${IMG2IMG_MODEL}`, { method: "POST", headers, body: JSON.stringify(body) });
-    if (!res.ok) throw new Error(`CF img2img ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const buf = Buffer.from(await res.arrayBuffer());
-    console.log("[ai-avatar] Cloudflare img2img success");
-    return buf;
-  } catch (err) {
-    console.warn("[ai-avatar] Cloudflare img2img failed:", err instanceof Error ? err.message.slice(0, 120) : String(err));
-  }
-
-  // Fallback to text-to-image
+  // Use SDXL-Lightning text-to-image — much better avatar quality than SD v1.5 img2img
+  // Photo traits (skin, hair, gender, beard) are already baked into the prompt
   const body = { prompt, num_steps: 20, negative_prompt: negativePrompt || NEGATIVE_PROMPT };
   const res  = await fetch(`${baseUrl}/${TXT2IMG_MODEL}`, { method: "POST", headers, body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`CF text2img ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(`CF text2img ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const buf = Buffer.from(await res.arrayBuffer());
-  console.log("[ai-avatar] Cloudflare text-to-image success");
+  console.log("[ai-avatar] Cloudflare SDXL-Lightning text-to-image success");
   return buf;
 }
 
