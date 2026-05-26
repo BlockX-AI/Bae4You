@@ -284,10 +284,10 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ error: "Send at least one frame field (frame0…frame4)" });
       }
 
-      // ── Rate limit: 10 avatar generations per user per day ──────────────────
+      // ── Rate limit: 50 avatar generations per user per day (internal testing) ─
       const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
       const rateKey = `avatar_rate:${payload.userId}:${today}`;
-      const DAILY_LIMIT = 10;
+      const DAILY_LIMIT = 50;
       const currentCount = await fastify.redis.incr(rateKey);
       if (currentCount === 1) await fastify.redis.expire(rateKey, 86400); // expires in 24h
       if (currentCount > DAILY_LIMIT) {
