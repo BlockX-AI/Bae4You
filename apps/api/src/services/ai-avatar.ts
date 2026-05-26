@@ -575,11 +575,12 @@ async function generateViaCloudflare(
   const headers  = { "Authorization": `Bearer ${apiToken}`, "Content-Type": "application/json" };
 
   // Try img2img first (preserves identity from photo)
+  // Cloudflare expects image as array of uint8 values, not base64
   try {
-    const imageB64 = photoBuffer.toString("base64");
-    const body = { prompt, image: imageB64, strength: 0.65, num_steps: 20, negative_prompt: negativePrompt || NEGATIVE_PROMPT };
+    const imageArray = Array.from(photoBuffer);
+    const body = { prompt, image: imageArray, strength: 0.65, num_steps: 20, negative_prompt: negativePrompt || NEGATIVE_PROMPT };
     const res  = await fetch(`${baseUrl}/${IMG2IMG_MODEL}`, { method: "POST", headers, body: JSON.stringify(body) });
-    if (!res.ok) throw new Error(`CF img2img ${res.status}: ${await res.text()}`);
+    if (!res.ok) throw new Error(`CF img2img ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const buf = Buffer.from(await res.arrayBuffer());
     console.log("[ai-avatar] Cloudflare img2img success");
     return buf;
