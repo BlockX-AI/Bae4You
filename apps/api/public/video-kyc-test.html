@@ -244,6 +244,16 @@
           <option value="other">Other</option>
         </select>
       </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block; margin-bottom:6px; font-size:0.85rem; color:#ccc;">Rarity (optional — auto-selects style)</label>
+        <select id="raritySelect" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.2); color:#fff;">
+          <option value="">Use manual style selection</option>
+          <option value="common">Common → Comic (pop-art)</option>
+          <option value="rare">Rare → Anime (manga)</option>
+          <option value="epic">Epic → Video Game (heroic)</option>
+          <option value="legendary">Legendary → 3D (premium)</option>
+        </select>
+      </div>
       <button id="startBtn">Start Camera</button>
       <button id="captureBtn" style="display:none; background:linear-gradient(90deg,#22c55e,#16a34a); margin-top:10px;">📸 Capture 5 Frames</button>
       <div class="error" id="errorBox"></div>
@@ -372,6 +382,7 @@
     const countdown   = document.getElementById('countdown');
     const flashOverlay= document.getElementById('flashOverlay');
     const genderSelect= document.getElementById('genderSelect');
+    const raritySelect= document.getElementById('raritySelect');
 
     let stream = null;
     let capturedBlobs = [];
@@ -667,8 +678,10 @@
         const formData = new FormData();
         capturedBlobs.forEach((b, i) => formData.append(`frame${i}`, b, `frame${i}.jpg`));
         const gender = genderSelect.value;
+        const rarity = raritySelect.value;
         if (gender) formData.append('gender', gender);
-        formData.append('style', selectedStyle);
+        if (rarity) formData.append('rarity', rarity);
+        if (!rarity) formData.append('style', selectedStyle);
 
         const controller = new AbortController();
         const timeoutId  = setTimeout(() => controller.abort(), 120000); // 2 min hard timeout
@@ -924,8 +937,8 @@
       document.getElementById('avatarImg').src       = data.url;
       document.getElementById('bestFrameValue').textContent = `frame ${data.bestFrameIndex}`;
       document.getElementById('genderValue').textContent    = data.gender || '-';
-      document.getElementById('skinValue').textContent      = data.traits?.skinTone || '-';
-      document.getElementById('hairValue').textContent      = data.traits?.hairColor || '-';
+      document.getElementById('skinValue').textContent      = data.skinTone || '-';
+      document.getElementById('hairValue').textContent      = data.hairColour || '-';
       document.getElementById('providerValue').textContent  = data.provider || '-';
       document.getElementById('cidValue').textContent       = data.cid || (data.url?.startsWith('data:') ? '(inline base64 — IPFS not configured)' : '-');
       const quotaEl = document.getElementById('quotaValue');
