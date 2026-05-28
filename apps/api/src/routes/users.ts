@@ -337,7 +337,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
           });
           aiBuffer = buffer;
           aiProvider = provider;
-          aiResult = { buffer, mimeType: "image/png", prompt, gender: detectedGender, traits, seed: 0, provider, aesthetic: genzStyle as any };
+          aiResult = { buffer, mimeType: "image/png", prompt, gender: detectedGender, traits, seed: 0, provider };
         } else if (avatarStyle === "Bitmoji-Flat") {
           // DiceBear flat-cartoon pipeline — no Replicate needed
           const bmGender = (detectedGender === "male" || detectedGender === "female") ? detectedGender : undefined;
@@ -345,7 +345,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
           aiBuffer   = bm.avatar.buffer;
           aiProvider = "dicebear/avataaars (bitmoji-flat)";
         } else if (avatarStyle) {
-          const r = await generateAvatarInStyle(normalisedFrame, "image/jpeg", avatarStyle, config.REPLICATE_API_TOKEN, config.FAL_KEY, config.HUGGINGFACE_TOKEN, detectedGender, config.CLOUDFLARE_ACCOUNT_ID, config.CLOUDFLARE_API_TOKEN, rarity);
+          const r = await generateAvatarInStyle(normalisedFrame, "image/jpeg", avatarStyle, config.REPLICATE_API_TOKEN, config.FAL_KEY, config.HUGGINGFACE_TOKEN, detectedGender, config.CLOUDFLARE_ACCOUNT_ID, config.CLOUDFLARE_API_TOKEN);
           aiBuffer   = r.buffer;
           aiProvider = r.provider;
         } else {
