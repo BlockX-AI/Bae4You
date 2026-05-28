@@ -62,10 +62,15 @@ export interface AiAvatarResult {
 const ART_STYLE =
   "cosmic Gen-Z NFT trading card portrait, bold india-ink outlines, " +
   "halftone dot shadows, neon glitch colour fringe, " +
-  "deep-space galaxy background with nebula auroras and stardust particles, " +
-  "celestial cosmic energy aura radiating from the subject, " +
-  "warm-lit dramatic rim lighting with cosmic glow, comic panel energy, " +
-  "hand-painted brush texture blended with sculpted 3-D anatomy, " +
+  "deep-space galaxy background with detailed nebulae, swirling cosmic dust, " +
+  "complex planetary rings, luminous stardust particles, " +
+  "celestial cosmic energy aura radiating from the subject as a light source, " +
+  "multi-source lighting with cool blue rim light and warm golden face illumination, " +
+  "dramatic chiaroscuro contrast, volumetric light beams, " +
+  "highly detailed hair with individual strand texture, " +
+  "clothing with intricate fold rendering and fabric texture, " +
+  "galaxy background interacting with the figure, energy wisps connecting subject to nebulae, " +
+  "comic panel energy, hand-painted brush texture blended with sculpted 3-D anatomy, " +
   "highly detailed digital illustration, 1024×1024 square, studio portrait framing";
 
 const NEGATIVE_PROMPT =
@@ -716,7 +721,7 @@ export async function generateAvatarInStyle(
     : "";
 
   const styleArt: Record<FaceToManyStyle, string> = {
-    "Comic":       `cosmic comic book portrait, bold india-ink outlines, halftone dot shadows, deep space galaxy background with nebula and stardust, celestial neon aura, Gen-Z young adult energy, graphic novel hero card, NFT avatar`,
+    "Comic":       `cosmic comic book portrait, bold india-ink outlines, halftone dot shadows, deep space galaxy background with detailed nebulae and swirling cosmic dust, complex planetary rings, luminous stardust particles, celestial neon aura radiating as light source, multi-source lighting with cool blue rim light and warm golden face illumination, dramatic chiaroscuro contrast, volumetric light beams, highly detailed hair with individual strand texture, clothing with intricate fold rendering, galaxy background interacting with the figure, energy wisps connecting subject to nebulae, Gen-Z young adult energy, graphic novel hero card, NFT avatar`,
     "Anime":       `anime manga portrait, vibrant cel-shading, expressive large eyes, detailed hair highlights, japanese animation style, NFT avatar`,
     "3D":          `cinematic 3D render portrait, dramatic rim lighting, ultra-detailed sculpted face, premium CGI, NFT avatar`,
     "Video game":  `video game character portrait, heroic stylized art, game concept art, bold colors, action NFT hero`,
