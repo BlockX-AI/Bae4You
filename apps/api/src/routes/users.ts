@@ -5,8 +5,9 @@ import type { JwtPayload } from "../plugins/auth";
 import { uploadToIPFS, ipfsGatewayUrl } from "../services/ipfs";
 import { registerPushToken, removePushToken } from "../services/push";
 import { upsertPersonality } from "../services/pinecone-match";
-import { generateAiAvatar, generateAvatarInStyle, type AiAvatarResult, type FaceToManyStyle, type Gender } from "../services/ai-avatar";
+import { generateAiAvatar, generateAvatarInStyle, type AiAvatarResult, type FaceToManyStyle, type Gender, analyzeGenderFromImage, extractVisualTraits } from "../services/ai-avatar";
 import { selectBestKycFrame, normaliseKycFrame } from "../services/video-kyc";
+import { generateGenZAvatar, styleForRarity, type GenZNftStyle } from "../services/genz-styles";
 import { generateBitmojiFromPhoto } from "../services/bitmoji-service";
 import { generateHeroCard, tierFromVibe, type CardTier } from "../services/hero-card.service";
 import { config } from "../config";
@@ -263,6 +264,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       const parts = req.parts();
       const frames: Buffer[] = [];
       let gender: Gender | undefined;
+      let rarity: string | undefined;
 
       const VALID_STYLES: (FaceToManyStyle | "Bitmoji-Flat")[] = ["3D","Emoji","Video game","Pixels","Clay","Toy","LEGO","Anime","Claymation","Comic","Bitmoji-Flat"];
       let avatarStyle: FaceToManyStyle | "Bitmoji-Flat" | undefined;
@@ -278,6 +280,9 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         } else if (part.type === "field" && part.fieldname === "style") {
           const val = (part as { value: string }).value as FaceToManyStyle | "Bitmoji-Flat";
           if (VALID_STYLES.includes(val)) avatarStyle = val;
+        } else if (part.type === "field" && part.fieldname === "rarity") {
+          const val = (part as { value: string }).value;
+          if (["common", "rare", "epic", "legendary"].includes(val)) rarity = val;
         }
       }
 
@@ -301,23 +306,51 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       const { bestFrame, scores } = await selectBestKycFrame(frames);
       const normalisedFrame = await normaliseKycFrame(bestFrame);
 
+      // ── Trait detection (gender, skin, hair) ────────────────────────────────
+      const hfToken = config.HUGGINGFACE_TOKEN;
+      const genderResult = hfToken
+        ? await analyzeGenderFromImage(normalisedFrame, "image/jpeg", hfToken).catch(() => null)
+        : null;
+      const detectedGender = genderResult?.gender ?? gender ?? "other";
+      const traits = await extractVisualTraits(normalisedFrame, detectedGender, genderResult?.confidence ?? 0);
+
       let aiBuffer:   Buffer;
       let aiProvider: string;
       let aiResult:   AiAvatarResult | null = null;
+      let genzStyle: GenZNftStyle | null = null;
+
       try {
-        if (avatarStyle === "Bitmoji-Flat") {
+        // Use genz-styles if rarity is provided (maps to Comic/Anime/3D/Video game)
+        if (rarity && !avatarStyle) {
+          genzStyle = styleForRarity(rarity);
+          const { buffer, provider, prompt } = await generateGenZAvatar({
+            style: genzStyle,
+            gender: detectedGender as any,
+            skinTone: traits.skinTone as any,
+            hairColor: traits.hairColour as any,
+            hasBeard: traits.hasBeard,
+            hfToken,
+            cfAccountId: config.CLOUDFLARE_ACCOUNT_ID,
+            cfApiToken: config.CLOUDFLARE_API_TOKEN,
+            replicateToken: config.REPLICATE_API_TOKEN,
+            falApiKey: config.FAL_KEY,
+          });
+          aiBuffer = buffer;
+          aiProvider = provider;
+          aiResult = { buffer, mimeType: "image/png", prompt, gender: detectedGender, traits, seed: 0, provider, aesthetic: genzStyle as any };
+        } else if (avatarStyle === "Bitmoji-Flat") {
           // DiceBear flat-cartoon pipeline — no Replicate needed
-          const bmGender = (gender === "male" || gender === "female") ? gender : undefined;
+          const bmGender = (detectedGender === "male" || detectedGender === "female") ? detectedGender : undefined;
           const bm = await generateBitmojiFromPhoto(normalisedFrame, { style: "avataaars", gender: bmGender, generateStickers: false, avatarSize: 512 });
           aiBuffer   = bm.avatar.buffer;
           aiProvider = "dicebear/avataaars (bitmoji-flat)";
         } else if (avatarStyle) {
-          const r = await generateAvatarInStyle(normalisedFrame, "image/jpeg", avatarStyle, config.REPLICATE_API_TOKEN, config.FAL_KEY, config.HUGGINGFACE_TOKEN, gender, config.CLOUDFLARE_ACCOUNT_ID, config.CLOUDFLARE_API_TOKEN);
+          const r = await generateAvatarInStyle(normalisedFrame, "image/jpeg", avatarStyle, config.REPLICATE_API_TOKEN, config.FAL_KEY, config.HUGGINGFACE_TOKEN, detectedGender, config.CLOUDFLARE_ACCOUNT_ID, config.CLOUDFLARE_API_TOKEN, rarity);
           aiBuffer   = r.buffer;
           aiProvider = r.provider;
         } else {
           aiResult   = await generateAiAvatar(
-            normalisedFrame, "image/jpeg", gender,
+            normalisedFrame, "image/jpeg", detectedGender,
             config.FAL_KEY, config.HUGGINGFACE_TOKEN, config.REPLICATE_API_TOKEN,
           );
           aiBuffer   = aiResult.buffer;
@@ -357,11 +390,15 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         framesReceived: frames.length,
         bestFrameIndex: scores[0].index,
         frameScores:  scores,
-        style:        avatarStyle ?? null,
-        gender:       aiResult?.gender,
-        traits:       aiResult?.traits,
+        style:        avatarStyle ?? genzStyle ?? null,
+        gender:       detectedGender,
+        skinTone:     traits.skinTone,
+        hairColour:   traits.hairColour,
+        hasBeard:     traits.hasBeard,
+        hasGlasses:   traits.hasGlasses,
         provider:     aiProvider,
         prompt:       aiResult?.prompt,
+        rarity:       rarity ?? null,
         dailyQuota:   { used: currentCount, limit: DAILY_LIMIT, remaining: DAILY_LIMIT - currentCount },
       };
     }
