@@ -60,9 +60,11 @@ export interface AiAvatarResult {
 // ─── Global art style anchor ───────────────────────────────────────────────────
 
 const ART_STYLE =
-  "painterly Spider-Verse / Gen-Z NFT trading card portrait, " +
-  "bold india-ink outlines, halftone dot shadows, neon glitch colour fringe, " +
-  "warm-lit dramatic rim lighting, comic panel energy, " +
+  "cosmic Gen-Z NFT trading card portrait, bold india-ink outlines, " +
+  "halftone dot shadows, neon glitch colour fringe, " +
+  "deep-space galaxy background with nebula auroras and stardust particles, " +
+  "celestial cosmic energy aura radiating from the subject, " +
+  "warm-lit dramatic rim lighting with cosmic glow, comic panel energy, " +
   "hand-painted brush texture blended with sculpted 3-D anatomy, " +
   "highly detailed digital illustration, 1024×1024 square, studio portrait framing";
 
@@ -94,11 +96,11 @@ const HAIR_DESC: Record<HairColour, string> = {
 };
 
 const AGE_VIBE: Record<AgeClass, string> = {
-  "teen":        "teenage energy, soft round face, youthful glow",
-  "young-adult": "young adult in his/her early 20s, smooth defined features",
-  "adult":       "mid-30s adult, confident defined face, slight laugh lines",
-  "mature":      "mature 50s face, distinguished weathered features, strong bone structure",
-  "elder":       "elder 60s+ face, deep expressive lines, dignified legendary presence",
+  "teen":        "Gen-Z teenager, soft round face, youthful glowing skin, trendy energy",
+  "young-adult": "Gen-Z young adult in early 20s, smooth defined features, fresh confident look",
+  "adult":       "Gen-Z adult in mid-20s, sharp defined features, confident modern look, youthful energy",
+  "mature":      "young adult in late 20s, defined strong features, cool modern vibe",
+  "elder":       "stylish young adult, sharp expressive features, bold Gen-Z presence",
 };
 
 // ─── Pixel-level image analysis (sharp-based, zero API cost) ─────────────────
@@ -275,10 +277,10 @@ export function buildPersonalisedPrompt(traits: VisualTraits): string {
   const hairStyle = ["short and neat", "messy textured", "swept back", "side-parted", "natural flow"][Math.floor(Math.random() * 5)];
 
   const subjectBase = gender === "female"
-    ? "A painterly Spider-Verse NFT portrait of a woman"
+    ? "A cosmic Gen-Z NFT portrait of a young woman in her 20s"
     : gender === "male"
-    ? "A painterly Spider-Verse NFT portrait of a man"
-    : "A painterly Spider-Verse NFT portrait of a person";
+    ? "A cosmic Gen-Z NFT portrait of a young man in his 20s"
+    : "A cosmic Gen-Z NFT portrait of a young person in their 20s";
 
   const skinDesc    = SKIN_DESC[skinTone];
   const hairDesc    = `${HAIR_DESC[hairColour]}, ${hairStyle}`;
@@ -706,7 +708,7 @@ export async function generateAvatarInStyle(
   const hairDesc    = HAIR_DESC[traits.hairColour];
   const glassesDesc = traits.hasGlasses ? "wearing stylised thick-framed glasses, " : "";
   const beardDesc   = traits.hasBeard   ? "with a well-groomed beard, " : "";
-  const subjectBase = resolvedGender === "male" ? "A man" : resolvedGender === "female" ? "A woman" : "A person";
+  const subjectBase = resolvedGender === "male" ? "A young man in his 20s" : resolvedGender === "female" ? "A young woman in her 20s" : "A young person in their 20s";
   const negGender   = resolvedGender === "male"
     ? "female, woman, feminine, girl, girly, woman body, female features"
     : resolvedGender === "female"
@@ -714,7 +716,7 @@ export async function generateAvatarInStyle(
     : "";
 
   const styleArt: Record<FaceToManyStyle, string> = {
-    "Comic":       `comic book pop-art portrait, bold india-ink outlines, halftone dot shadows, vibrant hot-pink background, graphic novel hero card, NFT avatar`,
+    "Comic":       `cosmic comic book portrait, bold india-ink outlines, halftone dot shadows, deep space galaxy background with nebula and stardust, celestial neon aura, Gen-Z young adult energy, graphic novel hero card, NFT avatar`,
     "Anime":       `anime manga portrait, vibrant cel-shading, expressive large eyes, detailed hair highlights, japanese animation style, NFT avatar`,
     "3D":          `cinematic 3D render portrait, dramatic rim lighting, ultra-detailed sculpted face, premium CGI, NFT avatar`,
     "Video game":  `video game character portrait, heroic stylized art, game concept art, bold colors, action NFT hero`,
@@ -729,7 +731,29 @@ export async function generateAvatarInStyle(
   const prompt = `${subjectBase}, ${skinDesc}, ${hairDesc}, ${glassesDesc}${beardDesc}${styleArt[style]}, highly detailed, 1024x1024`;
   console.log(`[ai-avatar] style=${style} gender=${resolvedGender}(${genderConf.toFixed(2)}) skin=${traits.skinTone} hair=${traits.hairColour} prompt="${prompt.slice(0,120)}..."`);
 
-  // 1. Try FAL.ai img2img first (better gender preservation than HuggingFace)
+  // 1. HuggingFace text-to-image (free tier — resets monthly)
+  if (hfToken) {
+    try {
+      const buffer = await generateViaHuggingFace(photoBuffer, mimeType, prompt, hfToken, negGender);
+      return { buffer, provider: `huggingface/flux-schnell (${style})`, style };
+    } catch (err) {
+      console.error("[ai-avatar] HuggingFace failed:", err instanceof Error ? err.message : String(err));
+      // fall through to Cloudflare
+    }
+  }
+
+  // 2. Cloudflare Workers AI (free — 10k/day, img2img supported)
+  if (cfAccountId && cfApiToken) {
+    try {
+      const buffer = await generateViaCloudflare(photoBuffer, prompt, cfAccountId, cfApiToken, negGender);
+      return { buffer, provider: `cloudflare/sdxl-lightning (${style})`, style };
+    } catch (err) {
+      console.error("[ai-avatar] Cloudflare failed:", err instanceof Error ? err.message : String(err));
+      // fall through to FAL.ai
+    }
+  }
+
+  // 3. Try FAL.ai img2img (better gender preservation)
   if (falApiKey) {
     try {
       const seed = Math.floor(Math.random() * 2_000_000);
@@ -741,7 +765,7 @@ export async function generateAvatarInStyle(
     }
   }
 
-  // 2. Try Replicate face-to-many (best face preservation)
+  // 4. Try Replicate face-to-many (best face preservation)
   if (replicateToken) {
     try {
       const baseStyle = style === "Comic" ? "Anime" : style;
@@ -749,29 +773,7 @@ export async function generateAvatarInStyle(
       return { buffer, provider: `replicate/fofr-face-to-many (${style})`, style };
     } catch (err) {
       console.error("[ai-avatar] Replicate failed:", err instanceof Error ? err.message : String(err));
-      // fall through to HuggingFace
-    }
-  }
-
-  // 3. Cloudflare Workers AI (free — 10k/day, img2img supported)
-  if (cfAccountId && cfApiToken) {
-    try {
-      const buffer = await generateViaCloudflare(photoBuffer, prompt, cfAccountId, cfApiToken, negGender);
-      return { buffer, provider: `cloudflare/sdxl-lightning (${style})`, style };
-    } catch (err) {
-      console.error("[ai-avatar] Cloudflare failed:", err instanceof Error ? err.message : String(err));
-      // fall through to HuggingFace
-    }
-  }
-
-  // 4. HuggingFace text-to-image fallback (free tier — resets monthly)
-  if (hfToken) {
-    try {
-      const buffer = await generateViaHuggingFace(photoBuffer, mimeType, prompt, hfToken, negGender);
-      return { buffer, provider: `huggingface/flux-schnell (${style})`, style };
-    } catch (err) {
-      console.error("[ai-avatar] HuggingFace failed:", err instanceof Error ? err.message : String(err));
-      // fall through to DiceBear
+      // fall through to error
     }
   }
 
