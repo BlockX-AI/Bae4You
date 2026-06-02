@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Heart, ShoppingBag, MessageCircle, User, Zap, LogOut } from "lucide-react";
+import { Heart, ShoppingBag, MessageCircle, User, Zap, LogOut, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/store";
 import { formatAddress } from "@/lib/wallet";
 import { clsx } from "clsx";
@@ -12,6 +12,7 @@ const NAV = [
   { href: "/discover", icon: Heart,         label: "Discover" },
   { href: "/pets",     icon: ShoppingBag,   label: "Pets"     },
   { href: "/matches",  icon: MessageCircle, label: "Matches"  },
+  { href: "/avatar",   icon: Sparkles,      label: "Avatar"   },
   { href: "/profile",  icon: User,          label: "Profile"  },
 ];
 
