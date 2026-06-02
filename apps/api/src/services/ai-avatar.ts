@@ -29,6 +29,17 @@ export type SkinTone   = "fair" | "warm-ivory" | "olive" | "medium-brown" | "war
 export type HairColour = "jet-black" | "dark-brown" | "medium-brown" | "auburn" | "silver-grey" | "white" | "light";
 export type AgeClass   = "teen" | "young-adult" | "adult" | "mature" | "elder";
 
+// Detected ethnic/regional background — derived from pixel analysis (skin hue, nose width, eye lid pattern)
+export type EthnicRegion =
+  | "east-asian"          // Korean, Japanese, Chinese, Taiwanese
+  | "south-asian"         // Indian, Pakistani, Bangladeshi, Sri Lankan
+  | "southeast-asian"     // Filipino, Thai, Vietnamese, Indonesian, Malaysian
+  | "middle-eastern"      // Arab, Persian, Turkish, Israeli
+  | "northern-european"   // Scandinavian, British, German, Dutch, Irish
+  | "southern-european"   // Italian, Spanish, Greek, Portuguese
+  | "african"             // Sub-Saharan African (West, East, Central, South)
+  | "latin-american";     // Hispanic/Latino — warm mixed-heritage
+
 export interface VisualTraits {
   gender:      Gender;
   genderConf:  number;
@@ -39,6 +50,7 @@ export interface VisualTraits {
   hasBeard:    boolean;   // grey/brown density in lower-face region
   expression:  "warm-smile" | "neutral" | "serious";
   dominantClothingHex: string;
+  ethnicRegion:        EthnicRegion;   // detected from skin hue + nose width + eye pattern
 }
 
 export interface GenderAnalysisResult {
@@ -81,13 +93,13 @@ const NEGATIVE_PROMPT =
 // ─── Prompt vocabulary maps ────────────────────────────────────────────────────
 
 const SKIN_DESC: Record<SkinTone, string> = {
-  "fair":         "fair porcelain skin with cool pink undertones",
-  "warm-ivory":   "warm ivory skin with golden undertones",
-  "olive":        "olive-toned Mediterranean skin",
-  "medium-brown": "medium warm-brown South-Asian skin",
-  "warm-brown":   "rich warm-brown skin with amber undertones",
-  "deep-brown":   "deep brown skin with warm mahogany highlights",
-  "dark":         "deep dark skin with rich blue-black shadows",
+  "fair":         "fair porcelain skin with cool rosy-pink undertones",
+  "warm-ivory":   "warm ivory skin with soft golden-yellow undertones",
+  "olive":        "warm olive skin with golden-green undertones",
+  "medium-brown": "medium warm-brown skin with rich amber undertones",
+  "warm-brown":   "rich warm brown skin with deep caramel and amber undertones",
+  "deep-brown":   "deep brown skin with warm mahogany and copper undertones",
+  "dark":         "deep rich dark skin with cool blue-black undertones",
 };
 
 const HAIR_DESC: Record<HairColour, string> = {
@@ -128,13 +140,16 @@ export async function extractVisualTraits(
     .then(({ info }) => ({ channels: info.channels }));
   const isColor = fullCh >= 3;
 
-  // ── 2. Upper-face crop: y=10–45% → skin tone ─────────────────────────────
+  // ── 2. Face crop: y=25–65%, x=20–80% → skin tone (skin-filtered average)
+  // Narrower x-range (60% width) keeps us on the face and away from side backgrounds.
+  // Starts at y=25% to clear the hairline on most portrait photos.
+  // averageSkinPixels() filters out hair, background, overexposed pixels.
   const faceCropBuf = await base.clone()
-    .extract({ left: Math.round(SIZE * 0.15), top: Math.round(SIZE * 0.15),
-                width: Math.round(SIZE * 0.70), height: Math.round(SIZE * 0.35) })
+    .extract({ left: Math.round(SIZE * 0.20), top: Math.round(SIZE * 0.25),
+                width: Math.round(SIZE * 0.60), height: Math.round(SIZE * 0.40) })
     .raw().toBuffer();
 
-  const skin = averageRGB(faceCropBuf, isColor ? 3 : 1);
+  const skin = averageSkinPixels(faceCropBuf, isColor ? 3 : 1);
   const skinTone = classifySkinTone(skin.r, skin.g, skin.b);
 
   // ── 3. Top strip: y=0–12% → hair colour ──────────────────────────────────
@@ -189,13 +204,30 @@ export async function extractVisualTraits(
   const cloth = averageRGB(clothBuf, isColor ? 3 : 1);
   const dominantClothingHex = rgbToHex(cloth.r, cloth.g, cloth.b);
 
-  void w; void h;  // suppress unused vars
+  // ── 9. Nose width ratio — skin-pixel density across nose-level horizontal strip ──────
+  const noseBuf = await base.clone()
+    .extract({ left: Math.round(SIZE * 0.10), top: Math.round(SIZE * 0.50),
+                width: Math.round(SIZE * 0.80), height: Math.round(SIZE * 0.10) })
+    .raw().toBuffer();
+  const noseTotalPx    = Math.round(SIZE * 0.80) * Math.round(SIZE * 0.10);
+  const noseWidthRatio = countSkinPixels(noseBuf, isColor ? 3 : 1) / (noseTotalPx || 1);
+
+  // ── 10. Skin hue from face crop (yellow vs. pink undertone) ─────────────────────
+  const { h: skinHue, l: skinLightness } = rgbToHsl(skin.r, skin.g, skin.b);
+
+  // ── 11. Ethnic region from all combined signals ─────────────────────────────
+  const ethnicRegion = detectEthnicRegion(
+    skinTone, skinHue, skinLightness, (skin.r - skin.b) / 255,
+    edgeDensity, noseWidthRatio,
+  );
+
+  void w; void h;
 
   return {
     gender, genderConf,
     skinTone, hairColour, ageClass,
     hasGlasses, hasBeard, expression,
-    dominantClothingHex,
+    dominantClothingHex, ethnicRegion,
   };
 }
 
@@ -213,6 +245,33 @@ function averageRGB(buf: Buffer, channels: number): { r: number; g: number; b: n
   }
   const d = n || 1;
   return { r: r / d, g: g / d, b: b / d };
+}
+
+// Skin-filtered average: ignores hair (dark), background, and over-exposed pixels.
+// Only averages pixels that pass a broad skin-tone heuristic.
+// Key guards:
+//   - red-dominant + warm (pr >= pg >= pb)
+//   - g/b ratio < 1.40: skin has modest g:b drop; warm wood/backgrounds have g/b > 1.40
+//   - brightness in human-skin range (55–235)
+// Falls back to neutral warm-ivory if no valid pixels found.
+function averageSkinPixels(buf: Buffer, channels: number): { r: number; g: number; b: number } {
+  let r = 0, g = 0, b = 0, n = 0;
+  const stride = Math.max(1, channels);
+  for (let i = 0; i + (channels >= 3 ? 2 : 0) < buf.length; i += stride) {
+    const pr = buf[i] as number;
+    const pg = channels >= 3 ? (buf[i + 1] as number) : pr;
+    const pb = channels >= 3 ? (buf[i + 2] as number) : pr;
+    const bright = (pr + pg + pb) / 3;
+    if (pr > 55 && pg > 35 && pb > 18 &&
+        pr >= pg && pr >= pb &&
+        (pr - Math.min(pg, pb)) > 8 &&
+        pb > 0 && pg < pb * 1.40 &&  // g/b < 1.40 excludes warm wood/tan backgrounds
+        bright > 55 && bright < 235) {
+      r += pr; g += pg; b += pb; n++;
+    }
+  }
+  if (n === 0) return { r: 200, g: 165, b: 140 };  // warm-ivory fallback
+  return { r: r / n, g: g / n, b: b / n };
 }
 
 function rgbSaturation(r: number, g: number, b: number): number {
@@ -233,27 +292,48 @@ function rgbToHex(r: number, g: number, b: number): string {
   return `#${hex(r)}${hex(g)}${hex(b)}`;
 }
 
+function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
+  const rN = r / 255, gN = g / 255, bN = b / 255;
+  const max = Math.max(rN, gN, bN), min = Math.min(rN, gN, bN);
+  const l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l };
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h: number;
+  if (max === rN)       h = ((gN - bN) / d + (gN < bN ? 6 : 0)) / 6;
+  else if (max === gN)  h = ((bN - rN) / d + 2) / 6;
+  else                  h = ((rN - gN) / d + 4) / 6;
+  return { h, s, l };
+}
+
 function classifySkinTone(r: number, g: number, b: number): SkinTone {
-  const bright = (r + g + b) / 3;
-  const warm   = r - b;
-  if (bright > 210 && warm < 20)  return "fair";
-  if (bright > 190 && warm < 35)  return "warm-ivory";
-  if (bright > 165 && warm < 50)  return "olive";
-  if (bright > 140 && warm < 60)  return "medium-brown";
-  if (bright > 115 && warm < 75)  return "warm-brown";
-  if (bright > 80)                return "deep-brown";
+  const { l } = rgbToHsl(r, g, b);
+  const warm = (r - b) / 255;           // 0–1 warmth (red minus blue channel)
+
+  if (l > 0.80)                          return "fair";
+  if (l > 0.68 && warm < 0.18)          return "fair";
+  if (l > 0.68)                          return "warm-ivory";   // light + warm → East Asian / N.European warm
+  if (l > 0.56 && warm < 0.26)          return "warm-ivory";
+  if (l > 0.56)                          return "olive";         // medium-light + warm → Mediterranean / Latin
+  if (l > 0.44 && warm < 0.30)          return "olive";
+  if (l > 0.44)                          return "medium-brown";  // medium + warm → diverse mid-range
+  if (l > 0.32 && warm < 0.34)          return "medium-brown";
+  if (l > 0.32)                          return "warm-brown";
+  if (l > 0.18)                          return "deep-brown";
   return "dark";
 }
 
 function classifyHairColour(r: number, g: number, b: number): HairColour {
   const bright = (r + g + b) / 3;
   const sat    = rgbSaturation(r, g, b);
-  if (bright > 200)                       return "white";
-  if (bright > 155 && sat < 0.10)        return "silver-grey";
-  if (bright > 140 && sat < 0.18)        return "light";
-  if (bright > 100 && r > g && r > b)    return "auburn";
-  if (bright > 90  && sat < 0.30)        return "medium-brown";
-  if (bright > 50  && sat < 0.35)        return "dark-brown";
+  if (bright > 200)                               return "white";
+  if (bright > 155 && sat < 0.10)                return "silver-grey";
+  if (bright > 140 && sat < 0.18)                return "light";
+  // Auburn requires genuine redness (sat > 0.20) — guards against JPEG compression
+  // artifacts that inflate red channel on dark hair in small thumbnails.
+  if (bright > 100 && r > g && r > b && sat > 0.20) return "auburn";
+  if (bright > 75  && sat < 0.30)                return "medium-brown";
+  if (bright > 30  && sat < 0.40)                return "dark-brown";
   return "jet-black";
 }
 
@@ -266,20 +346,175 @@ function classifyAge(hairSat: number, hairBright: number, hairColour: HairColour
   return "young-adult";
 }
 
+// Count pixels in a raw buffer that match a broad skin-tone heuristic
+function countSkinPixels(buf: Buffer, channels: number): number {
+  let count = 0;
+  const stride = Math.max(1, channels);
+  for (let i = 0; i + (channels >= 3 ? 2 : 0) < buf.length; i += stride) {
+    const r = buf[i] as number;
+    const g = channels >= 3 ? (buf[i + 1] as number) : r;
+    const b = channels >= 3 ? (buf[i + 2] as number) : r;
+    // Broad skin-pixel criteria (works across all ethnicities)
+    if (r > 60 && g > 40 && b > 20 &&
+        r > g && r > b &&
+        (r - Math.min(g, b)) > 10 &&
+        Math.abs(r - g) <= 60) count++;
+  }
+  return count;
+}
+
+// Multi-signal ethnic region scoring
+// Inputs: HSL of face-crop avg colour + eye edge density + nose width ratio
+function detectEthnicRegion(
+  skinTone:       SkinTone,
+  skinHue:        number,   // 0–1 HSL hue of face-crop average pixel
+  skinL:          number,   // 0–1 HSL lightness
+  warmth:         number,   // (r−b)/255 skin warmth
+  eyeEdgeDensity: number,   // existing edge-density in eye strip
+  noseWidthRatio: number,   // skin-pixel ratio across nose-level strip
+): EthnicRegion {
+
+  const s: Record<EthnicRegion, number> = {
+    "east-asian": 0, "south-asian": 0, "southeast-asian": 0,
+    "middle-eastern": 0, "northern-european": 0, "southern-european": 0,
+    "african": 0, "latin-american": 0,
+  };
+
+  // ── 1. Skin tone bucket — strongest single signal ─────────────────────────
+  switch (skinTone) {
+    case "fair":
+      s["northern-european"] += 0.50;  s["southern-european"] += 0.15;  break;
+    case "warm-ivory":
+      s["east-asian"]        += 0.45;  s["northern-european"] += 0.20;
+      s["southeast-asian"]   += 0.10;  break;
+    case "olive":
+      s["southern-european"] += 0.30;  s["middle-eastern"]    += 0.30;
+      s["latin-american"]    += 0.20;  s["south-asian"]       += 0.10;  break;
+    case "medium-brown":
+      s["south-asian"]       += 0.30;  s["southeast-asian"]   += 0.25;
+      s["latin-american"]    += 0.20;  s["middle-eastern"]    += 0.10;  break;
+    case "warm-brown":
+      s["african"]           += 0.30;  s["south-asian"]       += 0.20;
+      s["latin-american"]    += 0.15;  s["middle-eastern"]    += 0.10;  break;
+    case "deep-brown":
+      s["african"]           += 0.55;  s["latin-american"]    += 0.10;  break;
+    case "dark":
+      s["african"]           += 0.70;  break;
+  }
+
+  // ── 2. Skin hue: yellow-orange (h > 0.045) → East/SE Asian ────────────────
+  if (skinHue > 0.045 && skinL > 0.58) {
+    s["east-asian"]      += 0.22;  s["southeast-asian"] += 0.10;
+  } else if (skinHue < 0.025 && skinL > 0.68) {
+    s["northern-european"] += 0.22;  // cool-pink, very light = Northern European
+  } else if (skinHue > 0.035 && skinL < 0.55) {
+    s["south-asian"]     += 0.14;  s["middle-eastern"]   += 0.10;
+  }
+
+  // ── 3. Eye lid pattern: low edge density → monolid/hooded (East/SE Asian) ───
+  if (eyeEdgeDensity < 0.06) {
+    s["east-asian"]      += 0.20;  s["southeast-asian"] += 0.10;
+  } else if (eyeEdgeDensity > 0.13) {
+    s["northern-european"] += 0.14;  s["african"]        += 0.09;
+    s["middle-eastern"]    += 0.09;
+  }
+
+  // ── 4. Nose width ratio: wide → African/SE Asian; narrow → European/E.Asian ─
+  if (noseWidthRatio > 0.44) {
+    s["african"]           += 0.24;  s["southeast-asian"] += 0.12;
+  } else if (noseWidthRatio < 0.28) {
+    s["northern-european"] += 0.20;  s["east-asian"]      += 0.10;
+    s["middle-eastern"]    += 0.07;  // aquiline narrow nose also common
+  } else {
+    s["south-asian"]       += 0.07;  s["latin-american"]  += 0.07;
+    s["southern-european"] += 0.07;
+  }
+
+  // Return highest-scoring region
+  return (Object.entries(s)
+    .sort(([, a], [, b]) => b - a)[0][0]) as EthnicRegion;
+}
+
+// ─── Ethnic region descriptors ────────────────────────────────────────────────
+// Maps detected ethnicRegion → accurate physical feature descriptions.
+// Used by buildPersonalisedPrompt to create region-specific avatar prompts.
+
+export const ETHNIC_REGION_DESCRIPTORS: Record<EthnicRegion, {
+  face:     string;
+  eyes:     string;
+  nose:     string;
+  jaw:      string;
+  keywords: string;
+}> = {
+  "east-asian": {
+    face:     "smooth oval face, high wide flat cheekbones, smooth broad forehead",
+    eyes:     "almond-shaped eyes with delicate single or double eyelid, refined arched brow",
+    nose:     "low-bridged delicate refined nose, subtle rounded tip",
+    jaw:      "soft defined jaw, smooth narrow pointed chin",
+    keywords: "East Asian facial aesthetics, Korean Japanese Chinese appearance, smooth porcelain-to-golden luminous skin",
+  },
+  "south-asian": {
+    face:     "defined oval face, prominent angular cheekbones, strong expressive bone structure",
+    eyes:     "large expressive almond eyes, strong dark defined arched brow",
+    nose:     "medium-bridged defined prominent nose, slightly flared nostrils",
+    jaw:      "strong angular jaw, defined prominent chin",
+    keywords: "South Asian facial features, Indian Pakistani appearance, warm golden-to-caramel brown skin",
+  },
+  "southeast-asian": {
+    face:     "broad rounded face, wide prominent flat cheekbones, soft warm features",
+    eyes:     "wide-set almond eyes, gentle monolid or soft double lid, wide flat brow",
+    nose:     "broad low-bridged nose, wide nostrils, rounded tip",
+    jaw:      "rounded broad jaw, soft wide chin",
+    keywords: "Southeast Asian facial features, Filipino Thai Vietnamese Indonesian appearance, warm golden-tawny skin",
+  },
+  "middle-eastern": {
+    face:     "strong defined face, high prominent angular cheekbones, bold bone structure",
+    eyes:     "large deep-set expressive eyes, heavy defined bold brow ridge",
+    nose:     "long prominent nose, defined high bridge, angular refined tip",
+    jaw:      "strong angular jaw, defined prominent chin",
+    keywords: "Middle Eastern facial features, Arab Persian Turkish appearance, warm olive to golden-brown skin",
+  },
+  "northern-european": {
+    face:     "angular defined face, sharp high cheekbones, prominent defined bone structure",
+    eyes:     "wide-set prominent eyes, light defined brow ridge",
+    nose:     "narrow straight or slightly aquiline nose, well-defined bridge",
+    jaw:      "sharp angular jaw, narrow defined chin",
+    keywords: "Northern European facial features, Scandinavian British German appearance, fair cool porcelain skin",
+  },
+  "southern-european": {
+    face:     "oval-to-angular face, defined prominent cheekbones, expressive strong features",
+    eyes:     "large expressive dark eyes, strong arched brow, slightly hooded lid",
+    nose:     "prominent nose, strong bridge, defined angular tip",
+    jaw:      "strong defined jaw, square prominent chin",
+    keywords: "Mediterranean Southern European facial features, Italian Spanish Greek appearance, warm olive complexion",
+  },
+  "african": {
+    face:     "strong broad face, wide prominent cheekbones, robust expressive bone structure",
+    eyes:     "wide expressive eyes, full heavy brow ridge, prominent orbital area",
+    nose:     "broad wide nose, prominent nostrils, flat low bridge",
+    jaw:      "strong broad jaw, defined prominent chin, naturally full lips",
+    keywords: "African facial features, West East African appearance, rich deep warm mahogany-to-ebony skin",
+  },
+  "latin-american": {
+    face:     "oval-to-round face, warm prominent cheekbones, mixed expressive features",
+    eyes:     "large expressive eyes, full defined dark brow, warm energy",
+    nose:     "medium-to-broad nose, rounded tip, medium bridge",
+    jaw:      "rounded strong jaw, warm full features, defined chin",
+    keywords: "Latin American facial features, Hispanic Latino appearance, warm mixed-heritage golden-to-caramel skin",
+  },
+};
+
 // ─── Personalised prompt builder ──────────────────────────────────────────────
 
 export function buildPersonalisedPrompt(traits: VisualTraits): string {
-  const { gender, skinTone, hairColour, ageClass, hasGlasses, hasBeard, expression, dominantClothingHex } = traits;
+  const { gender, skinTone, hairColour, ageClass, hasGlasses, hasBeard,
+          expression, dominantClothingHex, ethnicRegion } = traits;
 
-  // Aggressive randomization for uniqueness
-  const rand = Math.random().toString(36).slice(2, 7);
-  const faceShape = ["oval", "square", "round", "angular", "heart-shaped"][Math.floor(Math.random() * 5)];
-  const eyeShape = ["almond", "round", "hooded", "wide-set", "deep-set"][Math.floor(Math.random() * 5)];
-  const noseShape = ["straight", "aquiline", "button", "broad", "refined"][Math.floor(Math.random() * 5)];
-  const mouthShape = ["full", "thin", "bow-shaped", "defined", "expressive"][Math.floor(Math.random() * 5)];
-  const jawline = ["sharp", "soft", "square", "defined", "rounded"][Math.floor(Math.random() * 5)];
-  const cheekbones = ["prominent", "subtle", "high", "soft", "angular"][Math.floor(Math.random() * 5)];
+  const rand      = Math.random().toString(36).slice(2, 7);
   const hairStyle = ["short and neat", "messy textured", "swept back", "side-parted", "natural flow"][Math.floor(Math.random() * 5)];
+
+  // Use photo-detected ethnic region — precise, not random
+  const region = ETHNIC_REGION_DESCRIPTORS[ethnicRegion];
 
   const subjectBase = gender === "female"
     ? "A cosmic Gen-Z NFT portrait of a young woman in her 20s"
@@ -298,25 +533,18 @@ export function buildPersonalisedPrompt(traits: VisualTraits): string {
     ? "with a focused serious intense expression, commanding aura, "
     : "with a calm composed neutral expression, ";
 
-  // derive accent colour palette from clothing hex
-  const clothColour = dominantClothingHex;
-  const paletteHint = `accent colour drawn from clothing tones near ${clothColour}, vibrant neon-magenta pink background`;
+  const paletteHint    = `accent colour drawn from clothing tones near ${dominantClothingHex}, vibrant neon-magenta pink background`;
+  const faceDesc       = `${region.face}, ${region.eyes}, ${region.nose}, ${region.jaw}`;
+  const uniquenessToken = `[uid:${skinTone}-${ethnicRegion}-${hairColour}-${rand}]`;
 
-  // Expanded face structure descriptors
-  const faceDesc = `${faceShape} face shape, ${eyeShape} expressive eyes, ${noseShape} nose, ${mouthShape} mouth, ${jawline} jawline, ${cheekbones} cheekbones`;
-
-  // Multiple uniqueness tokens
-  const uniquenessToken = `[uid:${traits.skinTone}-${traits.hairColour}-${traits.ageClass}-${rand}] [face:${faceShape}-${eyeShape}-${jawline}] [style:${hairStyle}-${cheekbones}]`;
-
-  const prompt =
+  return (
     `${subjectBase}, ${skinDesc}, ${hairDesc}, ${ageDesc}, ` +
+    `${region.keywords}, ` +
     `${glassesDesc}${beardDesc}${exprDesc}` +
     `${faceDesc}, ` +
     `${ART_STYLE}, ${paletteHint}. ` +
-    `Unique identity preserved. ${uniquenessToken}. ` +
-    `Highly individual character design. One-of-a-kind portrait.`;
-
-  return prompt;
+    `${uniquenessToken}.`
+  );
 }
 
 // ─── Gender analysis (HuggingFace — confirmed working) ────────────────────────
@@ -648,8 +876,18 @@ export async function generateAiAvatar(
       } catch (repErr: unknown) {
         console.warn("[ai-avatar] SDXL failed, trying fal.ai:", repErr instanceof Error ? repErr.message : String(repErr));
         if (falApiKey) {
-          buffer   = await generateViaFal(photoBuffer, mimeType, prompt, falApiKey, seed);
-          provider = "fal.ai/flux-dev";
+          try {
+            buffer   = await generateViaFal(photoBuffer, mimeType, prompt, falApiKey, seed);
+            provider = "fal.ai/flux-dev";
+          } catch (falErr: unknown) {
+            console.warn("[ai-avatar] fal.ai failed, trying HuggingFace:", falErr instanceof Error ? falErr.message : String(falErr));
+            if (hfToken) {
+              buffer   = await generateViaHuggingFace(photoBuffer, mimeType, prompt, hfToken);
+              provider = "huggingface/flux-schnell (fallback)";
+            } else {
+              throw falErr;
+            }
+          }
         } else if (hfToken) {
           buffer   = await generateViaHuggingFace(photoBuffer, mimeType, prompt, hfToken);
           provider = "huggingface/sdxl-fallback";
@@ -733,7 +971,8 @@ export async function generateAvatarInStyle(
     "Emoji":       `bitmoji cartoon portrait, vibrant flat cartoon style, expressive fun character, NFT avatar`,
   };
 
-  const prompt = `${subjectBase}, ${skinDesc}, ${hairDesc}, ${glassesDesc}${beardDesc}${styleArt[style]}, highly detailed, 1024x1024`;
+  const regionDesc = ETHNIC_REGION_DESCRIPTORS[traits.ethnicRegion];
+  const prompt = `${subjectBase}, ${skinDesc}, ${regionDesc.keywords}, ${regionDesc.face}, ${regionDesc.eyes}, ${hairDesc}, ${glassesDesc}${beardDesc}${styleArt[style]}, highly detailed, 1024x1024`;
   console.log(`[ai-avatar] style=${style} gender=${resolvedGender}(${genderConf.toFixed(2)}) skin=${traits.skinTone} hair=${traits.hairColour} prompt="${prompt.slice(0,120)}..."`);
 
   // 1. HuggingFace text-to-image (free tier — resets monthly)

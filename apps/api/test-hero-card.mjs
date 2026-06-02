@@ -89,13 +89,32 @@ const COVER_ZONES = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// "ai"    = Comic/Anime 1024x1024 — face is centered → use position:centre
+// "photo" = Real selfie — face is near top → crop with top offset
+const AVATAR_TYPE = "ai";
+
 async function cropCircle(avatarBuf, r) {
   const d = r * 2;
   const svgMask = Buffer.from(
     `<svg width="${d}" height="${d}"><circle cx="${r}" cy="${r}" r="${r}" fill="white"/></svg>`
   );
-  return sharp(avatarBuf)
-    .resize(d, d, { fit: "cover", position: "top" })
+  let resized;
+  if (AVATAR_TYPE === "ai") {
+    resized = await sharp(avatarBuf)
+      .resize(d, d, { fit: "cover", position: "centre" })
+      .toBuffer();
+  } else {
+    const big  = Math.round(d * 1.15);
+    const tmp  = await sharp(avatarBuf)
+      .resize(big, big, { fit: "cover", position: "top" })
+      .toBuffer();
+    const offT = Math.round((big - d) * 0.25);
+    const offL = Math.round((big - d) / 2);
+    resized = await sharp(tmp)
+      .extract({ top: offT, left: offL, width: d, height: d })
+      .toBuffer();
+  }
+  return sharp(resized)
     .composite([{ input: svgMask, blend: "dest-in" }])
     .png()
     .toBuffer();
@@ -164,14 +183,16 @@ function buildOverlay(input, layout) {
 
   let badgesSVG = "";
   if (badges.length > 0) {
-    let bx = L.align === "center" ? 432 - (badges.length * 160) / 2 : 55;
+    let bx = L.align === "center" ? 432 - (badges.length * 130) / 2 : 55;
+    const BADGE_ICONS = { "OG MEMBER": "♛", "TOP 1%": "⚡", "VERIFIED": "✓" };
     for (const badge of badges) {
-      const bw = badge.length * 12 + 40;
+      const label = `${BADGE_ICONS[badge] ?? "★"} ${badge}`;
+      const bw = label.length * 13 + 36;
       badgesSVG += `
         <rect x="${bx}" y="${L.badgesY - 6}" width="${bw}" height="38" rx="19"
           fill="${L.badgesBg}" opacity="0.9"/>
-        <text x="${bx + bw / 2}" y="${L.badgesY + 18}" font-size="18" font-weight="700"
-          fill="${L.badgesTextColor}" font-family="Arial, sans-serif" text-anchor="middle">${badge}</text>`;
+        <text x="${bx + bw / 2}" y="${L.badgesY + 18}" font-size="17" font-weight="700"
+          fill="${L.badgesTextColor}" font-family="Arial, sans-serif" text-anchor="middle">${label}</text>`;
       bx += bw + 16;
     }
   }
@@ -184,23 +205,61 @@ function buildOverlay(input, layout) {
 async function generateCard(avatarBuf, input) {
   const layout = LAYOUTS[input.tier];
   const L = layout;
-  const frameBuf   = await sharp(path.join(FRAME_DIR, `${input.tier.toLowerCase()}.png`)).toBuffer();
-  const circleBuf  = await cropCircle(avatarBuf, L.avatar.r);
-  const svgOverlay = buildOverlay(input, layout);
+  const { cx, cy, r } = L.avatar;
+  const d = r * 2;
 
+  // 1. Load frame PNG
+  const frameBuf = await sharp(path.join(FRAME_DIR, `${input.tier.toLowerCase()}.png`)).toBuffer();
+
+  // 2. Scale avatar to fill the circle bounding box (no circle crop — frame does the masking)
+  const avatarSquare = await sharp(avatarBuf)
+    .resize(d, d, { fit: "cover", position: AVATAR_TYPE === "ai" ? "centre" : "top" })
+    .png()
+    .toBuffer();
+
+  // 3. Create ring mask: white (opaque) everywhere EXCEPT inside the circle (transparent)
+  //    dest-out erases the white base where the SVG circle is drawn
+  const whiteBase = await sharp({
+    create: { width: CARD_W, height: CARD_H, channels: 4, background: { r:255, g:255, b:255, alpha:255 } }
+  }).png().toBuffer();
+
+  const circleCutSvg = Buffer.from(
+    `<svg width="${CARD_W}" height="${CARD_H}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="black"/></svg>`
+  );
+  const ringMask = await sharp(whiteBase)
+    .composite([{ input: circleCutSvg, blend: "dest-out" }])
+    .png()
+    .toBuffer();
+
+  // 4. Cut circle hole from frame → frame is opaque everywhere except inside the circle
+  const frameCutout = await sharp(frameBuf)
+    .composite([{ input: ringMask, blend: "dest-in" }])
+    .png()
+    .toBuffer();
+
+  // 5. Cover patches for info area (clean background for text)
   const coverPatches = await Promise.all(
     COVER_ZONES[input.tier].map(async ({ top, height, left = 60, width = 744 }) => ({
       input: await solidRect(width, height, L.bgColor),
-      top,
-      left,
+      top, left,
     }))
   );
 
-  return sharp(frameBuf).composite([
-    ...coverPatches,
-    { input: circleBuf,  top: L.avatar.cy - L.avatar.r, left: L.avatar.cx - L.avatar.r },
-    { input: svgOverlay, top: 0, left: 0 },
-  ]).png().toBuffer();
+  // 6. SVG text overlay
+  const svgOverlay = buildOverlay(input, layout);
+
+  // 7. Composite: solid bg → avatar (fills circle) → frame-with-hole → cover patches → SVG text
+  const baseBg = await solidRect(CARD_W, CARD_H, L.bgColor);
+
+  return sharp(baseBg)
+    .composite([
+      { input: avatarSquare, top: cy - r, left: cx - r },  // avatar fills circle exactly
+      { input: frameCutout,  top: 0, left: 0 },            // frame on top, hole shows avatar
+      ...coverPatches,                                       // blank info area for clean text
+      { input: svgOverlay,   top: 0, left: 0 },            // name / stats / badges
+    ])
+    .png()
+    .toBuffer();
 }
 
 // ── Run test ──────────────────────────────────────────────────────────────────

@@ -375,13 +375,67 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         cid = await uploadToIPFS(aiBuffer, name, "image/png");
         avatarUrl = ipfsGatewayUrl(cid);
         await db.query(
-          "UPDATE users SET ai_art_ipfs_hash = $1 WHERE id = $2",
+          "UPDATE users SET ai_art_ipfs_hash = $1, avatar_ipfs_hash = $1 WHERE id = $2",
           [cid, payload.userId]
         );
       } catch {
         // IPFS not configured or failed — return avatar as inline data URL so the
         // test page can still display it without PINATA set up
         avatarUrl = `data:image/png;base64,${aiBuffer.toString("base64")}`;
+      }
+
+      // ── Auto-generate hero card with the new avatar ──────────────────────────
+      let heroCard: { tier: CardTier; cardUrl: string; ipfsHash: string; cardNumber: string } | null = null;
+      try {
+        const { rows: uRows } = await db.query(
+          `SELECT display_name, location_city, birth_date FROM users WHERE id = $1`,
+          [payload.userId]
+        );
+        const uProfile = uRows[0] ?? {};
+
+        const tierMap: Record<string, CardTier> = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
+        const vibeScore = rarity === "legendary" ? 97 : rarity === "epic" ? 88 : rarity === "rare" ? 72 : 55;
+        const cardTier: CardTier = (rarity ? tierMap[rarity] : null) ?? tierFromVibe(vibeScore);
+
+        const userAge = uProfile.birth_date
+          ? Math.floor((Date.now() - new Date(uProfile.birth_date).getTime()) / 31557600000)
+          : 21;
+
+        const { rows: seqRows } = await db.query(`SELECT nextval('hero_card_number_seq') AS n`);
+        const cardNumber = Number(seqRows[0]?.n ?? 1);
+
+        const cardBuffer = await generateHeroCard({
+          avatarBuffer: aiBuffer,
+          name:       uProfile.display_name ?? "USER",
+          city:       uProfile.location_city ?? "INDIA",
+          age:        userAge,
+          cardNumber,
+          tier:       cardTier,
+          vibe:       vibeScore,
+          rizz:       Math.round(vibeScore * 0.97),
+          drip:       Math.round(vibeScore * 0.95),
+          aura:       Math.round(vibeScore * 0.92),
+          badges:     vibeScore >= 95 ? ["OG MEMBER", "TOP 1%"] : [],
+        });
+
+        const cardCid = await uploadToIPFS(
+          cardBuffer, `hero-card-${payload.userId}-${Date.now()}.png`, "image/png"
+        );
+        await db.query(
+          `INSERT INTO hero_cards (user_id, card_number, tier, card_ipfs_hash, vibe_score, rizz_score, drip_score, aura_score, badges)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [payload.userId, cardNumber, cardTier, cardCid, vibeScore,
+           Math.round(vibeScore * 0.97), Math.round(vibeScore * 0.95), Math.round(vibeScore * 0.92),
+           JSON.stringify(vibeScore >= 95 ? ["OG MEMBER", "TOP 1%"] : [])]
+        );
+        heroCard = {
+          tier:       cardTier,
+          cardUrl:    `https://gateway.pinata.cloud/ipfs/${cardCid}`,
+          ipfsHash:   cardCid,
+          cardNumber: String(cardNumber).padStart(4, "0"),
+        };
+      } catch (heroErr) {
+        console.error("[hero-card] Auto-generation failed (non-fatal):", heroErr);
       }
 
       return {
@@ -399,6 +453,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         provider:     aiProvider,
         prompt:       aiResult?.prompt,
         rarity:       rarity ?? null,
+        heroCard,
         dailyQuota:   { used: currentCount, limit: DAILY_LIMIT, remaining: DAILY_LIMIT - currentCount },
       };
     }

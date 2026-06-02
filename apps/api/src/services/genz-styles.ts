@@ -34,15 +34,17 @@ interface StyleConfig {
 
 const COMIC_BASE =
   "pop art comic book portrait, bold black ink outlines, halftone dot shading pattern, " +
-  "vibrant starburst radial background pink magenta yellow, retro 1960s comic book style, " +
-  "Roy Lichtenstein inspired, ben-day dots, flat bold colors, dramatic face lighting, " +
-  "thick ink lines, speech-bubble energy, heroic pose, square format, " +
+  "BACKGROUND: bright golden yellow starburst rays radiating outward on hot pink background, " +
+  "retro 1960s comic book style, Roy Lichtenstein inspired, ben-day dots, flat bold colors, " +
+  "dramatic face lighting, thick ink lines, speech-bubble energy, " +
+  "face filling 65% of frame width, eyes at upper third, close-up portrait crop, " +
   "high contrast shadows, screen-print color separation, " +
   "professional comic book illustration, NFT avatar art";
 
 const COMIC_NEGATIVE =
   "photorealistic, photograph, 3d render, blurry, watermark, text, logo, " +
-  "dark gloomy, sad, ugly, extra limbs, bad anatomy, low quality, " +
+  "dark background, dark gloomy, space background, cosmic background, galaxy background, " +
+  "sad, ugly, extra limbs, bad anatomy, low quality, " +
   "monochrome, grey, washed out, anime, cartoon simple";
 
 // ─── ANIME — The second killer style Gen-Z loves ──────────────────────────────
@@ -52,9 +54,10 @@ const COMIC_NEGATIVE =
 const ANIME_BASE =
   "high quality anime portrait, detailed manga illustration, " +
   "vibrant cel shading, expressive large anime eyes with detailed iris and catchlight, " +
-  "soft gradient background pink purple blue pastel, " +
+  "warm amber orange gradient background with glowing light bloom, " +
   "detailed hair with individual strands and highlight sheen, " +
-  "clean smooth skin with subtle blush, " +
+  "clean smooth skin with subtle blush, warm confident smile, bright expression, " +
+  "face filling 65% of frame width, eyes at upper third, close-up portrait crop, " +
   "dynamic lighting from above, rim light glow, " +
   "professional anime studio quality, Makoto Shinkai style lighting, " +
   "crisp sharp lines, saturated colors, kawaii but mature aesthetic, " +
@@ -86,11 +89,15 @@ export const STYLE_CONFIGS: Record<GenZNftStyle, StyleConfig> = {
   },
   "3D": {
     prompt: [
-      "cinematic 3D character portrait, Pixar animation style, subsurface skin scattering,",
-      "soft volumetric lighting, clean studio background gradient, smooth high-poly face,",
-      "professional CGI render, octane render quality, warm rim lighting, NFT avatar"
+      "Pixar Disney animated movie character portrait, stylized 3D cartoon illustration,",
+      "smooth rounded stylized features, NOT photorealistic, animated film quality,",
+      "warm studio lighting, vivid gradient background purple and orange glow,",
+      "warm confident smile, bright cheerful expression,",
+      "face filling 65% of frame width, close-up portrait crop,",
+      "Pixar Inside Out character quality, Disney Encanto art style, NFT avatar"
     ].join(" "),
-    negativePrompt: COMIC_NEGATIVE,
+    negativePrompt: "photorealistic, photograph, blurry, watermark, ugly, bad anatomy, " +
+      "dark gloomy, CGI headshot, octane render, hyper realistic skin, stock photo, low quality",
     cfModel: "@cf/bytedance/stable-diffusion-xl-lightning",
     hfModel: "black-forest-labs/FLUX.1-schnell",
     steps: 4, guidance: 3.5,
@@ -119,11 +126,15 @@ export const STYLE_CONFIGS: Record<GenZNftStyle, StyleConfig> = {
   },
   "Pixels": {
     prompt: [
-      "pixel art portrait, 32-bit retro game sprite style, bold pixel blocks,",
-      "limited color palette, clean pixel art face, colorful retro background,",
-      "detailed pixel shading, indie game art quality, NFT avatar"
+      "Spider-Verse Into the Spider-Verse comic illustration, halftone mosaic background,",
+      "bold ink outlines, colorful mosaic tiles in warm orange red gold behind figure,",
+      "graphic novel panel art, pop art energy, strong color contrast,",
+      "warm confident smile, charismatic expression, face filling 65% of frame,",
+      "close-up portrait crop, eyes at upper third of image,",
+      "Sony animation quality, Into the Spider-Verse aesthetic, NFT avatar, Legendary tier"
     ].join(" "),
-    negativePrompt: COMIC_NEGATIVE,
+    negativePrompt: "photorealistic, 3d render, photograph, blurry, watermark, ugly, bad anatomy, " +
+      "dark gloomy, pixel art, 8-bit, retro game sprite, low quality",
     cfModel: "@cf/bytedance/stable-diffusion-xl-lightning",
     hfModel: "black-forest-labs/FLUX.1-schnell",
     steps: 4, guidance: 3.5,
@@ -139,13 +150,13 @@ export type SkinTone  = "fair"|"warm-ivory"|"olive"|"medium-brown"|"warm-brown"|
 export type HairColor = "jet-black"|"dark-brown"|"medium-brown"|"auburn"|"silver-grey"|"white"|"light";
 
 const SKIN_DESC: Record<SkinTone, string> = {
-  "fair":         "fair porcelain skin",
-  "warm-ivory":   "warm ivory skin with golden undertones",
-  "olive":        "olive warm Mediterranean skin",
-  "medium-brown": "medium warm South Asian brown skin",
-  "warm-brown":   "rich warm brown skin",
-  "deep-brown":   "deep brown skin with warm undertones",
-  "dark":         "deep dark rich skin",
+  "fair":         "fair porcelain skin with cool rosy-pink undertones",
+  "warm-ivory":   "warm ivory skin with soft golden undertones",
+  "olive":        "warm olive skin with golden-green undertones",
+  "medium-brown": "medium warm-brown skin with rich amber undertones",
+  "warm-brown":   "rich warm brown skin with caramel amber undertones",
+  "deep-brown":   "deep brown skin with warm mahogany undertones",
+  "dark":         "deep rich dark skin with cool blue-black undertones",
 };
 
 const HAIR_DESC: Record<HairColor, string> = {
@@ -164,6 +175,64 @@ const GENDER_DESC: Record<Gender, string> = {
   "other":  "young person",
 };
 
+const HAIR_NEGATION: Record<HairColor, string> = {
+  "jet-black":    "NOT blonde hair, NOT red hair, NOT auburn hair, NOT grey hair",
+  "dark-brown":   "NOT blonde hair, NOT red hair, NOT orange hair, NOT grey hair",
+  "medium-brown": "NOT blonde hair, NOT red hair, NOT black hair, NOT grey hair",
+  "auburn":       "NOT blonde hair, NOT jet-black hair, NOT grey hair",
+  "silver-grey":  "NOT black hair, NOT brown hair, NOT red hair, NOT blonde hair",
+  "white":        "NOT black hair, NOT brown hair, NOT red hair, NOT auburn hair",
+  "light":        "NOT black hair, NOT dark hair, NOT red hair",
+};
+
+// ─── Regional bone structure for genz-styles ────────────────────────────────────
+// Purely physical descriptors, no ethnicity labels, 4 variants per skin tone.
+
+const GENZ_REGIONAL_FEATURES: Record<SkinTone, string[]> = {
+  "fair": [
+    "sharp angular cheekbones, defined sculpted jaw, light brow ridge",
+    "soft prominent brow, fine angular nose, oval refined face",
+    "strong angular jaw, high sharp cheekbones, narrow nose bridge",
+    "delicate angular features, high forehead, refined jawline",
+  ],
+  "warm-ivory": [
+    "smooth high flat cheekbones, elegant oval face, gentle soft jaw",
+    "high broad forehead, smooth high cheekbones, gentle angular jaw",
+    "refined symmetrical oval face, soft defined high cheekbones",
+    "smooth broad forehead, gently arched brows, soft angular jaw",
+  ],
+  "olive": [
+    "strong prominent nose bridge, high angular cheekbones, square jaw",
+    "broad strong nose, angular prominent cheekbones, defined brow ridge",
+    "wide angular cheekbones, strong broad nose, angular square jawline",
+    "prominent nose bridge, high strong cheekbones, sharp jawline",
+  ],
+  "medium-brown": [
+    "broad soft rounded cheekbones, wide nose bridge, rounded strong jaw",
+    "broad cheekbones, wide flat nose bridge, defined angular jaw",
+    "rounded prominent cheekbones, broad flat nose, strong soft jaw",
+    "wide cheekbones, strong jaw, broad rounded nose bridge",
+  ],
+  "warm-brown": [
+    "high prominent cheekbones, broad strong nose, defined angular jaw",
+    "wide strong cheekbones, broad rounded nose, angular defined jaw",
+    "broad prominent cheekbones, wide nose, strong jaw, full lips",
+    "defined high cheekbones, broad nose bridge, strong jaw",
+  ],
+  "deep-brown": [
+    "broad strong cheekbones, wide rounded nose, prominent angular jaw",
+    "wide prominent cheekbones, broad flat nose bridge, strong angular jaw",
+    "strong broad cheekbones, wide nose, defined prominent jaw, full lips",
+    "prominent angular cheekbones, broad rounded nose, strong jaw",
+  ],
+  "dark": [
+    "broad prominent cheekbones, wide flat nose, strong prominent defined jaw",
+    "wide strong cheekbones, broad rounded nose bridge, angular jaw",
+    "prominent broad cheekbones, wide flat nose, strong defined jaw, full lips",
+    "strong wide cheekbones, broad nose, prominent angular jaw",
+  ],
+};
+
 export function buildFaceDescriptor(
   gender:    Gender,
   skinTone:  SkinTone,
@@ -171,21 +240,30 @@ export function buildFaceDescriptor(
   hasBeard:  boolean,
   style:     GenZNftStyle,
 ): string {
-  const genderWord = GENDER_DESC[gender];
-  const skinWord   = SKIN_DESC[skinTone];
-  const hairWord   = HAIR_DESC[hairColor];
-  const beardWord  = hasBeard ? ", well-groomed stylish stubble" : "";
+  const genderWord  = GENDER_DESC[gender];
+  const skinWord    = SKIN_DESC[skinTone];
+  const hairWord    = HAIR_DESC[hairColor];
+  const hairNeg     = HAIR_NEGATION[hairColor];
+  const beardWord   = hasBeard ? ", well-groomed stylish stubble" : "";
 
-  // Comic style uses "portrait of" framing
+  // Regional bone structure — randomly rotated per call for globally diverse output
+  const pool        = GENZ_REGIONAL_FEATURES[skinTone];
+  const regionalDesc = `, ${pool[Math.floor(Math.random() * pool.length)]}`;
+
+  // Comic style
   if (style === "Comic") {
-    return `Comic book portrait of a ${genderWord}, ${skinWord}, ${hairWord}${beardWord}, confident expression, `;
+    return `Comic book portrait of a ${genderWord}, ${skinWord}${regionalDesc}, ${hairWord}${beardWord}, warm confident smile, bright expression, ${hairNeg}, `;
   }
-  // Anime style uses "anime character" framing
+  // Anime style
   if (style === "Anime") {
-    return `Anime portrait of a ${genderWord}, ${skinWord}, detailed ${hairWord}${beardWord}, warm confident smile, `;
+    return `Anime portrait of a ${genderWord}, ${skinWord}${regionalDesc}, detailed ${hairWord}${beardWord}, warm confident smile, ${hairNeg}, `;
   }
-  // Generic for other styles
-  return `Portrait of a ${genderWord}, ${skinWord}, ${hairWord}${beardWord}, confident expression, `;
+  // Pixels / Spider-Verse
+  if (style === "Pixels") {
+    return `Spider-Verse comic portrait of a ${genderWord}, ${skinWord}${regionalDesc}, ${hairWord}${beardWord}, warm confident smile, charismatic, ${hairNeg}, `;
+  }
+  // Generic for 3D / Video game / Clay
+  return `Portrait of a ${genderWord}, ${skinWord}${regionalDesc}, ${hairWord}${beardWord}, warm confident smile, bright expression, ${hairNeg}, `;
 }
 
 // ─── Full prompt assembler ────────────────────────────────────────────────────
@@ -357,10 +435,10 @@ export async function generateGenZAvatar(params: {
 // ─── Rarity → Style mapping ───────────────────────────────────────────────────
 
 export const RARITY_STYLE: Record<string, GenZNftStyle> = {
-  common:    "Comic",       // pop art — instantly loveable
-  rare:      "Anime",       // anime — Gen-Z favorite
-  epic:      "Video game",  // game character — hype
-  legendary: "3D",          // Pixar quality — premium
+  common:    "Comic",       // pop art — instantly loveable, most accessible
+  rare:      "Anime",       // anime — Gen-Z favorite, warm + expressive
+  epic:      "3D",          // Pixar cartoon — premium, Disney quality
+  legendary: "Pixels",      // Spider-Verse — rarest, most shareable, highest FOMO
 };
 
 export function styleForRarity(rarity: string): GenZNftStyle {

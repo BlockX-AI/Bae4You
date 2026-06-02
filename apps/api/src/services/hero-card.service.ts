@@ -16,17 +16,20 @@ import path from "path";
 export type CardTier = "Common" | "Rare" | "Epic" | "Legendary";
 
 export interface HeroCardInput {
-  avatarBuffer: Buffer;         // KYC-generated comic avatar (any size)
-  name:         string;         // "PRAKHAR" (from display_name)
-  city:         string;         // "MUMBAI" (from location_city)
-  age:          number;         // 21 (calculated from birth_date)
-  cardNumber:   number;         // Auto-assigned from sequence
-  tier:         CardTier;       // Auto-calculated from vibe score
-  vibe:         number;         // 0–100
-  rizz?:        number;
-  drip?:        number;
-  aura?:        number;
-  badges?:      string[];       // ["OG MEMBER", "TOP 1%"]
+  avatarBuffer:   Buffer;       // KYC-generated comic avatar (any size)
+  name:           string;       // "PRAKHAR" (from display_name)
+  city:           string;       // "MUMBAI" (from location_city)
+  age:            number;       // 21 (calculated from birth_date)
+  cardNumber:     number;       // Auto-assigned from sequence
+  tier:           CardTier;     // Auto-calculated from vibe score
+  vibe:           number;       // 0–100
+  rizz?:          number;
+  drip?:          number;
+  aura?:          number;
+  badges?:        string[];     // ["OG MEMBER", "TOP 1%"]
+  tagline?:       string;       // Earned title e.g. "MAGNETIC" — auto-computed if omitted
+  petValuePcash?: number;       // Current pet price in PCASH (shown on Epic+)
+  seriesLabel?:   string;       // "GENESIS SERIES" (shown on Legendary only)
 }
 
 // ── Card layout config per tier (positions in 864×1216 space) ─────────────────
@@ -128,15 +131,39 @@ const LAYOUTS: Record<CardTier, TierLayout> = {
 
 const FRAME_DIR = path.resolve(__dirname, "../../public/images/herocard");
 
-/** Crop avatar buffer to a circle of diameter r*2 */
-async function cropCircle(avatarBuf: Buffer, r: number): Promise<Buffer> {
+/**
+ * Scale avatar to fill the circle bounding box (no circle crop here —
+ * the frame-cutout approach lets the frame's ring act as the mask).
+ */
+async function scaleAvatarForCircle(avatarBuf: Buffer, r: number): Promise<Buffer> {
   const d = r * 2;
-  const svgMask = Buffer.from(
-    `<svg width="${d}" height="${d}"><circle cx="${r}" cy="${r}" r="${r}" fill="white"/></svg>`
-  );
   return sharp(avatarBuf)
-    .resize(d, d, { fit: "cover", position: "top" })
-    .composite([{ input: svgMask, blend: "dest-in" }])
+    .resize(d, d, { fit: "cover", position: "centre" })
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Cut a circular hole from the frame at (cx, cy, r).
+ * Returns the frame PNG with that circle area made transparent.
+ */
+async function cutCircleFromFrame(
+  frameBuf: Buffer, cx: number, cy: number, r: number, cardW: number, cardH: number
+): Promise<Buffer> {
+  const whiteBase = await sharp({
+    create: { width: cardW, height: cardH, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 255 } },
+  }).png().toBuffer();
+
+  const circleSvg = Buffer.from(
+    `<svg width="${cardW}" height="${cardH}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="black"/></svg>`
+  );
+  const ringMask = await sharp(whiteBase)
+    .composite([{ input: circleSvg, blend: "dest-out" }])
+    .png()
+    .toBuffer();
+
+  return sharp(frameBuf)
+    .composite([{ input: ringMask, blend: "dest-in" }])
     .png()
     .toBuffer();
 }
@@ -169,18 +196,59 @@ function statBlocks(
       font-family="Arial Black, Arial">${value}</text>`;
 }
 
+// ── Earned title calculator ──────────────────────────────────────────────────
+
+export function computeTagline(tier: CardTier, vibe: number, rizz = 0, drip = 0, aura = 0): string {
+  if (tier === "Common") {
+    if (vibe >= 65) return "CATCHING FIRE";
+    if (vibe >= 55) return "RISING STAR";
+    if (vibe >= 40) return "FINDING FLOW";
+    return "NEW IN TOWN";
+  }
+  if (tier === "Rare") {
+    if (rizz >= 90) return "IRRESISTIBLE";
+    if (rizz >= 75) return "MAGNETIC";
+    if (rizz >= 60) return "CHARMING";
+    return "CONNECTED";
+  }
+  if (tier === "Epic") {
+    const best = Math.max(vibe, rizz, drip);
+    if (best === drip && drip >= 90) return "STYLE ICON";
+    if (best === rizz && rizz >= 90) return "HEARTBREAKER";
+    if (best === vibe && vibe >= 90) return "VIBE SETTER";
+    if (vibe >= 80 && rizz >= 80 && drip >= 80) return "APEX PREDATOR";
+    return "ELITE";
+  }
+  // Legendary
+  if (aura >= 95) return "THE ICON";
+  if (rizz >= 95) return "THE ONE";
+  if (vibe >= 95 && rizz >= 90 && drip >= 90 && aura >= 90) return "UNTOUCHABLE";
+  if (vibe >= 95) return "THE CHOSEN ONE";
+  return "LEGENDARY";
+}
+
 /** Build the complete SVG overlay: cover rects + text + stats + badges */
 function buildOverlay(input: HeroCardInput, layout: TierLayout): Buffer {
   const { name, city, age, cardNumber, vibe, rizz = 0, drip = 0, aura = 0, badges = [], tier } = input;
+  const tagline      = input.tagline ?? computeTagline(tier, vibe, rizz, drip, aura);
+  const petValue     = input.petValuePcash;
+  const seriesLabel  = input.seriesLabel;
   const L = layout;
   const W = 864, H = 1216;
 
   // No cover rectangles - place content in template's designated empty areas
   const coverSVG = "";
 
-  // Card number (top-left) - positioned where there's no baked-in content
+  // Card number (top-left)
   const cardNumSVG = `<text x="40" y="80" font-size="28" font-weight="700" fill="${L.name.color}"
     font-family="Arial Black, Arial" text-anchor="start">#${String(cardNumber).padStart(4, "0")}</text>`;
+
+  // Series label (Legendary only) — between card-num row and avatar
+  const seriesSVG = (tier === "Legendary" && seriesLabel)
+    ? `<text x="${W / 2}" y="108" font-size="13" font-weight="700"
+        fill="#c9a227" font-family="Arial, sans-serif" text-anchor="middle"
+        letter-spacing="5" opacity="0.75">${seriesLabel.toUpperCase()}</text>`
+    : "";
 
   // Name
   const nameSVG = `<text x="${L.name.x}" y="${L.name.y}" font-size="${L.name.size}" font-weight="900"
@@ -191,6 +259,24 @@ function buildOverlay(input: HeroCardInput, layout: TierLayout): Buffer {
   const citySVG = `<text x="${L.city.x}" y="${L.city.y}" font-size="${L.city.size}"
     fill="${L.city.color}" font-family="Arial, sans-serif" text-anchor="${L.city.anchor}"
     letter-spacing="1">${city.toUpperCase()} • AGE ${age}</text>`;
+
+  // Earned tagline — between city and stats
+  const tierSymbol: Record<CardTier, string> = {
+    Common: "✦", Rare: "✦", Epic: "◆", Legendary: "♛",
+  };
+  const sym = tierSymbol[tier];
+  const taglineY = L.city.y + 38;
+  const taglineSVG = `
+    <text x="${W / 2}" y="${taglineY}" font-size="16" font-weight="900"
+      fill="${L.statsColor}" font-family="Arial Black, Arial" text-anchor="middle"
+      letter-spacing="4" opacity="0.85">${sym}  ${tagline}  ${sym}</text>`;
+
+  // Pet value (Epic + Legendary only)
+  const petValueSVG = (petValue && (tier === "Epic" || tier === "Legendary"))
+    ? `<text x="${W / 2}" y="${taglineY + 30}" font-size="13"
+        fill="${L.statsColor}" font-family="Arial, sans-serif" text-anchor="middle"
+        letter-spacing="2" opacity="0.6">PET VALUE: ${petValue.toLocaleString()} PCASH</text>`
+    : "";
 
   // Stats
   let statsSVG = "";
@@ -235,8 +321,11 @@ function buildOverlay(input: HeroCardInput, layout: TierLayout): Buffer {
   const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
     ${coverSVG}
     ${cardNumSVG}
+    ${seriesSVG}
     ${nameSVG}
     ${citySVG}
+    ${taglineSVG}
+    ${petValueSVG}
     ${statsSVG}
     ${badgesSVG}
   </svg>`;
@@ -280,15 +369,20 @@ export async function generateHeroCard(input: HeroCardInput): Promise<Buffer> {
   const { tier, avatarBuffer } = input;
   const layout = LAYOUTS[tier];
   const L = layout;
+  const { cx, cy, r } = L.avatar;
+  const CARD_W = 864, CARD_H = 1216;
 
   // 1. Load frame template
   const framePath = path.join(FRAME_DIR, `${tier.toLowerCase()}.png`);
   const frameBuffer = await sharp(framePath).toBuffer();
 
-  // 2. Circle-crop the KYC avatar to fit within the template's golden ring
-  const circleAvatar = await cropCircle(avatarBuffer, L.avatar.r);
+  // 2. Scale avatar to fill the circle bounding box (rectangle — frame does the circular masking)
+  const avatarSquare = await scaleAvatarForCircle(avatarBuffer, r);
 
-  // 3. Build opaque cover patches for baked-in placeholder text (100% opaque, no SVG leakage)
+  // 3. Cut circular hole from the frame so frame interior never bleeds through
+  const frameCutout = await cutCircleFromFrame(frameBuffer, cx, cy, r, CARD_W, CARD_H);
+
+  // 4. Build opaque cover patches for info area (clean background for text)
   const coverPatches: sharp.OverlayOptions[] = await Promise.all(
     COVER_ZONES[tier].map(async ({ top, height, left = 60, width = 744 }) => ({
       input: await solidRect(width, height, L.bgColor),
@@ -298,14 +392,17 @@ export async function generateHeroCard(input: HeroCardInput): Promise<Buffer> {
     }))
   );
 
-  // 4. Build SVG text overlay (name, city, stats, badges)
+  // 5. Build SVG text overlay (name, city, stats, badges)
   const svgOverlay = buildOverlay(input, layout);
 
-  // 5. Composite: frame → cover patches → avatar → text overlay
-  return sharp(frameBuffer)
+  // 6. Composite: solid bg → avatar (fills circle) → frame-with-hole → cover patches → text
+  const baseBg = await solidRect(CARD_W, CARD_H, L.bgColor);
+
+  return sharp(baseBg)
     .composite([
+      { input: avatarSquare, top: cy - r, left: cx - r, blend: "over" as const },
+      { input: frameCutout,  top: 0, left: 0, blend: "over" as const },
       ...coverPatches,
-      { input: circleAvatar, top: L.avatar.cy - L.avatar.r, left: L.avatar.cx - L.avatar.r, blend: "over" as const },
       { input: svgOverlay,   top: 0, left: 0, blend: "over" as const },
     ])
     .png()
