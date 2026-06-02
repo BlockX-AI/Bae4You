@@ -6,30 +6,30 @@ import { useAuth } from "@/lib/store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Style = "Comic" | "Anime" | "3D" | "Video game" | "Pixels" | "Clay" | "Claymation";
+type Style = "Comic" | "Anime";
 type Step  = "capture" | "style" | "generating" | "result";
 
 interface GenStep { label: string; done: boolean; active: boolean }
 
 const STYLES: { id: Style; label: string; emoji: string; desc: string }[] = [
-  { id: "Comic",      label: "Cosmic Comic",  emoji: "🌌", desc: "Bold ink outlines, deep-space galaxy, neon glow" },
-  { id: "Anime",      label: "Anime",         emoji: "✨", desc: "Vibrant cel-shading, expressive manga style"     },
-  { id: "3D",         label: "3D Render",     emoji: "💎", desc: "Cinematic CGI, dramatic rim lighting, premium"   },
-  { id: "Video game", label: "Video Game",    emoji: "🎮", desc: "Heroic game concept art, bold colours, NFT hero" },
-  { id: "Pixels",     label: "Pixel Art",     emoji: "👾", desc: "16-bit retro sprite, bold pixel blocks"          },
-  { id: "Claymation", label: "Claymation",    emoji: "🫧", desc: "Colourful clay texture, stop-motion vibe"        },
+  { id: "Comic", label: "Cosmic Comic", emoji: "🌌", desc: "Bold ink outlines, deep-space galaxy, neon glow" },
+  { id: "Anime", label: "Anime",        emoji: "🎌", desc: "Vibrant cel-shading, expressive manga style"     },
 ];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://baebackend-production.up.railway.app";
+const API_URL = (typeof window !== "undefined" && (window as Window & { NEXT_PUBLIC_API_URL?: string }).NEXT_PUBLIC_API_URL)
+  ?? process.env.NEXT_PUBLIC_API_URL
+  ?? "https://baebackend-production.up.railway.app";
+
+const FRAMES_TO_CAPTURE = 5;
 
 // ─── Generation steps shown during loading ────────────────────────────────────
 
 const BASE_STEPS = [
+  "Selecting best frame from 5 captures",
   "Detecting ethnic region & skin tone",
   "Analysing facial features",
-  "Detecting hair, expression, accessories",
   "Building personalised AI prompt",
-  "Generating cosmic NFT portrait",
+  "Generating cosmic NFT portrait via AI",
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -37,21 +37,23 @@ const BASE_STEPS = [
 export default function AvatarPage() {
   const { jwt } = useAuth();
 
-  const videoRef    = useRef<HTMLVideoElement>(null);
-  const canvasRef   = useRef<HTMLCanvasElement>(null);
+  const videoRef     = useRef<HTMLVideoElement>(null);
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const streamRef   = useRef<MediaStream | null>(null);
+  const streamRef    = useRef<MediaStream | null>(null);
 
-  const [step,       setStep]       = useState<Step>("capture");
-  const [camActive,  setCamActive]  = useState(false);
-  const [capturedImg, setCapturedImg] = useState<string | null>(null);  // data-URL
-  const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
-  const [style,      setStyle]      = useState<Style>("Comic");
-  const [genSteps,   setGenSteps]   = useState<GenStep[]>([]);
-  const [avatarUrl,  setAvatarUrl]  = useState<string | null>(null);
-  const [error,      setError]      = useState<string | null>(null);
-  const [provider,   setProvider]   = useState<string>("");
-  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [step,          setStep]          = useState<Step>("capture");
+  const [camActive,     setCamActive]     = useState(false);
+  const [capturing,     setCapturing]     = useState(false);
+  const [countdown,     setCountdown]     = useState<number | null>(null);
+  const [capturedBlobs, setCapturedBlobs] = useState<Blob[]>([]);
+  const [previewUrls,   setPreviewUrls]   = useState<string[]>([]);
+  const [style,         setStyle]         = useState<Style>("Comic");
+  const [genSteps,      setGenSteps]      = useState<GenStep[]>([]);
+  const [avatarUrl,     setAvatarUrl]     = useState<string | null>(null);
+  const [error,         setError]         = useState<string | null>(null);
+  const [provider,      setProvider]      = useState<string>("");
+  const [facingMode,    setFacingMode]    = useState<"user" | "environment">("user");
 
   // Stop camera on unmount
   useEffect(() => () => { streamRef.current?.getTracks().forEach(t => t.stop()); }, []);
@@ -62,7 +64,7 @@ export default function AvatarPage() {
     streamRef.current?.getTracks().forEach(t => t.stop());
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 1280 }, height: { ideal: 960 } },
+        video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
       streamRef.current = stream;
@@ -71,6 +73,7 @@ export default function AvatarPage() {
         await videoRef.current.play();
       }
       setCamActive(true);
+      setError(null);
     } catch {
       setError("Camera access denied. Please allow camera permissions or upload a photo.");
     }
@@ -83,52 +86,66 @@ export default function AvatarPage() {
     setCamActive(false);
   }, []);
 
-  const captureFrame = useCallback(() => {
-    const video  = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return;
-    canvas.width  = video.videoWidth  || 640;
-    canvas.height = video.videoHeight || 480;
-    canvas.getContext("2d")!.drawImage(video, 0, 0);
-    canvas.toBlob(blob => {
-      if (!blob) return;
-      setCapturedBlob(blob);
-      setCapturedImg(canvas.toDataURL("image/jpeg", 0.92));
-      stopCamera();
-      setStep("style");
-    }, "image/jpeg", 0.92);
-  }, [stopCamera]);
+  // Capture a single frame blob from the live video
+  const captureOneFrame = useCallback((): Promise<Blob | null> => {
+    return new Promise(resolve => {
+      const video  = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas) { resolve(null); return; }
+      canvas.width  = video.videoWidth  || 640;
+      canvas.height = video.videoHeight || 480;
+      canvas.getContext("2d")!.drawImage(video, 0, 0);
+      canvas.toBlob(blob => resolve(blob), "image/jpeg", 0.92);
+    });
+  }, []);
 
+  // Capture FRAMES_TO_CAPTURE frames with countdown
+  const captureAllFrames = useCallback(async () => {
+    setCapturing(true);
+    const blobs: Blob[] = [];
+    const urls:  string[] = [];
+    for (let i = FRAMES_TO_CAPTURE; i >= 1; i--) {
+      setCountdown(i);
+      await new Promise(r => setTimeout(r, 600));
+      const blob = await captureOneFrame();
+      if (blob) {
+        blobs.push(blob);
+        urls.push(URL.createObjectURL(blob));
+      }
+    }
+    setCountdown(null);
+    stopCamera();
+    setCapturedBlobs(blobs);
+    setPreviewUrls(urls);
+    setCapturing(false);
+    setStep("style");
+  }, [captureOneFrame, stopCamera]);
+
+  // Single file upload → treated as 1 frame
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setCapturedBlob(file);
-    const reader = new FileReader();
-    reader.onload = ev => {
-      setCapturedImg(ev.target?.result as string);
-      stopCamera();
-      setStep("style");
-    };
-    reader.readAsDataURL(file);
+    const url = URL.createObjectURL(file);
+    setCapturedBlobs([file]);
+    setPreviewUrls([url]);
+    stopCamera();
+    setStep("style");
   }, [stopCamera]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (!file || !file.type.startsWith("image/")) return;
-    setCapturedBlob(file);
-    const reader = new FileReader();
-    reader.onload = ev => {
-      setCapturedImg(ev.target?.result as string);
-      setStep("style");
-    };
-    reader.readAsDataURL(file);
+    const url = URL.createObjectURL(file);
+    setCapturedBlobs([file]);
+    setPreviewUrls([url]);
+    setStep("style");
   }, []);
 
   // ── Generation ──────────────────────────────────────────────────────────────
 
   const generate = useCallback(async () => {
-    if (!capturedBlob) return;
+    if (capturedBlobs.length === 0) return;
     setError(null);
     setStep("generating");
 
@@ -144,38 +161,52 @@ export default function AvatarPage() {
       })));
     };
 
-    // Fake step progression while API works
+    // Animate steps while API works
     const timers: ReturnType<typeof setTimeout>[] = [];
     BASE_STEPS.forEach((_, i) => {
       if (i === 0) return;
-      timers.push(setTimeout(() => advanceStep(i), i * 4000));
+      timers.push(setTimeout(() => advanceStep(i), i * 7000));
     });
 
     try {
+      // Send all frames as frame0, frame1, ... (matching backend expectation)
       const form = new FormData();
-      form.append("photo", capturedBlob, "kyc-frame.jpg");
+      capturedBlobs.forEach((blob, i) => form.append(`frame${i}`, blob, `frame${i}.jpg`));
       form.append("style", style);
 
+      // Auth: prefer wallet JWT, fall back to localStorage token (from video-kyc-test.html flow)
+      const token = jwt ?? (typeof localStorage !== "undefined" ? localStorage.getItem("token") : null);
       const headers: Record<string, string> = {};
-      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch(`${API_URL}/users/me/avatar/kyc-frames`, {
-        method:  "POST",
-        headers,
-        body:    form,
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 120_000);
 
+      let res: Response;
+      try {
+        res = await fetch(`${API_URL}/users/me/avatar/kyc-frames`, {
+          method: "POST",
+          headers,
+          body:   form,
+          signal: controller.signal,
+        });
+      } catch (fetchErr) {
+        clearTimeout(timeout);
+        if (fetchErr instanceof Error && fetchErr.name === "AbortError")
+          throw new Error("Generation timed out (>2 min). Please try again.");
+        throw fetchErr;
+      }
+      clearTimeout(timeout);
       timers.forEach(t => clearTimeout(t));
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as Record<string, unknown>;
-        if (res.status === 401) {
-          throw new Error("Please connect your wallet to generate an avatar.");
-        }
-        throw new Error((body as { error?: string }).error ?? `Server error ${res.status}`);
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        if (res.status === 401) throw new Error("Please connect your wallet to generate an avatar.");
+        if (res.status === 429) throw new Error(body.error ?? "Daily limit reached. Try again tomorrow.");
+        throw new Error(body.error ?? `Server error ${res.status}`);
       }
 
-      const data = await res.json() as { avatarUrl?: string; provider?: string; traitsDetected?: Record<string, unknown> };
+      const data = await res.json() as { avatarUrl?: string; provider?: string };
 
       setGenSteps(prev => prev.map(s => ({ ...s, done: true, active: false })));
       setAvatarUrl(data.avatarUrl ?? null);
@@ -187,11 +218,11 @@ export default function AvatarPage() {
       setError(err instanceof Error ? err.message : "Generation failed. Please try again.");
       setStep("style");
     }
-  }, [capturedBlob, style, jwt]);
+  }, [capturedBlobs, style, jwt]);
 
   const reset = useCallback(() => {
-    setCapturedImg(null);
-    setCapturedBlob(null);
+    setCapturedBlobs([]);
+    setPreviewUrls([]);
     setAvatarUrl(null);
     setError(null);
     setProvider("");
@@ -246,20 +277,22 @@ export default function AvatarPage() {
             canvasRef={canvasRef}
             fileInputRef={fileInputRef}
             camActive={camActive}
+            capturing={capturing}
+            countdown={countdown}
             facingMode={facingMode}
             onStartCamera={startCamera}
-            onCapture={captureFrame}
+            onCapture={captureAllFrames}
             onStopCamera={stopCamera}
             onFileChange={handleFileUpload}
             onDrop={handleDrop}
-            onFlip={() => setFacingMode(f => f === "user" ? "environment" : "user")}
+            onFlip={() => setFacingMode((f: "user" | "environment") => f === "user" ? "environment" : "user")}
           />
         )}
 
         {/* STEP: style */}
-        {step === "style" && capturedImg && (
+        {step === "style" && previewUrls.length > 0 && (
           <StylePanel
-            capturedImg={capturedImg}
+            previewUrls={previewUrls}
             selectedStyle={style}
             onSelectStyle={setStyle}
             onGenerate={generate}
@@ -278,7 +311,7 @@ export default function AvatarPage() {
           <ResultPanel
             avatarUrl={avatarUrl}
             provider={provider}
-            capturedImg={capturedImg}
+            previewUrl={previewUrls[0] ?? null}
             onDownload={downloadAvatar}
             onReset={reset}
           />
@@ -336,6 +369,8 @@ interface CapturePanelProps {
   canvasRef:    React.RefObject<HTMLCanvasElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   camActive:    boolean;
+  capturing:    boolean;
+  countdown:    number | null;
   facingMode:   "user" | "environment";
   onStartCamera: () => void;
   onCapture:    () => void;
@@ -345,7 +380,7 @@ interface CapturePanelProps {
   onFlip:       () => void;
 }
 
-function CapturePanel({ videoRef, canvasRef, fileInputRef, camActive, onStartCamera, onCapture, onStopCamera, onFileChange, onDrop, onFlip }: CapturePanelProps) {
+function CapturePanel({ videoRef, canvasRef, fileInputRef, camActive, capturing, countdown, onStartCamera, onCapture, onStopCamera, onFileChange, onDrop, onFlip }: CapturePanelProps) {
   return (
     <div>
       {/* Camera / upload card */}
@@ -363,12 +398,21 @@ function CapturePanel({ videoRef, canvasRef, fileInputRef, camActive, onStartCam
                 <div style={{ width: "55%", aspectRatio: "3/4", border: "2px dashed rgba(255,45,120,0.6)", borderRadius: "50% 50% 45% 45%", boxShadow: "0 0 0 9999px rgba(0,0,0,0.25)" }} />
               </div>
 
+              {/* Countdown overlay */}
+              {countdown !== null && (
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                  <span style={{ fontSize: "6rem", fontWeight: 900, color: "#fff", textShadow: "0 0 30px rgba(255,45,120,0.8), 0 2px 8px rgba(0,0,0,0.8)" }}>{countdown}</span>
+                </div>
+              )}
+
               {/* Guide text */}
-              <div style={{ position: "absolute", bottom: 16, left: 0, right: 0, textAlign: "center" }}>
-                <span style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)", borderRadius: "9999px", padding: "0.3rem 0.9rem", fontSize: "0.78rem", color: "rgba(255,255,255,0.7)" }}>
-                  Centre your face inside the guide
-                </span>
-              </div>
+              {!capturing && (
+                <div style={{ position: "absolute", bottom: 16, left: 0, right: 0, textAlign: "center" }}>
+                  <span style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)", borderRadius: "9999px", padding: "0.3rem 0.9rem", fontSize: "0.78rem", color: "rgba(255,255,255,0.7)" }}>
+                    Centre your face · We capture {FRAMES_TO_CAPTURE} frames
+                  </span>
+                </div>
+              )}
 
               {/* Flip button */}
               <button onClick={onFlip}
@@ -379,14 +423,19 @@ function CapturePanel({ videoRef, canvasRef, fileInputRef, camActive, onStartCam
 
             {/* Actions */}
             <div style={{ padding: "1.25rem", display: "flex", gap: "0.75rem" }}>
-              <button onClick={onCapture} className="btn-pink" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", padding: "0.875rem" }}>
-                <Camera size={18} /> Capture Photo
+              <button onClick={onCapture} disabled={capturing} className="btn-pink" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", padding: "0.875rem", opacity: capturing ? 0.6 : 1 }}>
+                {capturing
+                  ? <><Loader2 size={17} style={{ animation: "spin 1s linear infinite" }} /> Capturing {FRAMES_TO_CAPTURE} frames...</>
+                  : <><Camera size={18} /> Capture {FRAMES_TO_CAPTURE} Frames</>}
               </button>
-              <button onClick={onStopCamera}
-                style={{ padding: "0.875rem 1.25rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "9999px", cursor: "pointer", color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>
-                Cancel
-              </button>
+              {!capturing && (
+                <button onClick={onStopCamera}
+                  style={{ padding: "0.875rem 1.25rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "9999px", cursor: "pointer", color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>
+                  Cancel
+                </button>
+              )}
             </div>
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
           </>
         ) : (
           /* Drop zone */
@@ -440,8 +489,8 @@ function CapturePanel({ videoRef, canvasRef, fileInputRef, camActive, onStartCam
 
 // ─── Style panel ──────────────────────────────────────────────────────────────
 
-function StylePanel({ capturedImg, selectedStyle, onSelectStyle, onGenerate, onRetake, hasJwt }: {
-  capturedImg:   string;
+function StylePanel({ previewUrls, selectedStyle, onSelectStyle, onGenerate, onRetake, hasJwt }: {
+  previewUrls:   string[];
   selectedStyle: Style;
   onSelectStyle: (s: Style) => void;
   onGenerate:    () => void;
@@ -450,25 +499,29 @@ function StylePanel({ capturedImg, selectedStyle, onSelectStyle, onGenerate, onR
 }) {
   return (
     <div>
-      {/* Preview + retake */}
-      <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start", marginBottom: "1.75rem" }}>
-        <div style={{ position: "relative", flexShrink: 0 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={capturedImg} alt="Captured" style={{ width: 100, height: 100, objectFit: "cover", borderRadius: "1rem", border: "2px solid rgba(255,45,120,0.4)" }} />
-          <div style={{ position: "absolute", inset: 0, borderRadius: "1rem", background: "linear-gradient(135deg,rgba(255,45,120,0.15),rgba(59,130,246,0.1))" }} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontWeight: 700, marginBottom: "0.25rem" }}>Photo captured ✓</p>
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.85rem", marginBottom: "0.875rem" }}>Our AI will detect your ethnic region, skin tone, hair colour &amp; expression to personalise your avatar.</p>
+      {/* Frame previews + retake */}
+      <div style={{ marginBottom: "1.75rem" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+          <p style={{ fontWeight: 700 }}>📸 {previewUrls.length} frame{previewUrls.length > 1 ? "s" : ""} captured ✓</p>
           <button onClick={onRetake} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "transparent", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "9999px", padding: "0.35rem 0.875rem", cursor: "pointer", color: "rgba(255,255,255,0.45)", fontSize: "0.8rem" }}>
             <RefreshCw size={12} /> Retake
           </button>
         </div>
+        <div style={{ display: "flex", gap: "0.5rem", overflowX: "auto", paddingBottom: "0.25rem" }}>
+          {previewUrls.map((url, i) => (
+            <div key={i} style={{ position: "relative", flexShrink: 0 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt={`frame ${i}`} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: "0.625rem", border: i === 0 ? "2px solid rgba(255,45,120,0.5)" : "1px solid rgba(255,255,255,0.1)" }} />
+              {i === 0 && <div style={{ position: "absolute", bottom: 2, left: 0, right: 0, textAlign: "center", fontSize: "0.55rem", color: "#ff7eb3", fontWeight: 700 }}>BEST</div>}
+            </div>
+          ))}
+        </div>
+        <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.78rem", marginTop: "0.5rem" }}>Best frame auto-selected · AI detects ethnic region, skin tone &amp; features</p>
       </div>
 
-      {/* Style grid */}
+      {/* Style grid — 2 styles only */}
       <p style={{ fontWeight: 700, marginBottom: "1rem", color: "rgba(255,255,255,0.8)" }}>Choose your avatar style</p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.75rem", marginBottom: "1.75rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.75rem" }}>
         {STYLES.map(s => (
           <button key={s.id} onClick={() => onSelectStyle(s.id)}
             style={{
@@ -546,12 +599,12 @@ function GeneratingPanel({ steps }: { steps: GenStep[] }) {
 
 // ─── Result panel ─────────────────────────────────────────────────────────────
 
-function ResultPanel({ avatarUrl, provider, capturedImg, onDownload, onReset }: {
-  avatarUrl:   string;
-  provider:    string;
-  capturedImg: string | null;
-  onDownload:  () => void;
-  onReset:     () => void;
+function ResultPanel({ avatarUrl, provider, previewUrl, onDownload, onReset }: {
+  avatarUrl:  string;
+  provider:   string;
+  previewUrl: string | null;
+  onDownload: () => void;
+  onReset:    () => void;
 }) {
   return (
     <div>
@@ -559,19 +612,19 @@ function ResultPanel({ avatarUrl, provider, capturedImg, onDownload, onReset }: 
         <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }} className="badge-pink">
           <CheckCircle size={12} /> Avatar generated
         </div>
-        <h2 style={{ fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.375rem" }}>Your cosmic portrait is ready</h2>
+        <h2 style={{ fontWeight: 900, fontSize: "1.75rem", marginBottom: "0.375rem" }}>Your cosmic portrait is ready ✨</h2>
         <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.85rem" }}>via {provider}</p>
       </div>
 
       {/* Side-by-side comparison */}
-      <div style={{ display: "grid", gridTemplateColumns: capturedImg ? "1fr 1fr" : "1fr", gap: "1rem", marginBottom: "1.75rem" }}>
-        {capturedImg && (
+      <div style={{ display: "grid", gridTemplateColumns: previewUrl ? "1fr 1fr" : "1fr", gap: "1rem", marginBottom: "1.75rem" }}>
+        {previewUrl && (
           <div style={{ position: "relative" }}>
             <div style={{ position: "absolute", top: 10, left: 10, zIndex: 1 }}>
               <span style={{ background: "rgba(0,0,0,0.65)", borderRadius: "9999px", padding: "0.2rem 0.6rem", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)" }}>Original</span>
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={capturedImg} alt="Original" style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover", borderRadius: "1.25rem", border: "1px solid rgba(255,255,255,0.08)" }} />
+            <img src={previewUrl} alt="Original" style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover", borderRadius: "1.25rem", border: "1px solid rgba(255,255,255,0.08)" }} />
           </div>
         )}
         <div style={{ position: "relative" }}>
