@@ -42,6 +42,7 @@ export default function AvatarPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef    = useRef<MediaStream | null>(null);
 
+  const [mounted,      setMounted]      = useState(false);
   const [step,          setStep]          = useState<Step>("capture");
   const [camActive,     setCamActive]     = useState(false);
   const [capturing,     setCapturing]     = useState(false);
@@ -55,8 +56,16 @@ export default function AvatarPage() {
   const [provider,      setProvider]      = useState<string>("");
   const [facingMode,    setFacingMode]    = useState<"user" | "environment">("user");
 
+  // Mark as mounted after hydration
+  useEffect(() => setMounted(true), []);
+
   // Stop camera on unmount
   useEffect(() => () => { streamRef.current?.getTracks().forEach(t => t.stop()); }, []);
+
+  // Show loading skeleton until mounted
+  if (!mounted) {
+    return <LoadingSkeleton />;
+  }
 
   // ── Camera ──────────────────────────────────────────────────────────────────
 
@@ -655,6 +664,29 @@ function ResultPanel({ avatarUrl, provider, previewUrl, onDownload, onReset }: {
         <div>
           <p style={{ fontWeight: 600, fontSize: "0.9rem", marginBottom: "0.15rem" }}>Set as your Bae4U profile</p>
           <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)" }}>Go to your profile page to upload this as your avatar and show it off to matches.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Loading skeleton ─────────────────────────────────────────────────────────────
+
+function LoadingSkeleton() {
+  return (
+    <div className="aurora-bg" style={{ background: "#09090b", minHeight: "100vh", padding: "3rem 1.5rem" }}>
+      <div style={{ maxWidth: 680, margin: "0 auto" }}>
+        {/* Hero skeleton */}
+        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <div style={{ width: 120, height: 24, background: "rgba(255,255,255,0.08)", borderRadius: "9999px", margin: "0 auto 1rem" }} />
+          <div style={{ width: 280, height: 48, background: "rgba(255,255,255,0.06)", borderRadius: "0.5rem", margin: "0 auto 0.5rem" }} />
+          <div style={{ width: 200, height: 16, background: "rgba(255,255,255,0.04)", borderRadius: "0.25rem", margin: "0 auto" }} />
+        </div>
+
+        {/* Card skeleton */}
+        <div className="glass" style={{ borderRadius: "1.5rem", padding: "2rem", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ aspectRatio: "4/3", background: "rgba(255,255,255,0.04)", borderRadius: "1rem", marginBottom: "1.5rem" }} />
+          <div style={{ width: "100%", height: 48, background: "rgba(255,255,255,0.06)", borderRadius: "0.75rem" }} />
         </div>
       </div>
     </div>
