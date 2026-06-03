@@ -33,13 +33,14 @@ interface StyleConfig {
 // DO NOT change the structure — only the face descriptor changes per user.
 
 const COMIC_BASE =
-  "pop art comic book portrait, bold black ink outlines, halftone dot shading pattern, " +
+  "pop art comic book portrait, bold black ink outlines, sharp crisp halftone dot shading pattern, " +
   "BACKGROUND: bright golden yellow starburst rays radiating outward on hot pink background, " +
   "retro 1960s comic book style, Roy Lichtenstein inspired, ben-day dots, flat bold colors, " +
   "dramatic face lighting, thick ink lines, speech-bubble energy, " +
   "face filling 65% of frame width, eyes at upper third, close-up portrait crop, " +
   "high contrast shadows, screen-print color separation, " +
-  "professional comic book illustration, NFT avatar art";
+  "professional comic book illustration, NFT avatar art, " +
+  "ultra high resolution, sharp details, vibrant saturated colors, crisp clean lines";
 
 const COMIC_NEGATIVE =
   "photorealistic, photograph, 3d render, blurry, watermark, text, logo, " +
@@ -52,7 +53,7 @@ const COMIC_NEGATIVE =
 // glowing skin, dynamic hair, gradient background — what gets shared on TikTok/IG
 
 const ANIME_BASE =
-  "high quality anime portrait, detailed manga illustration, " +
+  "ultra high quality anime portrait, detailed manga illustration, " +
   "vibrant cel shading, expressive large anime eyes with detailed iris and catchlight, " +
   "warm amber orange gradient background with glowing light bloom, " +
   "detailed hair with individual strands and highlight sheen, " +
@@ -61,7 +62,8 @@ const ANIME_BASE =
   "dynamic lighting from above, rim light glow, " +
   "professional anime studio quality, Makoto Shinkai style lighting, " +
   "crisp sharp lines, saturated colors, kawaii but mature aesthetic, " +
-  "social media profile picture, square format, NFT avatar art";
+  "social media profile picture, square format, NFT avatar art, " +
+  "ultra high resolution, sharp details, vibrant saturated colors, clean crisp rendering";
 
 const ANIME_NEGATIVE =
   "photorealistic, photograph, western cartoon, chibi too simple, " +
@@ -76,16 +78,16 @@ export const STYLE_CONFIGS: Record<GenZNftStyle, StyleConfig> = {
     negativePrompt: COMIC_NEGATIVE,
     cfModel:  "@cf/bytedance/stable-diffusion-xl-lightning",
     hfModel:  "black-forest-labs/FLUX.1-schnell",
-    steps:    4,    // FLUX schnell is optimized for 4 steps
-    guidance: 3.5,  // lower guidance = better for schnell
+    steps:    25,   // Higher steps = better quality
+    guidance: 7.5,  // Higher guidance = better prompt adherence
   },
   "Anime": {
     prompt:         ANIME_BASE,
     negativePrompt: ANIME_NEGATIVE,
     cfModel:  "@cf/bytedance/stable-diffusion-xl-lightning",
     hfModel:  "black-forest-labs/FLUX.1-schnell",
-    steps:    4,
-    guidance: 3.5,
+    steps:    25,   // Higher steps = better quality
+    guidance: 7.5,  // Higher guidance = better prompt adherence
   },
   "3D": {
     prompt: [
@@ -94,35 +96,38 @@ export const STYLE_CONFIGS: Record<GenZNftStyle, StyleConfig> = {
       "warm studio lighting, vivid gradient background purple and orange glow,",
       "warm confident smile, bright cheerful expression,",
       "face filling 65% of frame width, close-up portrait crop,",
-      "Pixar Inside Out character quality, Disney Encanto art style, NFT avatar"
+      "Pixar Inside Out character quality, Disney Encanto art style, NFT avatar, " +
+      "ultra high resolution, sharp details, vibrant saturated colors, clean crisp rendering"
     ].join(" "),
     negativePrompt: "photorealistic, photograph, blurry, watermark, ugly, bad anatomy, " +
       "dark gloomy, CGI headshot, octane render, hyper realistic skin, stock photo, low quality",
     cfModel: "@cf/bytedance/stable-diffusion-xl-lightning",
     hfModel: "black-forest-labs/FLUX.1-schnell",
-    steps: 4, guidance: 3.5,
+    steps: 25, guidance: 7.5,
   },
   "Video game": {
     prompt: [
       "video game character concept art portrait, stylized game art, heroic energy,",
       "bold saturated colors, dynamic rim lighting, action RPG style,",
-      "character card art, detailed illustration, NFT avatar"
+      "character card art, detailed illustration, NFT avatar, " +
+      "ultra high resolution, sharp details, vibrant saturated colors, clean crisp rendering"
     ].join(" "),
     negativePrompt: COMIC_NEGATIVE,
     cfModel: "@cf/bytedance/stable-diffusion-xl-lightning",
     hfModel: "black-forest-labs/FLUX.1-schnell",
-    steps: 4, guidance: 3.5,
+    steps: 25, guidance: 7.5,
   },
   "Clay": {
     prompt: [
       "claymation portrait, stop-motion clay texture, colorful soft clay material,",
       "smooth rounded features, warm studio lighting, vibrant pastel background,",
-      "Laika studios quality, cute handcrafted feel, NFT avatar"
+      "Laika studios quality, cute handcrafted feel, NFT avatar, " +
+      "ultra high resolution, sharp details, vibrant saturated colors, clean crisp rendering"
     ].join(" "),
     negativePrompt: ANIME_NEGATIVE,
     cfModel: "@cf/bytedance/stable-diffusion-xl-lightning",
     hfModel: "black-forest-labs/FLUX.1-schnell",
-    steps: 4, guidance: 3.5,
+    steps: 25, guidance: 7.5,
   },
   "Pixels": {
     prompt: [
@@ -131,13 +136,14 @@ export const STYLE_CONFIGS: Record<GenZNftStyle, StyleConfig> = {
       "graphic novel panel art, pop art energy, strong color contrast,",
       "warm confident smile, charismatic expression, face filling 65% of frame,",
       "close-up portrait crop, eyes at upper third of image,",
-      "Sony animation quality, Into the Spider-Verse aesthetic, NFT avatar, Legendary tier"
+      "Sony animation quality, Into the Spider-Verse aesthetic, NFT avatar, Legendary tier, " +
+      "ultra high resolution, sharp details, vibrant saturated colors, clean crisp rendering"
     ].join(" "),
     negativePrompt: "photorealistic, 3d render, photograph, blurry, watermark, ugly, bad anatomy, " +
       "dark gloomy, pixel art, 8-bit, retro game sprite, low quality",
     cfModel: "@cf/bytedance/stable-diffusion-xl-lightning",
     hfModel: "black-forest-labs/FLUX.1-schnell",
-    steps: 4, guidance: 3.5,
+    steps: 25, guidance: 7.5,
   },
 };
 
@@ -307,8 +313,8 @@ export async function generateViaHuggingFace(
     inputs: prompt,
     parameters: {
       negative_prompt:     negativePrompt,
-      num_inference_steps: cfg.steps,
-      guidance_scale:      cfg.guidance,
+      num_inference_steps: cfg.steps,  // 25 steps for quality
+      guidance_scale:      cfg.guidance, // 7.5 for better prompt adherence
       width:  1024,
       height: 1024,
     },
@@ -341,7 +347,7 @@ export async function generateViaCloudflare(
     body: JSON.stringify({
       prompt,
       negative_prompt: negativePrompt,
-      num_steps:       20,      // CF SDXL-Lightning uses num_steps not num_inference_steps
+      num_steps:       cfg.steps,  // Use configured steps (25 for quality)
       guidance:        cfg.guidance,
       width:  1024,
       height: 1024,
