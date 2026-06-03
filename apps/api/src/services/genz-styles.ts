@@ -358,7 +358,7 @@ export async function generateViaCloudflare(
 }
 
 // ─── Main entry: generateGenZAvatar ──────────────────────────────────────────
-// Priority: HuggingFace → Cloudflare → Replicate (face-to-many)
+// Priority: Cloudflare → HuggingFace → Replicate (face-to-many)
 
 export async function generateGenZAvatar(params: {
   style:     GenZNftStyle;
@@ -376,19 +376,7 @@ export async function generateGenZAvatar(params: {
   const { style, gender, skinTone, hairColor, hasBeard } = params;
   const { prompt } = buildFullPrompt(style, gender, skinTone, hairColor, hasBeard);
 
-  // 1. HuggingFace FLUX.1-schnell (free monthly quota)
-  if (params.hfToken) {
-    try {
-      const { buffer, provider } = await generateViaHuggingFace(
-        style, gender, skinTone, hairColor, hasBeard, params.hfToken
-      );
-      return { buffer, provider, prompt };
-    } catch (err) {
-      console.warn(`[genz] HuggingFace failed: ${err instanceof Error ? err.message : err}`);
-    }
-  }
-
-  // 2. Cloudflare Workers AI (10k/day free — best free fallback)
+  // 1. Cloudflare Workers AI (10k/day free — FIRST priority)
   if (params.cfAccountId && params.cfApiToken) {
     try {
       const { buffer, provider } = await generateViaCloudflare(
@@ -398,6 +386,18 @@ export async function generateGenZAvatar(params: {
       return { buffer, provider, prompt };
     } catch (err) {
       console.warn(`[genz] Cloudflare failed: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  // 2. HuggingFace FLUX.1-schnell (free monthly quota — fallback)
+  if (params.hfToken) {
+    try {
+      const { buffer, provider } = await generateViaHuggingFace(
+        style, gender, skinTone, hairColor, hasBeard, params.hfToken
+      );
+      return { buffer, provider, prompt };
+    } catch (err) {
+      console.warn(`[genz] HuggingFace failed: ${err instanceof Error ? err.message : err}`);
     }
   }
 
