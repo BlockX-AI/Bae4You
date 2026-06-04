@@ -598,7 +598,9 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       const prompt         = body.prompt?.trim() || "pop art comic book portrait, bold black ink outlines, halftone dot shading, bright golden yellow starburst rays, hot pink background, Roy Lichtenstein inspired, NFT avatar art, ultra high resolution, vibrant saturated colors";
       const negativePrompt = body.negativePrompt?.trim() || "photorealistic, photograph, blurry, watermark, ugly, bad anatomy, low quality, dark gloomy";
       const model          = body.model ?? "cloudflare";
-      const steps          = Math.min(Math.max(body.steps ?? 25, 1), 50);
+      // Cloudflare SDXL-Lightning max steps = 20, HuggingFace FLUX can go higher
+      const maxSteps       = model === "cloudflare" ? 20 : 50;
+      const steps          = Math.min(Math.max(body.steps ?? 25, 1), maxSteps);
       const guidance       = Math.min(Math.max(body.guidance ?? 7.5, 1), 20);
       const width          = 1024;
       const height         = 1024;

@@ -386,10 +386,10 @@
         <div style="margin-bottom:14px">
           <div class="slider-row">
             <span>Steps</span>
-            <span class="slider-val" id="stepsVal">25</span>
+            <span class="slider-val" id="stepsVal">20</span>
           </div>
-          <input type="range" id="stepsSlider" min="4" max="50" value="25" oninput="document.getElementById('stepsVal').textContent=this.value" style="accent-color:#FF006E">
-          <div class="slider-hints"><span>4 (fast)</span><span>50 (best)</span></div>
+          <input type="range" id="stepsSlider" min="4" max="20" value="20" oninput="document.getElementById('stepsVal').textContent=this.value" style="accent-color:#FF006E">
+          <div class="slider-hints"><span>4 (fast)</span><span id="stepsMax">20 (best)</span></div>
         </div>
         <div>
           <div class="slider-row">
@@ -524,6 +524,19 @@
   function selectModel(btn) {
     selectedModel = btn.dataset.model;
     document.querySelectorAll('.model-btn').forEach(b => b.classList.toggle('active', b === btn));
+
+    // Update steps slider max based on model
+    const stepsSlider = document.getElementById('stepsSlider');
+    const stepsMax    = document.getElementById('stepsMax');
+    if (selectedModel === 'cloudflare') {
+      stepsSlider.max = 20;
+      stepsMax.textContent = '20 (best)';
+      if (parseInt(stepsSlider.value) > 20) stepsSlider.value = 20;
+    } else {
+      stepsSlider.max = 50;
+      stepsMax.textContent = '50 (best)';
+    }
+    document.getElementById('stepsVal').textContent = stepsSlider.value;
   }
 
   // ── Generate ──────────────────────────────────────────────────────────────
