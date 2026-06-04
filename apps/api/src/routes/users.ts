@@ -576,6 +576,77 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
+  // POST /users/avatar/prompt-lab — Gen-Z prompt playground
+  // Accepts: { prompt, negativePrompt, model, style, steps, guidance }
+  // Returns: { imageBase64, provider, prompt }
+  fastify.post(
+    "/avatar/prompt-lab",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const body = req.body as {
+        prompt?:         string;
+        negativePrompt?: string;
+        model?:          "cloudflare" | "huggingface";
+        style?:          string;
+        gender?:         string;
+        skinTone?:       string;
+        hairColor?:      string;
+        steps?:          number;
+        guidance?:       number;
+      };
+
+      const prompt         = body.prompt?.trim() || "pop art comic book portrait, bold black ink outlines, halftone dot shading, bright golden yellow starburst rays, hot pink background, Roy Lichtenstein inspired, NFT avatar art, ultra high resolution, vibrant saturated colors";
+      const negativePrompt = body.negativePrompt?.trim() || "photorealistic, photograph, blurry, watermark, ugly, bad anatomy, low quality, dark gloomy";
+      const model          = body.model ?? "cloudflare";
+      const steps          = Math.min(Math.max(body.steps ?? 25, 1), 50);
+      const guidance       = Math.min(Math.max(body.guidance ?? 7.5, 1), 20);
+      const width          = 1024;
+      const height         = 1024;
+
+      let imageBuffer: Buffer;
+      let provider:    string;
+
+      if (model === "cloudflare" && config.CLOUDFLARE_ACCOUNT_ID && config.CLOUDFLARE_API_TOKEN) {
+        const cfModel = "@cf/bytedance/stable-diffusion-xl-lightning";
+        const url = `https://api.cloudflare.com/client/v4/accounts/${config.CLOUDFLARE_ACCOUNT_ID}/ai/run/${cfModel}`;
+        const resp = await fetch(url, {
+          method:  "POST",
+          headers: { "Authorization": `Bearer ${config.CLOUDFLARE_API_TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt, negative_prompt: negativePrompt, num_steps: steps, guidance, width, height }),
+        });
+        if (!resp.ok) {
+          const err = await resp.text();
+          return reply.code(502).send({ error: `Cloudflare AI error: ${err.slice(0, 200)}` });
+        }
+        imageBuffer = Buffer.from(await resp.arrayBuffer());
+        provider = "cloudflare/sdxl-lightning";
+      } else if (config.HUGGINGFACE_TOKEN) {
+        const { HfInference } = await import("@huggingface/inference");
+        const hf = new HfInference(config.HUGGINGFACE_TOKEN);
+        const result = await hf.textToImage({
+          model: "black-forest-labs/FLUX.1-schnell",
+          inputs: prompt,
+          parameters: { negative_prompt: negativePrompt, num_inference_steps: steps, guidance_scale: guidance, width, height },
+        });
+        imageBuffer = Buffer.from(await (result as unknown as Blob).arrayBuffer());
+        provider = "huggingface/flux-schnell";
+      } else {
+        return reply.code(400).send({ error: "No AI provider configured. Set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN or HUGGINGFACE_TOKEN." });
+      }
+
+      return {
+        imageBase64: imageBuffer.toString("base64"),
+        mimeType:    "image/png",
+        provider,
+        prompt,
+        negativePrompt,
+        model,
+        steps,
+        guidance,
+      };
+    }
+  );
+
   // GET /users/by-wallet/:address
   fastify.get<{ Params: { address: string } }>(
     "/by-wallet/:address",
