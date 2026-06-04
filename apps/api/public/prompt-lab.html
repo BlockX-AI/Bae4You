@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Bae4U — Avatar Prompt Lab 🧪</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #09090b;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header h1 {
+      font-size: 1.3rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, #FF006E, #8B5CF6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .badge {
+      background: linear-gradient(90deg, #FF006E, #8B5CF6);
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 99px;
+      letter-spacing: 0.08em;
+    }
+    .header-sub { color: rgba(255,255,255,0.4); font-size: 0.8rem; margin-left: auto; }
+
+    /* ── Login ── */
+    #loginSection {
+      max-width: 400px;
+      margin: 80px auto;
+      text-align: center;
+      padding: 0 20px;
+    }
+    #loginSection h2 { font-size: 1.4rem; margin-bottom: 8px; }
+    #loginSection p  { color: rgba(255,255,255,0.4); font-size: 0.85rem; margin-bottom: 24px; }
+    #tokenInput {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 0.85rem;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+    }
+    #tokenInput:focus { outline: none; border-color: #8B5CF6; }
+
+    /* ── Main Layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 16px;
+      padding: 16px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    @media (max-width: 700px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 10px;
+    }
+
+    /* ── Style Presets ── */
+    .style-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+    .style-btn {
+      background: rgba(255,255,255,0.03);
+      border: 1.5px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 8px 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      color: inherit;
+    }
+    .style-btn:hover { border-color: rgba(255,255,255,0.2); }
+    .style-btn.active { border-color: var(--sc); background: rgba(255,255,255,0.06); }
+    .style-btn .emoji { font-size: 1.3rem; display: block; }
+    .style-btn .name  { font-size: 0.68rem; font-weight: 700; margin-top: 3px; color: rgba(255,255,255,0.7); }
+    .style-btn.active .name { color: var(--sc); }
+
+    /* ── Model Selector ── */
+    .model-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .model-btn {
+      background: rgba(255,255,255,0.03);
+      border: 1.5px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 10px 8px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      color: inherit;
+    }
+    .model-btn:hover { border-color: rgba(255,255,255,0.2); }
+    .model-btn.active { border-color: var(--mc); background: rgba(255,255,255,0.05); }
+    .model-btn .icon { font-size: 1.4rem; display: block; }
+    .model-btn .mname { font-size: 0.75rem; font-weight: 700; margin-top: 3px; color: rgba(255,255,255,0.8); }
+    .model-btn.active .mname { color: var(--mc); }
+    .model-btn .msub  { font-size: 0.62rem; color: rgba(255,255,255,0.35); margin-top: 2px; }
+
+    /* ── Sliders ── */
+    .slider-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .slider-row span { font-size: 0.78rem; color: rgba(255,255,255,0.65); }
+    .slider-val { font-weight: 700; color: #FF006E; }
+    input[type="range"] { width: 100%; margin-bottom: 4px; cursor: pointer; }
+    .slider-hints { display: flex; justify-content: space-between; }
+    .slider-hints span { font-size: 0.62rem; color: rgba(255,255,255,0.25); }
+
+    /* ── Textareas ── */
+    textarea {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #e5e7eb;
+      font-size: 0.78rem;
+      padding: 10px 12px;
+      resize: vertical;
+      outline: none;
+      font-family: monospace;
+      line-height: 1.6;
+    }
+    textarea:focus { border-color: rgba(255,255,255,0.25); }
+    #negPrompt { border-color: rgba(255,0,110,0.2); color: #fca5a5; background: rgba(255,0,110,0.03); }
+    #negPrompt:focus { border-color: rgba(255,0,110,0.4); }
+
+    /* ── Generate Button ── */
+    #genBtn {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 800;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+      background: linear-gradient(135deg, #FF006E, #8B5CF6);
+    }
+    #genBtn:disabled { background: rgba(255,255,255,0.06); cursor: not-allowed; opacity: 0.6; }
+    #genBtn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(255,0,110,0.35); }
+
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error ── */
+    #errorMsg {
+      display: none;
+      background: rgba(255,0,110,0.1);
+      border: 1px solid rgba(255,0,110,0.3);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #FF006E;
+      font-size: 0.8rem;
+      margin-top: 10px;
+    }
+
+    /* ── Right Panel ── */
+    .right-panel { display: flex; flex-direction: column; gap: 14px; }
+
+    /* ── Empty state ── */
+    #emptyState {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      background: rgba(255,255,255,0.02);
+      border: 1px dashed rgba(255,255,255,0.07);
+      border-radius: 14px;
+      gap: 12px;
+      text-align: center;
+    }
+    #emptyState .big-emoji { font-size: 4rem; }
+    #emptyState p { color: rgba(255,255,255,0.35); font-size: 0.875rem; line-height: 1.6; }
+
+    /* ── Loading state ── */
+    #loadingState {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      gap: 14px;
+      text-align: center;
+    }
+    .big-spinner {
+      width: 48px; height: 48px;
+      border: 3px solid rgba(255,255,255,0.08);
+      border-top-color: #FF006E;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    #loadingState p { color: rgba(255,255,255,0.45); font-size: 0.875rem; }
+
+    /* ── Results ── */
+    #resultsHeader {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+    #resultsHeader span { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+    #clearBtn { background: none; border: none; color: rgba(255,255,255,0.25); cursor: pointer; font-size: 0.75rem; }
+    #clearBtn:hover { color: rgba(255,255,255,0.6); }
+
+    #resultsGrid {
+      display: none;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 12px;
+    }
+
+    .result-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .result-card:hover { border-color: rgba(255,255,255,0.18); }
+    .result-card.latest { border-color: #FF006E44; }
+    .result-card img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      display: block;
+    }
+    .result-card .img-wrap { position: relative; }
+    .result-card .latest-badge {
+      position: absolute;
+      top: 7px; left: 7px;
+      background: linear-gradient(90deg, #FF006E, #8B5CF6);
+      color: #fff;
+      font-size: 0.6rem;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 99px;
+      letter-spacing: 0.05em;
+    }
+    .result-card .meta {
+      padding: 10px;
+    }
+    .result-card .meta-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 4px;
+    }
+    .result-card .style-name { font-size: 0.78rem; font-weight: 700; color: #fff; }
+    .result-card .provider-tag { font-size: 0.62rem; color: rgba(255,255,255,0.35); }
+    .result-card .prompt-preview {
+      font-size: 0.62rem;
+      color: rgba(255,255,255,0.35);
+      line-height: 1.4;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      margin-bottom: 8px;
+    }
+    .dl-btn {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 7px;
+      padding: 5px;
+      color: rgba(255,255,255,0.6);
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
+    .dl-btn:hover { background: rgba(255,255,255,0.09); color: #fff; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <span style="font-size:1.5rem">🧪</span>
+  <div>
+    <h1>Avatar Prompt Lab</h1>
+    <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-top:2px;">Bae4U · Gen-Z Avatar Builder</div>
+  </div>
+  <span class="badge">BETA</span>
+  <div class="header-sub" id="headerStatus">Not logged in</div>
+</div>
+
+<!-- ── Login Section ── -->
+<div id="loginSection">
+  <div style="font-size:3rem;margin-bottom:12px">🔐</div>
+  <h2>Login Required</h2>
+  <p>Paste your Bae4U JWT token to use the Prompt Lab</p>
+  <input id="tokenInput" type="text" placeholder="Paste your JWT token here…" />
+  <button class="dl-btn" onclick="saveToken()" style="background:linear-gradient(135deg,#FF006E,#8B5CF6);border:none;color:#fff;padding:10px;font-size:0.875rem;font-weight:700;border-radius:10px;cursor:pointer;width:100%;">
+    🚀 Enter Lab
+  </button>
+  <p style="margin-top:12px;font-size:0.75rem;color:rgba(255,255,255,0.25)">
+    Get your token from: <a href="/video-kyc-test.html" style="color:#8B5CF6">Video KYC page</a> → login → copy token from localStorage
+  </p>
+</div>
+
+<!-- ── Main App ── -->
+<div id="mainApp" style="display:none">
+  <div class="layout">
+
+    <!-- ── LEFT PANEL ── -->
+    <div>
+
+      <!-- Style Presets -->
+      <div class="card">
+        <div class="card-label">🎨 Style Preset</div>
+        <div class="style-grid" id="styleGrid"></div>
+      </div>
+
+      <!-- Model Selector -->
+      <div class="card">
+        <div class="card-label">🤖 AI Model</div>
+        <div class="model-grid">
+          <button class="model-btn active" style="--mc:#F6821F" data-model="cloudflare" onclick="selectModel(this)">
+            <span class="icon">☁️</span>
+            <div class="mname">Cloudflare</div>
+            <div class="msub">SDXL Lightning · Free</div>
+          </button>
+          <button class="model-btn" style="--mc:#FFD21E" data-model="huggingface" onclick="selectModel(this)">
+            <span class="icon">🤗</span>
+            <div class="mname">HuggingFace</div>
+            <div class="msub">FLUX Schnell · Free</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quality Settings -->
+      <div class="card">
+        <div class="card-label">⚙️ Quality Settings</div>
+        <div style="margin-bottom:14px">
+          <div class="slider-row">
+            <span>Steps</span>
+            <span class="slider-val" id="stepsVal">25</span>
+          </div>
+          <input type="range" id="stepsSlider" min="4" max="50" value="25" oninput="document.getElementById('stepsVal').textContent=this.value" style="accent-color:#FF006E">
+          <div class="slider-hints"><span>4 (fast)</span><span>50 (best)</span></div>
+        </div>
+        <div>
+          <div class="slider-row">
+            <span>Guidance</span>
+            <span class="slider-val" id="guidanceVal" style="color:#8B5CF6">7.5</span>
+          </div>
+          <input type="range" id="guidanceSlider" min="1" max="20" step="0.5" value="7.5" oninput="document.getElementById('guidanceVal').textContent=this.value" style="accent-color:#8B5CF6">
+          <div class="slider-hints"><span>1 (creative)</span><span>20 (strict)</span></div>
+        </div>
+      </div>
+
+      <!-- Generate -->
+      <button id="genBtn" onclick="generate()">✨ Generate Avatar</button>
+      <div id="errorMsg"></div>
+
+    </div>
+
+    <!-- ── RIGHT PANEL ── -->
+    <div class="right-panel">
+
+      <!-- Prompt Editor -->
+      <div class="card">
+        <div class="card-label">✏️ Prompt (edit freely)</div>
+        <textarea id="promptInput" rows="6" placeholder="Describe your avatar…"></textarea>
+        <div class="card-label" style="margin-top:12px">🚫 Negative Prompt</div>
+        <textarea id="negPrompt" rows="2" placeholder="What to avoid…"></textarea>
+      </div>
+
+      <!-- Empty / Loading / Results -->
+      <div id="emptyState">
+        <div class="big-emoji">🎨</div>
+        <p>Pick a style, choose your model<br>and hit <strong>Generate</strong> to see your avatar</p>
+      </div>
+
+      <div id="loadingState">
+        <div class="big-spinner" id="bigSpinner"></div>
+        <p id="loadingMsg">Generating with ☁️ Cloudflare…</p>
+        <p style="font-size:0.72rem;color:rgba(255,255,255,0.25)">Usually 10–30 seconds</p>
+      </div>
+
+      <div id="resultsHeader">
+        <span id="resultsCount">Results (0)</span>
+        <button id="clearBtn" onclick="clearResults()">Clear all</button>
+      </div>
+      <div id="resultsGrid"></div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = '';  // same origin — served from Railway backend
+
+  // ── Style presets ──────────────────────────────────────────────────────────
+  const STYLES = [
+    {
+      id: 'comic', name: 'Cosmic Comic', emoji: '💥', color: '#FF006E',
+      prompt: 'pop art comic book portrait, bold black ink outlines, sharp crisp halftone dot shading pattern, BACKGROUND: bright golden yellow starburst rays radiating outward on hot pink background, retro 1960s comic book style, Roy Lichtenstein inspired, ben-day dots, flat bold colors, dramatic face lighting, thick ink lines, speech-bubble energy, face filling 65% of frame width, eyes at upper third, close-up portrait crop, high contrast shadows, screen-print color separation, professional comic book illustration, NFT avatar art, ultra high resolution, sharp details, vibrant saturated colors, crisp clean lines',
+      negative: 'photorealistic, photograph, 3d render, blurry, watermark, text, logo, dark background, dark gloomy, space background, sad, ugly, extra limbs, bad anatomy, low quality, monochrome, grey, washed out, anime, cartoon simple',
+    },
+    {
+      id: 'anime', name: 'Anime', emoji: '✨', color: '#8B5CF6',
+      prompt: 'ultra high quality anime portrait, detailed manga illustration, vibrant cel shading, expressive large anime eyes with detailed iris and catchlight, warm amber orange gradient background with glowing light bloom, detailed hair with individual strands and highlight sheen, clean smooth skin with subtle blush, warm confident smile, bright expression, face filling 65% of frame width, eyes at upper third, close-up portrait crop, dynamic lighting from above, rim light glow, professional anime studio quality, Makoto Shinkai style lighting, crisp sharp lines, saturated colors, kawaii but mature aesthetic, NFT avatar art, ultra high resolution, vibrant saturated colors',
+      negative: 'photorealistic, photograph, western cartoon, chibi too simple, blurry, watermark, text, low quality, bad anatomy, ugly, dark gloomy background, 3d render, overexposed',
+    },
+    {
+      id: 'spiderverse', name: 'Spider-Verse', emoji: '🕷️', color: '#E63946',
+      prompt: 'Spider-Verse Into the Spider-Verse comic illustration, halftone mosaic background, bold ink outlines, colorful mosaic tiles in warm orange red gold behind figure, graphic novel panel art, pop art energy, strong color contrast, warm confident smile, charismatic expression, face filling 65% of frame, close-up portrait crop, eyes at upper third of image, Sony animation quality, Into the Spider-Verse aesthetic, NFT avatar, ultra high resolution, vibrant saturated colors',
+      negative: 'photorealistic, 3d render, photograph, blurry, watermark, ugly, bad anatomy, dark gloomy, pixel art, 8-bit, low quality',
+    },
+    {
+      id: 'pixar', name: 'Pixar 3D', emoji: '🎬', color: '#3B82F6',
+      prompt: 'Pixar Disney animated movie character portrait, stylized 3D cartoon illustration, smooth rounded stylized features, NOT photorealistic, animated film quality, warm studio lighting, vivid gradient background purple and orange glow, warm confident smile, bright cheerful expression, face filling 65% of frame width, close-up portrait crop, Pixar Inside Out character quality, Disney Encanto art style, NFT avatar, ultra high resolution, vibrant saturated colors',
+      negative: 'photorealistic, photograph, blurry, watermark, ugly, bad anatomy, dark gloomy, CGI headshot, hyper realistic skin, stock photo, low quality',
+    },
+    {
+      id: 'cyberpunk', name: 'Cyberpunk', emoji: '🤖', color: '#00F5FF',
+      prompt: 'cyberpunk neon portrait illustration, electric blue and hot pink neon glow, holographic visor, futuristic streetwear outfit, dark city background with neon signs and rain reflections, bold cel shading, manga linework, glowing circuit pattern tattoos, confident smirk, dynamic rim lighting, ultra-detailed digital art, NFT avatar art, ultra high resolution, vibrant neon colors',
+      negative: 'photorealistic, photograph, blurry, watermark, ugly, bad anatomy, low quality, dark muddy colors, bland background',
+    },
+    {
+      id: 'vaporwave', name: 'Vaporwave', emoji: '🌸', color: '#FF71CE',
+      prompt: 'vaporwave aesthetic portrait illustration, pastel pink purple blue gradient background, retro 80s synthwave vibes, bold graphic art style, glitch art accents, cherry blossom petals, cool sunglasses, stylized bold outlines, flat color blocks, dreamy soft glow, TikTok viral aesthetic, NFT avatar art, ultra high resolution, vibrant pastel saturated colors, crisp clean rendering',
+      negative: 'photorealistic, photograph, blurry, watermark, ugly, bad anatomy, low quality, dark gloomy, boring plain background',
+    },
+  ];
+
+  let selectedStyle = STYLES[0];
+  let selectedModel = 'cloudflare';
+  let results = [];
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  function getToken() {
+    return localStorage.getItem('bae4u_lab_token') || localStorage.getItem('token') || '';
+  }
+  function saveToken() {
+    const t = document.getElementById('tokenInput').value.trim();
+    if (!t) { alert('Please paste your JWT token'); return; }
+    localStorage.setItem('bae4u_lab_token', t);
+    initApp();
+  }
+  function initApp() {
+    const token = getToken();
+    if (!token) { document.getElementById('loginSection').style.display='block'; return; }
+    document.getElementById('loginSection').style.display='none';
+    document.getElementById('mainApp').style.display='block';
+    document.getElementById('headerStatus').textContent='🟢 Connected';
+    buildStyleGrid();
+    selectStyleById('comic');
+  }
+
+  // ── Style Grid ─────────────────────────────────────────────────────────────
+  function buildStyleGrid() {
+    const grid = document.getElementById('styleGrid');
+    grid.innerHTML = STYLES.map(s => `
+      <button class="style-btn" style="--sc:${s.color}" data-id="${s.id}" onclick="selectStyleById('${s.id}')">
+        <span class="emoji">${s.emoji}</span>
+        <div class="name">${s.name}</div>
+      </button>
+    `).join('');
+  }
+  function selectStyleById(id) {
+    selectedStyle = STYLES.find(s => s.id === id) || STYLES[0];
+    document.querySelectorAll('.style-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
+    document.getElementById('promptInput').value = selectedStyle.prompt;
+    document.getElementById('negPrompt').value   = selectedStyle.negative;
+    document.getElementById('genBtn').textContent = `✨ Generate ${selectedStyle.name}`;
+    document.getElementById('genBtn').style.background = `linear-gradient(135deg, ${selectedStyle.color}, #8B5CF6)`;
+  }
+
+  // ── Model Selector ─────────────────────────────────────────────────────────
+  function selectModel(btn) {
+    selectedModel = btn.dataset.model;
+    document.querySelectorAll('.model-btn').forEach(b => b.classList.toggle('active', b === btn));
+  }
+
+  // ── Generate ──────────────────────────────────────────────────────────────
+  async function generate() {
+    const token = getToken();
+    if (!token) { showError('Not logged in. Reload and enter your token.'); return; }
+
+    const prompt   = document.getElementById('promptInput').value.trim();
+    const negPrompt = document.getElementById('negPrompt').value.trim();
+    const steps    = parseInt(document.getElementById('stepsSlider').value);
+    const guidance = parseFloat(document.getElementById('guidanceSlider').value);
+
+    if (!prompt) { showError('Please enter a prompt.'); return; }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch(API_BASE + '/users/avatar/prompt-lab', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt, negativePrompt: negPrompt, model: selectedModel, steps, guidance }),
+      });
+
+      if (res.status === 401) {
+        localStorage.removeItem('bae4u_lab_token');
+        document.getElementById('mainApp').style.display = 'none';
+        document.getElementById('loginSection').style.display = 'block';
+        throw new Error('Session expired — please log in again.');
+      }
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(e.error || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      addResult(data);
+      hideError();
+    } catch (err) {
+      showError('❌ ' + (err.message || 'Generation failed'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Results ───────────────────────────────────────────────────────────────
+  function addResult(data) {
+    results.unshift({
+      imageBase64: data.imageBase64,
+      provider:    data.provider,
+      prompt:      data.prompt,
+      style:       selectedStyle.name,
+      color:       selectedStyle.color,
+      ts:          Date.now(),
+    });
+    if (results.length > 12) results = results.slice(0, 12);
+    renderResults();
+  }
+  function renderResults() {
+    const grid    = document.getElementById('resultsGrid');
+    const header  = document.getElementById('resultsHeader');
+    const empty   = document.getElementById('emptyState');
+    const loading = document.getElementById('loadingState');
+
+    if (results.length === 0) {
+      grid.style.display = 'none';
+      header.style.display = 'none';
+      empty.style.display = 'flex';
+      return;
+    }
+
+    empty.style.display = 'none';
+    loading.style.display = 'none';
+    header.style.display = 'flex';
+    grid.style.display = 'grid';
+
+    document.getElementById('resultsCount').textContent = `Results (${results.length})`;
+
+    grid.innerHTML = results.map((r, i) => `
+      <div class="result-card ${i === 0 ? 'latest' : ''}">
+        <div class="img-wrap">
+          <img src="data:image/png;base64,${r.imageBase64}" alt="${r.style}" loading="lazy">
+          ${i === 0 ? '<div class="latest-badge">LATEST</div>' : ''}
+        </div>
+        <div class="meta">
+          <div class="meta-top">
+            <span class="style-name">${r.style}</span>
+            <span class="provider-tag">${r.provider.includes('cloudflare') ? '☁️ CF' : '🤗 HF'}</span>
+          </div>
+          <div class="prompt-preview">${r.prompt.slice(0, 90)}…</div>
+          <button class="dl-btn" onclick="downloadImg('${r.imageBase64}','${r.style}')">⬇ Download</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  function clearResults() {
+    results = [];
+    renderResults();
+    document.getElementById('emptyState').style.display = 'flex';
+    document.getElementById('resultsHeader').style.display = 'none';
+    document.getElementById('resultsGrid').style.display = 'none';
+  }
+  function downloadImg(b64, style) {
+    const a = document.createElement('a');
+    a.href = `data:image/png;base64,${b64}`;
+    a.download = `bae4u-${style.toLowerCase().replace(/\s+/g,'-')}-${Date.now()}.png`;
+    a.click();
+  }
+
+  // ── UI helpers ─────────────────────────────────────────────────────────────
+  function setLoading(on) {
+    const btn     = document.getElementById('genBtn');
+    const loading = document.getElementById('loadingState');
+    const empty   = document.getElementById('emptyState');
+    btn.disabled  = on;
+    if (on) {
+      btn.innerHTML = '<span class="spinner"></span>Generating…';
+      document.getElementById('loadingMsg').textContent =
+        `Generating with ${selectedModel === 'cloudflare' ? '☁️ Cloudflare' : '🤗 HuggingFace'}…`;
+      if (results.length === 0) {
+        empty.style.display   = 'none';
+        loading.style.display = 'flex';
+      }
+    } else {
+      btn.innerHTML = `✨ Generate ${selectedStyle.name}`;
+      loading.style.display = 'none';
+    }
+  }
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function hideError() {
+    document.getElementById('errorMsg').style.display = 'none';
+  }
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  initApp();
+</script>
+</body>
+</html>
