@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gen-Z Avatar Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 30px;
+            text-align: center;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .avatar-image {
+            max-width: 300px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin: 20px auto;
+            display: block;
+        }
+
+        .prompt {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #666;
+            text-align: left;
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-size: 18px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Gen-Z Avatar Generator</h1>
+        
+        <div class="form-group">
+            <label for="gender">Gender</label>
+            <select id="gender">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="hair">Hair Style</label>
+            <select id="hair">
+                <option value="short-neat">Short neat hair</option>
+                <option value="messy-textured">Messy textured hair</option>
+                <option value="swept-back">Swept back style</option>
+                <option value="long-flowing">Long flowing hair</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="shirt">Shirt</label>
+            <select id="shirt">
+                <option value="casual-t-shirt">Casual t-shirt</option>
+                <option value="graphic-tee">Graphic print t-shirt</option>
+                <option value="hoodie">Comfortable hoodie</option>
+                <option value="button-down-shirt">Button-down shirt</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="clothing">Clothing Style</label>
+            <select id="clothing">
+                <option value="streetwear">Trendy streetwear</option>
+                <option value="business-casual">Business casual attire</option>
+                <option value="athletic-wear">Athletic sportswear</option>
+                <option value="luxury-fashion">High-end luxury fashion</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="expression">Expression</label>
+            <select id="expression">
+                <option value="friendly-smile">Friendly smile</option>
+                <option value="confident-smirk">Confident smirk</option>
+                <option value="serious-focused">Serious focused</option>
+                <option value="mysterious-cool">Mysterious cool</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="background">Background</label>
+            <select id="background">
+                <option value="gradient-neon">Neon gradient background</option>
+                <option value="gradient-pastel">Pastel gradient background</option>
+                <option value="solid-color">Solid color background</option>
+                <option value="abstract-art">Abstract art background</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="lenses">Lenses/Sunglasses</label>
+            <select id="lenses">
+                <option value="none">No lenses</option>
+                <option value="trendy-round-sunglasses">Trendy round sunglasses</option>
+                <option value="aviator-sunglasses">Classic aviator sunglasses</option>
+                <option value="oversized-sunglasses">Oversized modern sunglasses</option>
+            </select>
+        </div>
+
+        <button id="generateBtn" onclick="generateAvatar()">Generate Avatar</button>
+
+        <div class="loading" id="loading">
+            ⏳ Generating your avatar...
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="result" id="result">
+            <img id="avatarImage" class="avatar-image" alt="Generated Avatar">
+            <div class="prompt" id="prompt"></div>
+        </div>
+    </div>
+
+    <script>
+        async function generateAvatar() {
+            const button = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const result = document.getElementById('result');
+            const avatarImage = document.getElementById('avatarImage');
+            const prompt = document.getElementById('prompt');
+
+            // Get form values
+            const config = {
+                gender: document.getElementById('gender').value,
+                hair: document.getElementById('hair').value,
+                shirt: document.getElementById('shirt').value,
+                clothing: document.getElementById('clothing').value,
+                expression: document.getElementById('expression').value,
+                background: document.getElementById('background').value,
+                lenses: document.getElementById('lenses').value,
+            };
+
+            // Show loading
+            button.disabled = true;
+            loading.classList.add('show');
+            error.classList.remove('show');
+            result.classList.remove('show');
+
+            try {
+                const response = await fetch('/genz-avatar/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(config),
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    avatarImage.src = data.data.url;
+                    prompt.textContent = data.data.prompt;
+                    result.classList.add('show');
+                } else {
+                    error.textContent = data.error || 'Failed to generate avatar';
+                    error.classList.add('show');
+                }
+            } catch (err) {
+                error.textContent = 'Error: ' + err.message;
+                error.classList.add('show');
+            } finally {
+                button.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+    </script>
+</body>
+</html>

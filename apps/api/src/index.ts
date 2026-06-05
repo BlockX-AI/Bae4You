@@ -30,6 +30,8 @@ import couplesRoutes     from "./routes/couples";
 import metadataRoutes   from "./routes/metadata";
 import imagesRoutes    from "./routes/images";
 import bitmojiRoutes   from "./routes/bitmoji";
+import genzAvatarRoutes from "./routes/genz-avatar";
+import kycRoutes       from "./routes/kyc";
 
 import { config } from "./config";
 import { db } from "./db/client";
@@ -91,6 +93,7 @@ async function bootstrap() {
         { name: "tournaments", description: "Fantasy Bae — weekly tournament engine" },
         { name: "couples",     description: "Fantasy Bae — Couple Card co-minting" },
         { name: "bitmoji",     description: "AI Identity Engine — avatar, stickers, couple generation" },
+        { name: "kyc",         description: "KYC Verification — photo/video verification for PetCash access" },
       ],
     },
   });
@@ -153,6 +156,28 @@ async function bootstrap() {
     }
   });
 
+  // ── Prompt Lab test page (served directly — bypasses static handler ambiguity)
+  const PROMPT_LAB_HTML = path.resolve(__dirname, "../public/prompt-lab.html");
+  app.get("/prompt-lab.html", async (_req, reply) => {
+    try {
+      const html = fs.readFileSync(PROMPT_LAB_HTML, "utf-8");
+      return reply.type("text/html").send(html);
+    } catch {
+      return reply.code(404).send("Not found");
+    }
+  });
+
+  // ── GenZ Avatar test page (served directly — bypasses static handler ambiguity)
+  const GENZ_AVATAR_HTML = path.resolve(__dirname, "../public/genz-avatar-test.html");
+  app.get("/genz-avatar-test.html", async (_req, reply) => {
+    try {
+      const html = fs.readFileSync(GENZ_AVATAR_HTML, "utf-8");
+      return reply.type("text/html").send(html);
+    } catch {
+      return reply.code(404).send("Not found");
+    }
+  });
+
   // ── DEV-ONLY: generate a test JWT for the video KYC test page
   if (config.NODE_ENV !== "production") {
     app.get("/dev/token", async (_req, reply) => {
@@ -196,6 +221,8 @@ async function bootstrap() {
   await app.register(metadataRoutes,   { prefix: ""            });
   await app.register(imagesRoutes,    { prefix: ""            });
   await app.register(bitmojiRoutes,   { prefix: "/users"      });
+  await app.register(genzAvatarRoutes, { prefix: "" });
+  await app.register(kycRoutes,       { prefix: "" });
 
   // Global error handler
   app.setErrorHandler((error: Error & { statusCode?: number }, req, reply) => {

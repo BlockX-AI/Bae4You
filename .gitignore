@@ -11,3 +11,4 @@ typechain-types
 coverage
 .DS_Store
 *.log
+.next
