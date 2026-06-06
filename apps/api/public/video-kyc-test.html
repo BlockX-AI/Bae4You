@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Bae4U — Video KYC Avatar</title>
+  <title>Bae4U — Cloudflare AI Avatar Generator</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -31,20 +31,6 @@
       color: #888;
       margin-bottom: 20px;
       font-size: 0.9rem;
-    }
-    .mode-toggle {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .mode-toggle label {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      font-size: 0.85rem;
-    }
-    .mode-toggle input[type="checkbox"] {
-      width: auto;
     }
     .card {
       background: rgba(255,255,255,0.05);
@@ -104,297 +90,225 @@
       cursor: not-allowed;
       transform: none;
     }
-    .preview-grid {
+    .style-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-      gap: 10px;
-      margin-top: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
     }
-    .preview-item {
-      position: relative;
-      aspect-ratio: 1;
-      border-radius: 8px;
-      overflow: hidden;
-      border: 2px solid rgba(255,255,255,0.1);
-    }
-    .preview-item img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    .preview-item .label {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(0,0,0,0.7);
-      font-size: 0.7rem;
-      padding: 4px;
+    .style-card {
+      background: rgba(255,255,255,0.05);
+      border: 2px solid transparent;
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
       text-align: center;
     }
-    .preview-item.best {
-      border-color: #4ade80;
-      box-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
+    .style-card:hover {
+      background: rgba(255,255,255,0.1);
     }
-    .result {
+    .style-card.selected {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.15);
+    }
+    .style-card .icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+    .style-card .name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #e0e0e0;
+    }
+    .style-card .desc {
+      font-size: 0.7rem;
+      color: #888;
+      margin-top: 4px;
+    }
+    #loading {
       display: none;
+      text-align: center;
+      padding: 40px;
     }
-    .result.active {
+    #loading.active {
       display: block;
     }
-    .result-avatar {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .result-avatar img {
-      max-width: 300px;
-      border-radius: 16px;
-      border: 3px solid rgba(255,255,255,0.2);
-    }
-    .scores-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.8rem;
-    }
-    .scores-table th, .scores-table td {
-      padding: 8px;
-      text-align: left;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-    .scores-table th {
-      color: #a78bfa;
-    }
-    .scores-table .best-row {
-      background: rgba(74, 222, 128, 0.1);
-    }
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      font-size: 0.85rem;
-    }
-    .info-label { color: #888; }
-    .info-value { color: #e0e0e0; font-weight: 500; }
-    .error {
-      background: rgba(239, 68, 68, 0.2);
-      border: 1px solid rgba(239, 68, 68, 0.4);
-      color: #fca5a5;
-      padding: 12px;
-      border-radius: 8px;
-      margin-top: 16px;
-      display: none;
-    }
-    .error.active { display: block; }
-    .loading {
-      display: none;
-      text-align: center;
-      padding: 20px;
-      color: #a78bfa;
-    }
-    .loading.active { display: block; }
     .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(167, 139, 250, 0.3);
-      border-top-color: #a78bfa;
+      width: 48px;
+      height: 48px;
+      border: 4px solid rgba(255,255,255,0.1);
+      border-top-color: #667eea;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin: 0 auto 12px;
+      margin: 0 auto 20px;
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
-    .style-card {
-      background: rgba(255,255,255,0.05);
-      border: 2px solid rgba(255,255,255,0.1);
-      border-radius: 12px;
-      padding: 14px 10px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
+    #loading p {
+      color: #a78bfa;
+      font-size: 0.95rem;
     }
-    .style-card:hover { border-color: rgba(167,139,250,0.5); background: rgba(167,139,250,0.1); }
-    .style-card.selected { border-color: #a78bfa; background: rgba(167,139,250,0.18); box-shadow: 0 0 12px rgba(167,139,250,0.3); }
-    .style-icon { font-size: 1.8rem; margin-bottom: 6px; }
-    .style-name { font-size: 0.85rem; font-weight: 700; color: #e0e0e0; }
-    .style-desc { font-size: 0.72rem; color: #888; margin-top: 3px; }
+    #error {
+      display: none;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+    }
+    #result {
+      display: none;
+      text-align: center;
+    }
+    #result.active {
+      display: block;
+    }
+    #result img {
+      max-width: 100%;
+      border-radius: 16px;
+      margin-bottom: 16px;
+      border: 2px solid rgba(102, 126, 234, 0.3);
+    }
+    .result-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .result-actions button {
+      flex: 1;
+    }
+    .quota-info {
+      text-align: center;
+      color: #888;
+      font-size: 0.8rem;
+      margin-top: 12px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🎥 Video KYC Avatar</h1>
-    <p class="subtitle">Look at the camera • We'll capture 5 frames and generate your NFT avatar</p>
-    <p id="tokenStatus" style="font-size:0.75rem; color:#888; margin-top:-8px;">⏳ Connecting to API...</p>
+    <h1>☁️ Cloudflare AI Avatar Generator</h1>
+    <p class="subtitle">Upload your photo and generate stunning AI avatars</p>
 
-    <!-- STEP 1: Camera -->
-    <div class="card" id="cameraCard">
-      <h2>📸 Step 1 — Face the Camera</h2>
-      <div style="position:relative; border-radius:12px; overflow:hidden; background:#000; margin-bottom:16px;">
-        <video id="video" autoplay playsinline muted style="width:100%; display:block; border-radius:12px;"></video>
-        <div id="countdown" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:5rem; font-weight:900; color:#fff; text-shadow:0 0 20px rgba(0,0,0,0.8);"></div>
-        <div id="flashOverlay" style="display:none; position:absolute; inset:0; background:white; border-radius:12px; opacity:0; pointer-events:none;"></div>
+    <div id="loginForm" style="display:none;"></div>
+    <div id="tokenStatus" style="text-align:center;color:#888;font-size:0.8rem;margin-bottom:12px;"></div>
+
+    <div class="card" id="uploadCard">
+      <h2>📷 Upload Photo</h2>
+      <div class="form-group">
+        <label>Choose your photo</label>
+        <input type="file" id="photoInput" accept="image/jpeg,image/png,image/webp">
       </div>
-      <div style="margin-bottom:16px;">
-        <label style="display:block; margin-bottom:6px; font-size:0.85rem; color:#ccc;">Gender (optional)</label>
-        <select id="genderSelect" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.2); color:#fff;">
-          <option value="">Auto-detect</option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-      <div style="margin-bottom:16px;">
-        <label style="display:block; margin-bottom:6px; font-size:0.85rem; color:#ccc;">Rarity (optional — auto-selects style)</label>
-        <select id="raritySelect" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.2); color:#fff;">
-          <option value="">Use manual style selection</option>
-          <option value="common">Common → Comic (pop-art)</option>
-          <option value="rare">Rare → Anime (manga)</option>
-          <option value="epic">Epic → Video Game (heroic)</option>
-          <option value="legendary">Legendary → 3D (premium)</option>
-        </select>
-      </div>
-      <button id="startBtn">Start Camera</button>
-      <button id="captureBtn" style="display:none; background:linear-gradient(90deg,#22c55e,#16a34a); margin-top:10px;">📸 Capture 5 Frames</button>
-      <div class="error" id="errorBox"></div>
+      <button id="uploadBtn">Upload & Generate</button>
     </div>
 
-    <!-- STEP 2: Captured frames preview -->
-    <div class="card" id="framesCard" style="display:none;">
-      <h2>🖼️ Step 2 — Captured Frames</h2>
-      <div class="preview-grid" id="previewGrid"></div>
-      <div style="margin-top:12px; font-size:0.8rem; color:#888; text-align:center;">
-        Best frame will be selected automatically
-      </div>
-
-      <h2 style="margin-top:24px;">🎨 Step 3 — Choose Avatar Style</h2>
-      <p style="font-size:0.8rem;color:#888;margin-bottom:12px;">🎨 HuggingFace AI (free tier) — gender-aware generation</p>
-      <div id="styleGrid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin:14px 0;">
-
-        <div class="style-card selected" data-style="Comic">
-          <div class="style-icon">�</div>
-          <div class="style-name">Comic Book</div>
-          <div class="style-desc">Pop-art, bold outlines</div>
-          <div style="font-size:0.65rem;color:#a78bfa;margin-top:4px;">★ Like meigen style</div>
+    <div class="card" id="styleCard">
+      <h2>🎨 Choose Avatar Style</h2>
+      <div class="style-grid">
+        <div class="style-card selected" data-style="gen-z-creator">
+          <div class="icon">✨</div>
+          <div class="name">Gen-Z Creator</div>
+          <div class="desc">Trendy influencer</div>
         </div>
-
-        <div class="style-card" data-style="Anime">
-          <div class="style-icon">🎌</div>
-          <div class="style-name">Anime</div>
-          <div class="style-desc">Manga art, vibrant</div>
+        <div class="style-card" data-style="notion-style">
+          <div class="icon">📝</div>
+          <div class="name">Notion Style</div>
+          <div class="desc">Clean minimalist</div>
         </div>
-
-        <div class="style-card" data-style="3D">
-          <div class="style-icon">💎</div>
-          <div class="style-name">3D Render</div>
-          <div class="style-desc">Cinematic, premium</div>
+        <div class="style-card" data-style="bitmoji-style">
+          <div class="icon">😊</div>
+          <div class="name">Bitmoji</div>
+          <div class="desc">Cartoon avatar</div>
         </div>
-
-        <div class="style-card" data-style="Video game">
-          <div class="style-icon">🎮</div>
-          <div class="style-name">Video Game</div>
-          <div class="style-desc">Heroic, action</div>
+        <div class="style-card" data-style="lorelei-style">
+          <div class="icon">🌸</div>
+          <div class="name">Lorelei</div>
+          <div class="desc">Elegant feminine</div>
         </div>
-
-        <div class="style-card" data-style="Pixels">
-          <div class="style-icon">👾</div>
-          <div class="style-name">Pixel Art</div>
-          <div class="style-desc">Retro, 16-bit</div>
+        <div class="style-card" data-style="big-smile">
+          <div class="icon">😄</div>
+          <div class="name">Big Smile</div>
+          <div class="desc">Friendly warm</div>
         </div>
-
-        <div class="style-card" data-style="Clay">
-          <div class="style-icon">🧸</div>
-          <div class="style-name">Claymation</div>
-          <div class="style-desc">Soft clay, cute</div>
+        <div class="style-card" data-style="cyberpunk">
+          <div class="icon">🤖</div>
+          <div class="name">Cyberpunk</div>
+          <div class="desc">Futuristic neon</div>
         </div>
-
-        <div class="style-card" data-style="LEGO">
-          <div class="style-icon">🟡</div>
-          <div class="style-name">LEGO</div>
-          <div class="style-desc">Blocky, collectible</div>
+        <div class="style-card" data-style="luxury-fashion">
+          <div class="icon">👗</div>
+          <div class="name">Luxury Fashion</div>
+          <div class="desc">High-end style</div>
         </div>
-
-        <div class="style-card" data-style="Toy">
-          <div class="style-icon">🪆</div>
-          <div class="style-name">Vinyl Toy</div>
-          <div class="style-desc">Designer toy, bold</div>
+        <div class="style-card" data-style="anime-style">
+          <div class="icon">🎌</div>
+          <div class="name">Anime</div>
+          <div class="desc">Japanese style</div>
         </div>
-
-      </div>
-
-      <button id="generateBtn" style="margin-top:8px;">✨ Generate My Avatar</button>
-      <button id="retakeBtn" style="margin-top:10px; background:rgba(255,255,255,0.1);">🔄 Retake</button>
-      <div class="loading" id="loadingBox">
-        <div class="spinner"></div>
-        <p id="loadingMsg">Analysing frames • Generating avatar...</p>
+        <div class="style-card" data-style="3d-cartoon">
+          <div class="icon">🎬</div>
+          <div class="name">3D Cartoon</div>
+          <div class="desc">Pixar style</div>
+        </div>
+        <div class="style-card" data-style="professional-headshot">
+          <div class="icon">💼</div>
+          <div class="name">Professional</div>
+          <div class="desc">LinkedIn style</div>
+        </div>
+        <div class="style-card" data-style="retro-90s">
+          <div class="icon">📼</div>
+          <div class="name">Retro 90s</div>
+          <div class="desc">Nostalgic vibe</div>
+        </div>
       </div>
     </div>
 
-    <!-- STEP 3: Result -->
-    <div class="card result" id="resultCard">
-      <h2>✨ Your NFT Avatar</h2>
-      <div class="result-avatar">
-        <img id="avatarImg" alt="Generated Avatar">
-      </div>
-      <div class="info-row"><span class="info-label">Style</span><span class="info-value" id="styleValue">-</span></div>
-      <div class="info-row"><span class="info-label">Best Frame</span><span class="info-value" id="bestFrameValue">-</span></div>
-      <div class="info-row"><span class="info-label">Gender</span><span class="info-value" id="genderValue">-</span></div>
-      <div class="info-row"><span class="info-label">Skin Tone</span><span class="info-value" id="skinValue">-</span></div>
-      <div class="info-row"><span class="info-label">Hair</span><span class="info-value" id="hairValue">-</span></div>
-      <div class="info-row"><span class="info-label">Provider</span><span class="info-value" id="providerValue">-</span></div>
-      <div class="info-row"><span class="info-label">IPFS CID</span><span class="info-value" id="cidValue" style="font-size:0.75rem; word-break:break-all;">-</span></div>
-      <div class="info-row"><span class="info-label">Daily Quota</span><span class="info-value" id="quotaValue">-</span></div>
+    <div id="loading">
+      <div class="spinner"></div>
+      <p id="loadingMsg">Generating your avatar with Cloudflare AI...</p>
+    </div>
 
-      <h3 style="margin:20px 0 10px; font-size:0.9rem; color:#a78bfa;">Frame Scores</h3>
-      <table class="scores-table">
-        <thead><tr><th>Frame</th><th>Sharp</th><th>Bright</th><th>Face</th><th>Total</th></tr></thead>
-        <tbody id="scoresBody"></tbody>
-      </table>
-      <div style="display:flex; gap:10px; margin-top:20px; flex-wrap:wrap;">
-        <button id="downloadBtn" style="flex:1; min-width:120px; background:linear-gradient(90deg,#22c55e,#16a34a);">⬇️ Download</button>
-        <button id="regenerateBtn" style="flex:1; min-width:120px; background:linear-gradient(90deg,#a78bfa,#764ba2);">🎨 Regenerate</button>
-        <button id="newKycBtn" style="flex:1; min-width:120px; background:rgba(255,255,255,0.1);">🔄 New KYC</button>
+    <div id="error"></div>
+
+    <div id="result">
+      <h2 style="color:#a78bfa;margin-bottom:16px;">✨ Your AI Avatar</h2>
+      <img id="resultImage" src="" alt="Generated Avatar">
+      <div class="result-actions">
+        <button id="downloadBtn">Download</button>
+        <button id="regenerateBtn">Regenerate</button>
       </div>
+      <div class="quota-info" id="quotaInfo"></div>
     </div>
   </div>
 
-  <canvas id="captureCanvas" style="display:none;"></canvas>
-
-  <!-- face-api.js for client-side gender detection -->
-  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-
   <script>
-    const video       = document.getElementById('video');
-    const startBtn    = document.getElementById('startBtn');
-    const captureBtn  = document.getElementById('captureBtn');
-    const generateBtn = document.getElementById('generateBtn');
-    const retakeBtn   = document.getElementById('retakeBtn');
-    const newKycBtn   = document.getElementById('newKycBtn');
-    const regenerateBtn = document.getElementById('regenerateBtn');
-    const cameraCard  = document.getElementById('cameraCard');
-    const framesCard  = document.getElementById('framesCard');
-    const resultCard  = document.getElementById('resultCard');
-    const previewGrid = document.getElementById('previewGrid');
-    const errorBox    = document.getElementById('errorBox');
-    const loadingBox  = document.getElementById('loadingBox');
-    const loadingMsg  = document.getElementById('loadingMsg');
-    const canvas      = document.getElementById('captureCanvas');
-    const countdown   = document.getElementById('countdown');
-    const flashOverlay= document.getElementById('flashOverlay');
-    const genderSelect= document.getElementById('genderSelect');
-    const raritySelect= document.getElementById('raritySelect');
+    const API_BASE = window.location.hostname === 'localhost' 
+      ? 'http://localhost:3000' 
+      : 'https://api.bae4u.com';
 
-    let stream = null;
-    let capturedBlobs = [];
-    let selectedStyle = 'Comic'; // default — matches pre-selected card
+    let selectedStyle = 'gen-z-creator';
+    let currentPhoto = null;
+    let dailyQuota = { used: 0, limit: 50, remaining: 50 };
 
-    // ── Auto-fetch dev token on load ──────────────────────────────────────────
-    const API_BASE = window.API_BASE || (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' ? 'http://127.0.0.1:4001' : window.location.origin);
-    const tokenStatus = document.getElementById('tokenStatus');
+    // Style selection
+    document.querySelectorAll('.style-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.style-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedStyle = card.dataset.style;
+      });
+    });
 
+    // Auth token handling
     async function ensureToken() {
-      if (localStorage.getItem('token')) {
-        if (tokenStatus) tokenStatus.textContent = '✅ Auth token ready';
+      const token = localStorage.getItem('token');
+      const tokenStatus = document.getElementById('tokenStatus');
+      if (token) {
+        tokenStatus.textContent = '✅ Authenticated';
         return;
       }
       try {
@@ -402,9 +316,8 @@
         if (!r.ok) throw new Error('dev token not available');
         const { token } = await r.json();
         localStorage.setItem('token', token);
-        if (tokenStatus) tokenStatus.textContent = '✅ Auth token fetched';
+        tokenStatus.textContent = '✅ Auth token fetched';
       } catch {
-        // Production: /dev/token is disabled — show login form
         showLoginForm();
       }
     }
@@ -412,24 +325,23 @@
     function showLoginForm() {
       const loginDiv = document.getElementById('loginForm');
       if (loginDiv) { loginDiv.style.display = 'block'; return; }
-      // Create login form dynamically
       const div = document.createElement('div');
       div.id = 'loginForm';
       div.style.cssText = 'background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:20px;margin-bottom:20px;';
       div.innerHTML = `
         <h3 style="margin:0 0 4px;font-size:1rem;">🔐 Team Access</h3>
         <p style="font-size:0.75rem;color:#888;margin-bottom:12px;">Enter your name + team password to generate avatars</p>
-        <input id="loginName"   type="text"     placeholder="Your name (e.g. Prakhar)" style="width:100%;padding:10px;margin-bottom:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;">
+        <input id="loginName" type="text" placeholder="Your name" style="width:100%;padding:10px;margin-bottom:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;">
         <input id="loginSecret" type="password" placeholder="Team password" style="width:100%;padding:10px;margin-bottom:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff;box-sizing:border-box;">
         <button id="loginBtn" style="width:100%;padding:12px;background:linear-gradient(90deg,#667eea,#764ba2);border:none;border-radius:8px;color:#fff;font-weight:700;cursor:pointer;font-size:1rem;">Join Team Test →</button>
         <p id="loginError" style="color:#f87171;font-size:0.8rem;margin-top:8px;display:none;"></p>`;
-      document.getElementById('cameraCard').before(div);
+      document.getElementById('uploadCard').before(div);
       document.getElementById('loginBtn').addEventListener('click', async () => {
-        const name   = document.getElementById('loginName').value.trim();
+        const name = document.getElementById('loginName').value.trim();
         const secret = document.getElementById('loginSecret').value;
-        const errEl  = document.getElementById('loginError');
+        const errEl = document.getElementById('loginError');
         errEl.style.display = 'none';
-        if (!name)   { errEl.textContent = 'Enter your name'; errEl.style.display='block'; return; }
+        if (!name) { errEl.textContent = 'Enter your name'; errEl.style.display='block'; return; }
         if (!secret) { errEl.textContent = 'Enter team password'; errEl.style.display='block'; return; }
         try {
           const res = await fetch(API_BASE + '/auth/team-login', {
@@ -440,7 +352,7 @@
           if (!res.ok) throw new Error(data.error || 'Login failed');
           localStorage.setItem('token', data.token);
           div.style.display = 'none';
-          if (tokenStatus) tokenStatus.textContent = `✅ Welcome, ${name}!`;
+          document.getElementById('tokenStatus').textContent = `✅ Welcome, ${name}!`;
         } catch (e) {
           errEl.textContent = e.message;
           errEl.style.display = 'block';
@@ -450,550 +362,88 @@
 
     ensureToken();
 
-    // ── Load face-api.js models for gender detection ─────────────────────────────
-    let modelsLoaded = false;
-    async function loadFaceModels() {
-      if (modelsLoaded) return;
-      try {
-        await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/');
-        await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/');
-        await faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/');
-        modelsLoaded = true;
-      } catch {
-        console.warn('Failed to load face-api models');
+    // Upload and generate
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      const fileInput = document.getElementById('photoInput');
+      const file = fileInput.files[0];
+      
+      if (!file) {
+        showError('Please select a photo first');
+        return;
       }
-    }
-    loadFaceModels();
 
-    async function detectGenderFromBlob(blob) {
-      if (!modelsLoaded) return null;
-      const img = new Image();
-      img.src = URL.createObjectURL(blob);
-      await new Promise(r => { img.onload = r; });
-      const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks()
-        .withFaceDescriptors();
-      if (!detections.length) return null;
-      // Simple heuristic: face-api doesn't have built-in gender, but we can use
-      // facial structure cues (jawline, eyebrow height) as a rough approximation
-      // For now, return null and let the user select manually
-      return null;
-    }
+      if (file.size > 10 * 1024 * 1024) {
+        showError('File too large (max 10MB)');
+        return;
+      }
 
-    // Style card selection
-    document.querySelectorAll('.style-card').forEach(card => {
-      card.addEventListener('click', () => {
-        document.querySelectorAll('.style-card').forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-        selectedStyle = card.dataset.style;
-      });
+      currentPhoto = file;
+      await generateAvatar();
     });
 
-    function showError(msg) { errorBox.textContent = msg; errorBox.style.display = 'block'; }
-    function hideError()    { errorBox.style.display = 'none'; }
+    async function generateAvatar() {
+      const loading = document.getElementById('loading');
+      const loadingMsg = document.getElementById('loadingMsg');
+      const error = document.getElementById('error');
+      const result = document.getElementById('result');
 
-    // ── Start camera ──────────────────────────────────────────────────────────
-    startBtn.addEventListener('click', async () => {
-      hideError();
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        });
-        video.srcObject = stream;
-        await video.play();
-        startBtn.style.display = 'none';
-        captureBtn.style.display = 'block';
-      } catch (e) {
-        showError('Camera access denied. Please allow camera and reload.');
-      }
-    });
+      loading.classList.add('active');
+      result.classList.remove('active');
+      error.style.display = 'none';
 
-    // ── Flash animation ───────────────────────────────────────────────────────
-    function flash() {
-      flashOverlay.style.display = 'block';
-      flashOverlay.style.opacity = '0.8';
-      flashOverlay.style.transition = 'opacity 0.3s';
-      setTimeout(() => {
-        flashOverlay.style.opacity = '0';
-        setTimeout(() => { flashOverlay.style.display = 'none'; }, 300);
-      }, 80);
-    }
-
-    // ── Capture a single frame as Blob ────────────────────────────────────────
-    function captureFrame() {
-      canvas.width  = video.videoWidth  || 640;
-      canvas.height = video.videoHeight || 480;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      flash();
-      return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-    }
-
-    // ── Capture 5 frames with countdown ───────────────────────────────────────
-    captureBtn.addEventListener('click', async () => {
-      captureBtn.disabled = true;
-      capturedBlobs = [];
-      previewGrid.innerHTML = '';
-      const FRAMES = 5;
-      const DELAY  = 600; // ms between frames
-
-      for (let i = 0; i < FRAMES; i++) {
-        // Show countdown number
-        countdown.style.display = 'block';
-        countdown.textContent   = FRAMES - i;
-        await new Promise(r => setTimeout(r, DELAY));
-        const blob = await captureFrame();
-        capturedBlobs.push(blob);
-        addFramePreview(blob, i);
-        countdown.textContent = '✓';
-        await new Promise(r => setTimeout(r, 200));
-      }
-      countdown.style.display = 'none';
-
-      // Stop camera — we have what we need
-      stream.getTracks().forEach(t => t.stop());
-      video.srcObject = null;
-
-      cameraCard.style.display = 'none';
-      framesCard.style.display = 'block';
-      captureBtn.disabled = false;
-    });
-
-    function addFramePreview(blob, i) {
-      const url = URL.createObjectURL(blob);
-      const div = document.createElement('div');
-      div.className = 'preview-item';
-      div.id = `frame-preview-${i}`;
-      const img = document.createElement('img');
-      img.src = url;
-      const label = document.createElement('div');
-      label.className = 'label';
-      label.textContent = `frame ${i}`;
-      div.appendChild(img);
-      div.appendChild(label);
-      previewGrid.appendChild(div);
-    }
-
-    // ── Retake ────────────────────────────────────────────────────────────────
-    retakeBtn.addEventListener('click', async () => {
-      framesCard.style.display = 'none';
-      cameraCard.style.display = 'block';
-      captureBtn.style.display = 'block';
-      startBtn.style.display   = 'none';
-      capturedBlobs = [];
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' }, audio: false,
-      });
-      video.srcObject = stream;
-      await video.play();
-    });
-
-    // ── Client-side frame scoring (mirrors server logic) ──────────────────────
-    async function scoreBlobFrame(blob, index) {
-      const url = URL.createObjectURL(blob);
-      const img = new Image();
-      img.src = url;
-      await new Promise(r => img.onload = r);
-
-      const sz  = 256;
-      const c   = document.createElement('canvas');
-      c.width = c.height = sz;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(img, 0, 0, sz, sz);
-      const d = ctx.getImageData(0, 0, sz, sz).data;
-
-      // Laplacian sharpness
-      let lapSum = 0;
-      for (let i = 4; i < d.length - 4; i += 4) {
-        const g = (d[i]+d[i+1]+d[i+2])/3;
-        const p = (d[i-4]+d[i-3]+d[i-2])/3;
-        const n = (d[i+4]+d[i+5]+d[i+6])/3;
-        const lap = p - 2*g + n;
-        lapSum += lap*lap;
-      }
-      const sharpnessRaw = lapSum / (sz*sz);
-
-      // Brightness
-      let sumB = 0;
-      for (let i = 0; i < d.length; i += 4) sumB += (d[i]+d[i+1]+d[i+2])/3;
-      const brightness = sumB / (sz*sz);
-      const BLO=90, BHI=175, BOPT=132;
-      const brightScore = brightness < BLO
-        ? Math.max(0, brightness/BLO)
-        : brightness > BHI
-        ? Math.max(0, 1-(brightness-BHI)/(255-BHI))
-        : 1-Math.abs(brightness-BOPT)/(BHI-BLO);
-
-      // Face signal (skin-tone ratio in centre crop)
-      const cx = Math.round(sz*0.25), cy = Math.round(sz*0.15);
-      const cw = Math.round(sz*0.5),  ch = Math.round(sz*0.6);
-      const fd = ctx.getImageData(cx, cy, cw, ch).data;
-      let skinPx = 0;
-      for (let i = 0; i < fd.length; i += 4) {
-        const r=fd[i], g=fd[i+1], b=fd[i+2];
-        if (r>80 && g>40 && b>20 && r>g && r>b && (r-Math.min(g,b))>15) skinPx++;
-      }
-      const faceScore = Math.min(1, skinPx / (cw*ch) * 4);
-
-      return { index, sharpnessRaw, brightness: brightScore, faceScore };
-    }
-
-    // ── Generate avatar ───────────────────────────────────────────────────────
-    generateBtn.addEventListener('click', async () => {
-      hideError();
-      loadingBox.classList.add('active');
-      generateBtn.disabled = true;
-      retakeBtn.disabled   = true;
+      const formData = new FormData();
+      formData.append('frame0', currentPhoto);
+      formData.append('style', selectedStyle);
 
       try {
-        // Score frames client-side to highlight best one immediately
-        const rawScores = await Promise.all(capturedBlobs.map((b, i) => scoreBlobFrame(b, i)));
-        const maxSharp  = Math.max(...rawScores.map(s => s.sharpnessRaw), 1);
-        const scored    = rawScores.map(s => ({
-          index:      s.index,
-          sharpness:  s.sharpnessRaw / maxSharp,
-          brightness: s.brightness,
-          faceScore:  s.faceScore,
-          total:      (s.sharpnessRaw/maxSharp)*0.5 + s.brightness*0.25 + s.faceScore*0.25,
-        })).sort((a, b) => b.total - a.total);
-
-        const bestIdx = scored[0].index;
-        document.querySelectorAll('.preview-item').forEach((el, i) => {
-          el.classList.toggle('best', i === bestIdx);
+        const response = await fetch(API_BASE + '/users/me/avatar/kyc-frames', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          },
+          body: formData
         });
 
-        // ── USE BACKEND HUGGINGFACE AI FOR ALL STYLES ─────────────────────────────
-        const MESSAGES = [
-          `🎨 Generating ${selectedStyle} avatar via HuggingFace AI...`,
-          `🔍 Detecting gender & skin tone from your photo...`,
-          `✏️ Building personalised style prompt...`,
-          `⚡ FLUX.1 is rendering your avatar (this takes ~30s)...`,
-          `🎭 Almost done — adding final details...`,
-        ];
-        let msgIdx = 0;
-        loadingMsg.textContent = MESSAGES[0];
-        const msgTimer = setInterval(() => { msgIdx = Math.min(msgIdx+1, MESSAGES.length-1); loadingMsg.textContent = MESSAGES[msgIdx]; }, 8000);
+        const data = await response.json();
 
-        const formData = new FormData();
-        capturedBlobs.forEach((b, i) => formData.append(`frame${i}`, b, `frame${i}.jpg`));
-        const gender = genderSelect.value;
-        const rarity = raritySelect.value;
-        if (gender) formData.append('gender', gender);
-        if (rarity) formData.append('rarity', rarity);
-        if (!rarity) formData.append('style', selectedStyle);
-
-        const controller = new AbortController();
-        const timeoutId  = setTimeout(() => controller.abort(), 120000); // 2 min hard timeout
-
-        let res;
-        try {
-          res = await fetch(API_BASE + '/users/me/avatar/kyc-frames', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` },
-            body: formData,
-            signal: controller.signal,
-          });
-        } catch (fetchErr) {
-          clearInterval(msgTimer); clearTimeout(timeoutId);
-          if (fetchErr.name === 'AbortError') throw new Error('⏰ Generation timed out (>2 min). HuggingFace may be busy — try again.');
-          throw fetchErr;
+        if (!response.ok) {
+          throw new Error(data.error || data.message || 'Generation failed');
         }
-        clearInterval(msgTimer); clearTimeout(timeoutId);
 
-        if (res.status === 401) { localStorage.removeItem('token'); showLoginForm(); throw new Error('Session expired — please log in again.'); }
-        if (res.status === 429) { const e = await res.json().catch(()=>({error:'Rate limit exceeded'})); throw new Error('⏳ ' + (e.error || 'Daily avatar limit reached. Try again tomorrow.')); }
-        if (!res.ok) { const e = await res.json().catch(()=>({error:res.statusText})); throw new Error(e.error||'Server error'); }
-        const data = await res.json();
-        displayResult(data, scored);
+        document.getElementById('resultImage').src = data.data.url;
+        result.classList.add('active');
+        
+        dailyQuota = data.data.dailyQuota || { used: 1, limit: 50, remaining: 49 };
+        document.getElementById('quotaInfo').textContent = 
+          `Daily quota: ${dailyQuota.used}/${dailyQuota.limit} used (${dailyQuota.remaining} remaining)`;
+
       } catch (err) {
-        showError('Error: ' + (err.message || err));
+        showError(err.message);
       } finally {
-        loadingBox.classList.remove('active');
-        generateBtn.disabled = false;
-        retakeBtn.disabled   = false;
+        loading.classList.remove('active');
       }
-    });
-
-    // ── Client-side canvas style engine ──────────────────────────────────────
-    async function applyStyleFilter(blob, style, gender) {
-      const img = new Image();
-      img.src = URL.createObjectURL(blob);
-      await new Promise(r => { img.onload = r; });
-
-      const SIZE = 512;
-      const c = document.createElement('canvas');
-      c.width = SIZE; c.height = SIZE;
-      const ctx = c.getContext('2d', { willReadFrequently: true });
-
-      // Draw & crop to square
-      const s = Math.min(img.width, img.height);
-      const ox = (img.width  - s) / 2;
-      const oy = (img.height - s) / 2;
-      ctx.drawImage(img, ox, oy, s, s, 0, 0, SIZE, SIZE);
-
-      const id = ctx.getImageData(0, 0, SIZE, SIZE);
-      const d  = id.data;
-
-      if (style === 'Comic') {
-        // Posterize colours with gender-aware palette (finer quantization for detail)
-        const isMale = gender === 'male';
-        for (let i = 0; i < d.length; i += 4) {
-          // Male: warmer reds/blues, Female: softer pinks/purples
-          if (isMale) {
-            d[i]   = Math.round(d[i]   / 40) * 40;
-            d[i+1] = Math.round(d[i+1] / 40) * 40;
-            d[i+2] = Math.round(d[i+2] / 40) * 40;
-          } else {
-            d[i]   = Math.round(d[i]   / 50) * 50;
-            d[i+1] = Math.round(d[i+1] / 50) * 50;
-            d[i+2] = Math.round(d[i+2] / 50) * 50;
-          }
-        }
-        ctx.putImageData(id, 0, 0);
-        // Sobel edges overlay
-        const ed = ctx.getImageData(0, 0, SIZE, SIZE);
-        const ed2 = new ImageData(SIZE, SIZE);
-        for (let y = 1; y < SIZE-1; y++) {
-          for (let x = 1; x < SIZE-1; x++) {
-            const idx = (y*SIZE+x)*4;
-            const tl = (ed.data[(y-1)*SIZE*4+(x-1)*4]*0.299 + ed.data[(y-1)*SIZE*4+(x-1)*4+1]*0.587 + ed.data[(y-1)*SIZE*4+(x-1)*4+2]*0.114);
-            const tr = (ed.data[(y-1)*SIZE*4+(x+1)*4]*0.299 + ed.data[(y-1)*SIZE*4+(x+1)*4+1]*0.587 + ed.data[(y-1)*SIZE*4+(x+1)*4+2]*0.114);
-            const ml = (ed.data[y*SIZE*4+(x-1)*4]*0.299 + ed.data[y*SIZE*4+(x-1)*4+1]*0.587 + ed.data[y*SIZE*4+(x-1)*4+2]*0.114);
-            const mr = (ed.data[y*SIZE*4+(x+1)*4]*0.299 + ed.data[y*SIZE*4+(x+1)*4+1]*0.587 + ed.data[y*SIZE*4+(x+1)*4+2]*0.114);
-            const bl = (ed.data[(y+1)*SIZE*4+(x-1)*4]*0.299 + ed.data[(y+1)*SIZE*4+(x-1)*4+1]*0.587 + ed.data[(y+1)*SIZE*4+(x-1)*4+2]*0.114);
-            const br = (ed.data[(y+1)*SIZE*4+(x+1)*4]*0.299 + ed.data[(y+1)*SIZE*4+(x+1)*4+1]*0.587 + ed.data[(y+1)*SIZE*4+(x+1)*4+2]*0.114);
-            const tm = (ed.data[(y-1)*SIZE*4+x*4]*0.299 + ed.data[(y-1)*SIZE*4+x*4+1]*0.587 + ed.data[(y-1)*SIZE*4+x*4+2]*0.114);
-            const bm = (ed.data[(y+1)*SIZE*4+x*4]*0.299 + ed.data[(y+1)*SIZE*4+x*4+1]*0.587 + ed.data[(y+1)*SIZE*4+x*4+2]*0.114);
-            const gx = -tl + tr - 2*ml + 2*mr - bl + br;
-            const gy = -tl - 2*tm - tr + bl + 2*bm + br;
-            const mag = Math.min(255, Math.sqrt(gx*gx + gy*gy) * 2);
-            const edge = mag > 50 ? 0 : 255;
-            ed2.data[idx]   = edge === 0 ? 0 : ed.data[idx];
-            ed2.data[idx+1] = edge === 0 ? 0 : ed.data[idx+1];
-            ed2.data[idx+2] = edge === 0 ? 0 : ed.data[idx+2];
-            ed2.data[idx+3] = 255;
-          }
-        }
-        ctx.putImageData(ed2, 0, 0);
-        // Apply contrast/saturation boost via canvas filter
-        const temp = document.createElement('canvas');
-        temp.width = SIZE; temp.height = SIZE;
-        const tctx = temp.getContext('2d');
-        tctx.filter = 'contrast(115%) saturate(120%)';
-        tctx.drawImage(c, 0, 0);
-        ctx.drawImage(temp, 0, 0);
-        // Add halftone dots pattern (meigen-style)
-        const dotSize = 4;
-        const dotSpacing = 6;
-        ctx.globalCompositeOperation = 'multiply';
-        for (let y = 0; y < SIZE; y += dotSpacing) {
-          for (let x = 0; x < SIZE; x += dotSpacing) {
-            ctx.fillStyle = 'rgba(0,0,0,0.15)';
-            ctx.beginPath();
-            ctx.arc(x + dotSpacing/2, y + dotSpacing/2, dotSize/2, 0, Math.PI*2);
-            ctx.fill();
-          }
-        }
-        ctx.globalCompositeOperation = 'source-over';
-        // Gender-aware pop-art background
-        ctx.globalCompositeOperation = 'destination-over';
-        ctx.fillStyle = isMale ? '#1e40af' : '#e91e8c'; // blue for male, pink for female
-        ctx.fillRect(0, 0, SIZE, SIZE);
-        ctx.globalCompositeOperation = 'source-over';
-
-      } else if (style === 'Anime') {
-        // Boost saturation + smooth with gender-aware tint
-        const isMale = gender === 'male';
-        for (let i = 0; i < d.length; i += 4) {
-          const r = d[i], g = d[i+1], b = d[i+2];
-          const max = Math.max(r,g,b), min = Math.min(r,g,b);
-          const l = (max+min)/2;
-          const s2 = max===min ? 0 : (max-min)/(255-Math.abs(2*l-255));
-          const boost = Math.min(1, s2 * 2.2);
-          const grey  = 0.299*r + 0.587*g + 0.114*b;
-          d[i]   = Math.min(255, grey + (r-grey)*boost*2.5);
-          d[i+1] = Math.min(255, grey + (g-grey)*boost*2.5);
-          d[i+2] = Math.min(255, grey + (b-grey)*boost*2.5);
-          // Subtle gender tint: male gets slight blue tint, female gets slight pink tint
-          if (isMale) {
-            d[i+2] = Math.min(255, d[i+2] + 10);
-          } else {
-            d[i]   = Math.min(255, d[i] + 10);
-          }
-        }
-        ctx.putImageData(id, 0, 0);
-        ctx.filter = 'blur(0.5px)';
-        ctx.drawImage(c, 0, 0);
-        ctx.filter = 'none';
-
-      } else if (style === 'Pixels') {
-        const BLOCK = 8;
-        ctx.putImageData(id, 0, 0);
-        for (let y = 0; y < SIZE; y += BLOCK) {
-          for (let x = 0; x < SIZE; x += BLOCK) {
-            const px = ctx.getImageData(x, y, 1, 1).data;
-            ctx.fillStyle = `rgb(${px[0]},${px[1]},${px[2]})`;
-            ctx.fillRect(x, y, BLOCK, BLOCK);
-          }
-        }
-
-      } else if (style === '3D') {
-        // High-contrast cinematic look with gender-aware lighting
-        const isMale = gender === 'male';
-        for (let i = 0; i < d.length; i += 4) {
-          d[i]   = Math.min(255, d[i]   * 1.15);
-          d[i+1] = Math.min(255, d[i+1] * 1.05);
-          d[i+2] = Math.min(255, d[i+2] * 0.95);
-          const v = (d[i]+d[i+1]+d[i+2])/3;
-          // Male: cooler blue highlights, Female: warmer pink highlights
-          if (isMale) {
-            d[i]   = Math.min(255, d[i]   + (v>128?25:-25));
-            d[i+1] = Math.min(255, d[i+1] + (v>128?15:-15));
-            d[i+2] = Math.min(255, d[i+2] + (v>128?35:-35));
-          } else {
-            d[i]   = Math.min(255, d[i]   + (v>128?35:-35));
-            d[i+1] = Math.min(255, d[i+1] + (v>128?20:-20));
-            d[i+2] = Math.min(255, d[i+2] + (v>128?15:-15));
-          }
-        }
-        ctx.putImageData(id, 0, 0);
-
-      } else if (style === 'Clay' || style === 'Claymation') {
-        for (let i = 0; i < d.length; i += 4) {
-          d[i]   = Math.min(255, Math.round(d[i]   / 32) * 32 + 16);
-          d[i+1] = Math.min(255, Math.round(d[i+1] / 32) * 32 + 16);
-          d[i+2] = Math.min(255, Math.round(d[i+2] / 32) * 32 + 16);
-        }
-        ctx.putImageData(id, 0, 0);
-        ctx.filter = 'blur(1.5px)';
-        ctx.drawImage(c, 0, 0);
-        ctx.filter = 'none';
-
-      } else if (style === 'Video game') {
-        // High-saturation, high-contrast
-        for (let i = 0; i < d.length; i += 4) {
-          const grey = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-          d[i]   = Math.min(255, grey + (d[i]   - grey) * 2.8);
-          d[i+1] = Math.min(255, grey + (d[i+1] - grey) * 2.8);
-          d[i+2] = Math.min(255, grey + (d[i+2] - grey) * 2.8);
-          d[i]   = Math.min(255, (d[i]   - 128) * 1.4 + 128);
-          d[i+1] = Math.min(255, (d[i+1] - 128) * 1.4 + 128);
-          d[i+2] = Math.min(255, (d[i+2] - 128) * 1.4 + 128);
-        }
-        ctx.putImageData(id, 0, 0);
-
-      } else if (style === 'LEGO') {
-        const BLOCK = 16;
-        ctx.putImageData(id, 0, 0);
-        for (let y = 0; y < SIZE; y += BLOCK) {
-          for (let x = 0; x < SIZE; x += BLOCK) {
-            const px = ctx.getImageData(x + BLOCK/2, y + BLOCK/2, 1, 1).data;
-            // Snap to LEGO palette
-            const snap = v => Math.round(v/85)*85;
-            ctx.fillStyle = `rgb(${snap(px[0])},${snap(px[1])},${snap(px[2])})`;
-            ctx.fillRect(x, y, BLOCK, BLOCK);
-            ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-            ctx.strokeRect(x+0.5, y+0.5, BLOCK-1, BLOCK-1);
-            // Stud
-            ctx.beginPath();
-            ctx.arc(x+BLOCK/2, y+BLOCK/2, BLOCK*0.28, 0, Math.PI*2);
-            ctx.fillStyle = `rgba(255,255,255,0.25)`;
-            ctx.fill();
-          }
-        }
-
-      } else if (style === 'Toy' || style === 'Emoji') {
-        // Smooth + vivid
-        ctx.putImageData(id, 0, 0);
-        ctx.filter = 'saturate(200%) contrast(120%) blur(1px)';
-        ctx.drawImage(c, 0, 0);
-        ctx.filter = 'none';
-
-      } else {
-        ctx.putImageData(id, 0, 0);
-      }
-
-      // Circular avatar crop with drop shadow
-      const out = document.createElement('canvas');
-      out.width = SIZE + 20; out.height = SIZE + 20;
-      const octx = out.getContext('2d');
-      octx.shadowColor = 'rgba(0,0,0,0.5)';
-      octx.shadowBlur  = 20;
-      octx.shadowOffsetY = 4;
-      octx.beginPath();
-      octx.arc(SIZE/2+10, SIZE/2+10, SIZE/2, 0, Math.PI*2);
-      octx.clip();
-      octx.drawImage(c, 10, 10);
-
-      return out.toDataURL('image/png');
     }
 
-    // ── Display result ────────────────────────────────────────────────────────
-    function displayResult(data, clientScores) {
-      framesCard.style.display = 'none';
-      resultCard.classList.add('active');
-
-      document.getElementById('avatarImg').src       = data.url;
-      document.getElementById('bestFrameValue').textContent = `frame ${data.bestFrameIndex}`;
-      document.getElementById('genderValue').textContent    = data.gender || '-';
-      document.getElementById('skinValue').textContent      = data.skinTone || '-';
-      document.getElementById('hairValue').textContent      = data.hairColour || '-';
-      document.getElementById('providerValue').textContent  = data.provider || '-';
-      document.getElementById('cidValue').textContent       = data.cid || (data.url?.startsWith('data:') ? '(inline base64 — IPFS not configured)' : '-');
-      const quotaEl = document.getElementById('quotaValue');
-      if (quotaEl && data.dailyQuota) {
-        const q = data.dailyQuota;
-        quotaEl.textContent = `${q.used}/${q.limit} used today (${q.remaining} left)`;
-        quotaEl.style.color = q.remaining <= 2 ? '#f87171' : q.remaining <= 5 ? '#fbbf24' : '#22c55e';
-      }
-      const styleEl = document.getElementById('styleValue');
-      if (styleEl) styleEl.textContent = data.style || selectedStyle;
-
-      const tbody = document.getElementById('scoresBody');
-      tbody.innerHTML = '';
-      const scores = data.frameScores || clientScores;
-      scores.forEach(s => {
-        const tr = document.createElement('tr');
-        if (s.index === data.bestFrameIndex) tr.className = 'best-row';
-        tr.innerHTML = `
-          <td>frame ${s.index} ${s.index === data.bestFrameIndex ? '✓' : ''}</td>
-          <td>${s.sharpness.toFixed(3)}</td>
-          <td>${s.brightness.toFixed(3)}</td>
-          <td>${s.faceScore.toFixed(3)}</td>
-          <td><strong>${s.total.toFixed(3)}</strong></td>`;
-        tbody.appendChild(tr);
-      });
+    function showError(msg) {
+      const error = document.getElementById('error');
+      error.textContent = msg;
+      error.style.display = 'block';
     }
 
-    // ── Download avatar ────────────────────────────────────────────────────────
+    // Download
     document.getElementById('downloadBtn').addEventListener('click', () => {
-      const img = document.getElementById('avatarImg');
-      if (!img.src) return;
+      const img = document.getElementById('resultImage');
       const a = document.createElement('a');
       a.href = img.src;
-      a.download = `bae4u-avatar-${Date.now()}.png`;
+      a.download = `bae4u-avatar-${selectedStyle}-${Date.now()}.png`;
       a.click();
     });
 
-    // ── New KYC ───────────────────────────────────────────────────────────────
-    newKycBtn.addEventListener('click', () => {
-      resultCard.classList.remove('active');
-      cameraCard.style.display = 'block';
-      framesCard.style.display = 'none';
-      startBtn.style.display   = 'block';
-      captureBtn.style.display = 'none';
-      capturedBlobs = [];
-      previewGrid.innerHTML = '';
-      hideError();
-    });
-
-    // ── Regenerate (reuse captured frames) ─────────────────────────────────────
-    regenerateBtn.addEventListener('click', () => {
-      resultCard.classList.remove('active');
-      framesCard.style.display = 'block';
-      // Keep capturedBlobs and previewGrid
-      hideError();
+    // Regenerate
+    document.getElementById('regenerateBtn').addEventListener('click', () => {
+      if (currentPhoto) {
+        generateAvatar();
+      }
     });
   </script>
 </body>

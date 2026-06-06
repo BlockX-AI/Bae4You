@@ -5,10 +5,7 @@ import type { JwtPayload } from "../plugins/auth";
 import { uploadToIPFS, ipfsGatewayUrl } from "../services/ipfs";
 import { registerPushToken, removePushToken } from "../services/push";
 import { upsertPersonality } from "../services/pinecone-match";
-import { generateAiAvatar, generateAvatarInStyle, type AiAvatarResult, type FaceToManyStyle, type Gender, analyzeGenderFromImage, extractVisualTraits } from "../services/ai-avatar";
 import { selectBestKycFrame, normaliseKycFrame } from "../services/video-kyc";
-import { generateGenZAvatar, styleForRarity, type GenZNftStyle } from "../services/genz-styles";
-import { generateBitmojiFromPhoto } from "../services/bitmoji-service";
 import { generateHeroCard, tierFromVibe, type CardTier } from "../services/hero-card.service";
 import { config } from "../config";
 
@@ -30,6 +27,100 @@ const updateSchema = z.object({
 });
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// ============================================================================
+// Cloudflare AI Avatar Generation Helpers
+// ============================================================================
+
+const STYLE_PROMPTS: Record<string, { positive: string; negative: string }> = {
+  "gen-z-creator": {
+    positive: "ultra stylish Gen-Z digital creator avatar, confident young influencer, sharp jawline, expressive eyes with subtle catchlights, trendy streetwear, luxury casual aesthetic, clean skin texture, modern social media profile picture, vibrant neon gradient background, cinematic rim lighting, soft glow effects, highly detailed face, symmetrical composition, centered portrait, face occupying 75% of frame, Instagram influencer aesthetic, TikTok creator vibe, modern digital art, premium branding, trending internet personality, vibrant colors, ultra sharp focus, masterpiece quality, highly detailed, social media avatar, professional creator identity, clean background, eye contact with viewer",
+    negative: "blurry, low quality, extra fingers, extra eyes, watermark, logo, text, ugly face, deformed anatomy, old fashioned clothing, dark shadows, low contrast, grainy, horror, creepy, dull colors, photobomb, multiple people"
+  },
+  "notion-style": {
+    positive: "professional minimalist avatar, clean geometric design, soft pastel color palette, elegant simplicity, modern corporate aesthetic, friendly but professional expression, crisp lines, flat design style, subtle gradients, centered composition, high contrast, clean background, minimalist portrait, business professional, tech startup founder vibe, modern flat illustration, vector art style, sophisticated color scheme, soft shadows, balanced composition, eye contact, approachable yet professional, clean lines, geometric shapes, premium minimalist design, Notion app aesthetic, productivity tool inspired",
+    negative: "realistic photo, photorealistic, messy, cluttered, dark colors, aggressive, angry expression, complex patterns, noise, grain, low resolution, cartoonish, childish, neon colors, chaotic, asymmetrical, distorted, 3D render"
+  },
+  "bitmoji-style": {
+    positive: "expressive cartoon avatar, bitmoji style, friendly smile, vibrant colors, clean vector illustration, rounded features, expressive eyes, cartoon aesthetic, playful design, modern cartoon style, bold outlines, flat colors, cheerful expression, stylized portrait, cartoon character design, friendly approachable look, bright color palette, clean lines, animated style, social media cartoon avatar, fun personality, expressive facial features, cartoon illustration, vector art, bold colors, clean design, Snapchat bitmoji inspired, emoji style avatar",
+    negative: "realistic, photorealistic, 3D render, dark, gloomy, scary, creepy, distorted proportions, messy lines, low quality, blurry, watercolor, oil painting, realistic photo, hyperrealistic, uncanny valley, anime style"
+  },
+  "lorelei-style": {
+    positive: "elegant feminine avatar, soft delicate features, graceful expression, flowing hair, sophisticated style, pastel color palette, soft lighting, romantic aesthetic, feminine beauty, gentle smile, elegant portrait, refined design, soft gradients, delicate lines, graceful composition, modern feminine illustration, elegant fashion sense, soft focus, dreamy atmosphere, sophisticated color scheme, feminine charm, gentle curves, soft shadows, premium elegant design, refined beauty, graceful pose, romantic illustration style",
+    negative: "masculine features, harsh lines, dark colors, aggressive expression, cartoonish, childish, low quality, blurry, distorted, masculine, rough, gritty, dark shadows, harsh lighting, unrefined, realistic photo"
+  },
+  "big-smile": {
+    positive: "warm friendly avatar, big genuine smile, approachable personality, bright cheerful expression, warm color palette, happy vibes, friendly face, welcoming presence, warm lighting, joyful expression, approachable design, cheerful portrait, friendly character, warm colors, soft lighting, inviting atmosphere, big smile, happy mood, warm welcome, friendly illustration, cheerful design, approachable aesthetic, warm welcome, happy vibes, friendly personality, contagious happiness, optimistic expression",
+    negative: "angry, sad, serious, stoic, cold, distant, unfriendly, dark colors, harsh expression, cold vibes, unapproachable, gloomy, serious, stern, cold colors, distant, unwelcoming, frowning, melancholic"
+  },
+  "cyberpunk": {
+    positive: "futuristic cyberpunk avatar, neon colors, tech aesthetic, digital art style, glowing elements, cybernetic features, futuristic fashion, neon lighting, tech-savvy vibe, digital portrait, cyberpunk aesthetic, vibrant neon colors, glowing effects, futuristic design, tech-inspired, cybernetic enhancements, neon glow, digital art, cyberpunk style, futuristic technology, neon accents, tech fashion, cyber design, glowing features, futuristic portrait, sci-fi aesthetic, cybernetic implants, holographic effects",
+    negative: "vintage, retro, old-fashioned, natural, organic, muted colors, traditional, rustic, natural lighting, earth tones, non-tech, traditional style, old world, classical, natural aesthetic, steampunk, dieselpunk"
+  },
+  "luxury-fashion": {
+    positive: "luxury fashion avatar, high-end style, sophisticated elegance, premium aesthetic, designer fashion, refined taste, luxury brand vibe, elegant clothing, sophisticated expression, premium design, high-fashion aesthetic, luxury portrait, refined style, elegant fashion, premium quality, sophisticated color palette, luxury design, high-end fashion, elegant pose, refined aesthetic, premium luxury, sophisticated beauty, fashion-forward, luxury brand aesthetic, Vogue magazine style, runway model inspired, haute couture",
+    negative: "casual, streetwear, cheap, low quality, basic, simple, budget, mass market, ordinary, plain, unsophisticated, basic design, low-end, cheap materials, fast fashion, athletic wear, sloppy"
+  },
+  "anime-style": {
+    positive: "anime style avatar, manga aesthetic, vibrant colors, expressive anime eyes, anime character design, Japanese animation style, vibrant hair, anime portrait, manga illustration, anime art style, expressive features, vibrant color palette, anime character, manga style, Japanese anime aesthetic, anime illustration, vibrant anime design, expressive anime face, anime character portrait, manga art, anime style illustration, vibrant anime colors, shonen anime style, kawaii aesthetic, anime protagonist vibe",
+    negative: "realistic, photorealistic, western cartoon, 3D render, realistic photo, western style, non-anime, realistic art, photorealistic, western animation, disney style, pixar style, chibi style"
+  },
+  "3d-cartoon": {
+    positive: "3D cartoon avatar, Pixar style animation character, cute rounded features, expressive big eyes, friendly smile, vibrant saturated colors, soft lighting, smooth shading, stylized 3D render, playful personality, approachable design, modern CGI animation style, clean 3D modeling, cartoon proportions, cheerful expression, Disney Pixar inspired, animated movie character, friendly cartoon 3D, premium 3D render quality, smooth textures, subsurface scattering, warm color palette",
+    negative: "realistic photo, photorealistic, 2D flat, dark, gloomy, scary, creepy, distorted, low poly, wireframe, sketchy, unfinished, grainy, horror, uncanny valley, adult content"
+  },
+  "professional-headshot": {
+    positive: "professional headshot avatar, LinkedIn profile style, clean business portrait, confident expression, professional lighting, studio photography aesthetic, sharp focus, neutral background, corporate professional, trustworthy appearance, modern business portrait, high quality photography, executive portrait, professional demeanor, clean skin, well-groomed appearance, corporate headshot, business professional, modern professional photography, premium portrait quality",
+    negative: "cartoon, illustration, anime, 3D render, casual, messy, dark, poor lighting, blurry, low quality, unprofessional, party photo, vacation photo, candid, informal, sloppy"
+  },
+  "retro-90s": {
+    positive: "retro 90s aesthetic avatar, vintage 90s style, nostalgic vibe, VHS aesthetic, grainy texture, vibrant 90s colors, retro fashion, 90s pop culture inspired, nostalgic portrait, vintage cartoon style, 90s sitcom vibe, retro digital art, nostalgic color palette, throwback aesthetic, 90s cool kid vibe, retro gaming inspired, vintage cool, 90s nostalgia, Saved by the Bell style, Fresh Prince aesthetic",
+    negative: "modern, futuristic, cyberpunk, clean, minimalist, realistic photo, photorealistic, high definition, sharp, digital, contemporary, sleek"
+  }
+};
+
+function getPromptForStyle(style: string): string {
+  return STYLE_PROMPTS[style]?.positive || STYLE_PROMPTS["gen-z-creator"].positive;
+}
+
+function getNegativePromptForStyle(style: string): string {
+  return STYLE_PROMPTS[style]?.negative || STYLE_PROMPTS["gen-z-creator"].negative;
+}
+
+async function generateAvatarWithCloudflare(
+  imageBuffer: Buffer,
+  prompt: string,
+  negativePrompt: string,
+  accountId: string,
+  apiToken: string
+): Promise<Buffer> {
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/stabilityai/stable-diffusion-xl-base-1.0`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        image: Array.from(imageBuffer),
+        prompt,
+        negative_prompt: negativePrompt,
+        num_steps: 30,
+        strength: 0.7,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Cloudflare AI failed: ${error}`);
+  }
+
+  const result = await response.json() as { result: { image: number[] } };
+  const imageBytes = new Uint8Array(result.result.image);
+  return Buffer.from(imageBytes);
+}
 
 const usersRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /users/me
@@ -118,7 +209,9 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       if (data.personalityVector) {
-        upsertPersonality(payload.userId, data.personalityVector as Record<string, number>).catch(() => {});
+        upsertPersonality(payload.userId, data.personalityVector as Record<string, number>).catch((err) => {
+          req.log.warn({ err }, "Failed to upsert personality vector");
+        });
       }
 
       return rows[0];
@@ -170,91 +263,18 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // POST /users/me/avatar/ai-art — generate Spider-Verse style NFT portrait
-  // Multipart: field "photo" (image file) + field "gender" (male|female|other)
-  fastify.post(
-    "/me/avatar/ai-art",
-    { preHandler: fastify.authenticate },
-    async (req, reply) => {
-      const payload = req.user as JwtPayload;
-
-      if (!config.FAL_KEY && !config.HUGGINGFACE_TOKEN) {
-        return reply.code(503).send({ error: "AI art generation not configured — set FAL_KEY or HUGGINGFACE_TOKEN" });
-      }
-
-      const parts = req.parts();
-      let photoBuffer: Buffer | null = null;
-      let photoMime   = "image/jpeg";
-      let gender: Gender | undefined;
-
-      for await (const part of parts) {
-        if (part.type === "file" && part.fieldname === "photo") {
-          if (!ALLOWED_MIME.has(part.mimetype)) {
-            return reply.code(415).send({ error: "Only JPEG, PNG, and WebP images are accepted" });
-          }
-          photoMime = part.mimetype;
-          const chunks: Buffer[] = [];
-          for await (const chunk of part.file) chunks.push(chunk as Buffer);
-          photoBuffer = Buffer.concat(chunks);
-          if (photoBuffer.length > 10 * 1024 * 1024) {
-            return reply.code(413).send({ error: "File exceeds 10 MB limit" });
-          }
-        } else if (part.type === "field" && part.fieldname === "gender") {
-          const val = (part.value as string).toLowerCase();
-          if (val === "male" || val === "female" || val === "other") {
-            gender = val as Gender;
-          }
-        }
-      }
-
-      if (!photoBuffer) {
-        return reply.code(400).send({ error: "No photo provided — send multipart field 'photo'" });
-      }
-
-      let aiResult: Awaited<ReturnType<typeof generateAiAvatar>>;
-      try {
-        aiResult = await generateAiAvatar(photoBuffer, photoMime, gender, config.FAL_KEY, config.HUGGINGFACE_TOKEN, config.REPLICATE_TOKEN);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "AI generation failed";
-        return reply.code(502).send({ error: msg });
-      }
-
-      const name = `ai-avatar-${payload.userId}-${Date.now()}.png`;
-      let cid: string;
-      try {
-        cid = await uploadToIPFS(aiResult.buffer, name, "image/png");
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "IPFS upload failed";
-        return reply.code(502).send({ error: msg });
-      }
-
-      await db.query(
-        "UPDATE users SET ai_art_ipfs_hash = $1 WHERE id = $2",
-        [cid, payload.userId]
-      );
-
-      return {
-        cid,
-        url:      ipfsGatewayUrl(cid),
-        gender:   aiResult.gender,
-        traits:   aiResult.traits,
-        seed:     aiResult.seed,
-        prompt:   aiResult.prompt,
-        provider: aiResult.provider,
-      };
-    }
-  );
-
   // POST /users/me/avatar/kyc-frames
   // ─────────────────────────────────────────────────────────────────────────
-  // Video KYC avatar generation.
+  // Video KYC avatar generation using Cloudflare AI.
   // The mobile app sends 1-5 photo frames captured during the KYC countdown.
   // The server picks the sharpest, most face-visible frame, then generates a
-  // face-preserving NFT avatar via fofr/face-to-many (InstantID).
+  // high-quality avatar using Cloudflare Workers AI (Stable Diffusion XL).
   //
   // Multipart fields:
   //   frame0…frame4  image/jpeg or image/png   (at least one required)
-  //   gender         "male" | "female" | "other"  (optional hint)
+  //   style          "gen-z-creator" | "notion-style" | "bitmoji-style" | "lorelei-style" | "big-smile" | "cyberpunk" | "luxury-fashion" | "anime-style" (optional, default: gen-z-creator)
+  //   customPrompt   string (optional - overrides style prompt)
+  //   negativePrompt string (optional - overrides default negative prompt)
   fastify.post(
     "/me/avatar/kyc-frames",
     { preHandler: fastify.authenticate },
@@ -263,26 +283,24 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
 
       const parts = req.parts();
       const frames: Buffer[] = [];
-      let gender: Gender | undefined;
-      let rarity: string | undefined;
+      let style: string = "gen-z-creator";
+      let customPrompt: string | undefined;
+      let negativePrompt: string | undefined;
 
-      const VALID_STYLES: (FaceToManyStyle | "Bitmoji-Flat")[] = ["3D","Emoji","Video game","Pixels","Clay","Toy","LEGO","Anime","Claymation","Comic","Bitmoji-Flat"];
-      let avatarStyle: FaceToManyStyle | "Bitmoji-Flat" | undefined;
+      const VALID_STYLES = ["gen-z-creator", "notion-style", "bitmoji-style", "lorelei-style", "big-smile", "cyberpunk", "luxury-fashion", "anime-style", "3d-cartoon", "professional-headshot", "retro-90s"];
 
       for await (const part of parts) {
         if (part.type === "file" && part.fieldname.startsWith("frame")) {
           const chunks: Buffer[] = [];
           for await (const chunk of part.file) chunks.push(chunk as Buffer);
           frames.push(Buffer.concat(chunks));
-        } else if (part.type === "field" && part.fieldname === "gender") {
-          const val = (part as { value: string }).value;
-          if (val === "male" || val === "female" || val === "other") gender = val;
         } else if (part.type === "field" && part.fieldname === "style") {
-          const val = (part as { value: string }).value as FaceToManyStyle | "Bitmoji-Flat";
-          if (VALID_STYLES.includes(val)) avatarStyle = val;
-        } else if (part.type === "field" && part.fieldname === "rarity") {
           const val = (part as { value: string }).value;
-          if (["common", "rare", "epic", "legendary"].includes(val)) rarity = val;
+          if (VALID_STYLES.includes(val)) style = val;
+        } else if (part.type === "field" && part.fieldname === "customPrompt") {
+          customPrompt = (part as { value: string }).value;
+        } else if (part.type === "field" && part.fieldname === "negativePrompt") {
+          negativePrompt = (part as { value: string }).value;
         }
       }
 
@@ -290,7 +308,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ error: "Send at least one frame field (frame0…frame4)" });
       }
 
-      // ── Rate limit: 50 avatar generations per user per day (internal testing) ─
+      // ── Rate limit: 50 avatar generations per user per day ─
       const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
       const rateKey = `avatar_rate:${payload.userId}:${today}`;
       const DAILY_LIMIT = 50;
@@ -303,159 +321,163 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         });
       }
 
+      // Select best frame
       const { bestFrame, scores } = await selectBestKycFrame(frames);
       const normalisedFrame = await normaliseKycFrame(bestFrame);
 
-      // ── Trait detection (gender, skin, hair) ────────────────────────────────
-      const hfToken = config.HUGGINGFACE_TOKEN;
-      const genderResult = hfToken
-        ? await analyzeGenderFromImage(normalisedFrame, "image/jpeg", hfToken).catch(() => null)
-        : null;
-      const detectedGender = genderResult?.gender ?? gender ?? "other";
-      const traits = await extractVisualTraits(normalisedFrame, detectedGender, genderResult?.confidence ?? 0);
-
-      let aiBuffer:   Buffer;
-      let aiProvider: string;
-      let aiResult:   AiAvatarResult | null = null;
-      let genzStyle: GenZNftStyle | null = null;
-
+      // Cloudflare AI generation
       try {
-        // Use genz-styles if rarity is provided (maps to Comic/Anime/3D/Video game)
-        if (rarity && !avatarStyle) {
-          genzStyle = styleForRarity(rarity);
-          const { buffer, provider, prompt } = await generateGenZAvatar({
-            style: genzStyle,
-            gender: detectedGender as any,
-            skinTone: traits.skinTone as any,
-            hairColor: traits.hairColour as any,
-            hasBeard: traits.hasBeard,
-            hfToken,
-            cfAccountId: config.CLOUDFLARE_ACCOUNT_ID,
-            cfApiToken: config.CLOUDFLARE_API_TOKEN,
-            replicateToken: config.REPLICATE_API_TOKEN,
-            falApiKey: config.FAL_KEY,
-          });
-          aiBuffer = buffer;
-          aiProvider = provider;
-          aiResult = { buffer, mimeType: "image/png", prompt, gender: detectedGender, traits, seed: 0, provider };
-        } else if (avatarStyle === "Bitmoji-Flat") {
-          // DiceBear flat-cartoon pipeline — no Replicate needed
-          const bmGender = (detectedGender === "male" || detectedGender === "female") ? detectedGender : undefined;
-          const bm = await generateBitmojiFromPhoto(normalisedFrame, { style: "avataaars", gender: bmGender, generateStickers: false, avatarSize: 512 });
-          aiBuffer   = bm.avatar.buffer;
-          aiProvider = "dicebear/avataaars (bitmoji-flat)";
-        } else if (avatarStyle) {
-          const r = await generateAvatarInStyle(normalisedFrame, "image/jpeg", avatarStyle, config.REPLICATE_API_TOKEN, config.FAL_KEY, config.HUGGINGFACE_TOKEN, detectedGender, config.CLOUDFLARE_ACCOUNT_ID, config.CLOUDFLARE_API_TOKEN);
-          aiBuffer   = r.buffer;
-          aiProvider = r.provider;
-        } else {
-          aiResult   = await generateAiAvatar(
-            normalisedFrame, "image/jpeg", detectedGender,
-            config.FAL_KEY, config.HUGGINGFACE_TOKEN, config.REPLICATE_API_TOKEN,
-          );
-          aiBuffer   = aiResult.buffer;
-          aiProvider = aiResult.provider;
+        const cfAccountId = config.CLOUDFLARE_ACCOUNT_ID;
+        const cfApiToken = config.CLOUDFLARE_API_TOKEN;
+
+        if (!cfAccountId || !cfApiToken) {
+          return reply.code(500).send({ error: "Cloudflare AI credentials not configured" });
         }
-      } catch (err: unknown) {
-        // All AI providers failed - return error message explaining payment/balance issues
-        const errorMsg = err instanceof Error ? err.message : "AI generation failed";
-        console.error("[avatar] AI generation failed:", errorMsg);
-        return reply.code(502).send({
-          error: `Avatar generation failed: ${errorMsg}. ` +
-                 "Check that HUGGINGFACE_TOKEN is set in Railway environment variables.",
-        });
-      }
 
-      const name = `kyc-avatar-${payload.userId}-${Date.now()}.png`;
+        // Get prompt for selected style
+        const prompt = customPrompt || getPromptForStyle(style);
+        const negPrompt = negativePrompt || getNegativePromptForStyle(style);
 
-      let cid: string | null = null;
-      let avatarUrl: string;
+        // Generate avatar using Cloudflare AI
+        const aiBuffer = await generateAvatarWithCloudflare(normalisedFrame, prompt, negPrompt, cfAccountId, cfApiToken);
 
-      try {
-        cid = await uploadToIPFS(aiBuffer, name, "image/png");
-        avatarUrl = ipfsGatewayUrl(cid);
+        // Upload to IPFS
+        const cid = await uploadToIPFS(aiBuffer, `kyc-avatar-${payload.userId}-${Date.now()}.png`, "image/png");
+        const url = ipfsGatewayUrl(cid);
+
+        // Update user avatar
         await db.query(
-          "UPDATE users SET ai_art_ipfs_hash = $1, avatar_ipfs_hash = $1 WHERE id = $2",
+          `UPDATE users SET avatar_ipfs_hash = $1 WHERE id = $2`,
           [cid, payload.userId]
         );
-      } catch {
-        // IPFS not configured or failed — return avatar as inline data URL so the
-        // test page can still display it without PINATA set up
-        avatarUrl = `data:image/png;base64,${aiBuffer.toString("base64")}`;
-      }
 
-      // ── Auto-generate hero card with the new avatar ──────────────────────────
-      let heroCard: { tier: CardTier; cardUrl: string; ipfsHash: string; cardNumber: string } | null = null;
-      try {
-        const { rows: uRows } = await db.query(
-          `SELECT display_name, location_city, birth_date FROM users WHERE id = $1`,
-          [payload.userId]
-        );
-        const uProfile = uRows[0] ?? {};
-
-        const tierMap: Record<string, CardTier> = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
-        const vibeScore = rarity === "legendary" ? 97 : rarity === "epic" ? 88 : rarity === "rare" ? 72 : 55;
-        const cardTier: CardTier = (rarity ? tierMap[rarity] : null) ?? tierFromVibe(vibeScore);
-
-        const userAge = uProfile.birth_date
-          ? Math.floor((Date.now() - new Date(uProfile.birth_date).getTime()) / 31557600000)
-          : 21;
-
-        const { rows: seqRows } = await db.query(`SELECT nextval('hero_card_number_seq') AS n`);
-        const cardNumber = Number(seqRows[0]?.n ?? 1);
-
-        const cardBuffer = await generateHeroCard({
-          avatarBuffer: aiBuffer,
-          name:       uProfile.display_name ?? "USER",
-          city:       uProfile.location_city ?? "INDIA",
-          age:        userAge,
-          cardNumber,
-          tier:       cardTier,
-          vibe:       vibeScore,
-          rizz:       Math.round(vibeScore * 0.97),
-          drip:       Math.round(vibeScore * 0.95),
-          aura:       Math.round(vibeScore * 0.92),
-          badges:     vibeScore >= 95 ? ["OG MEMBER", "TOP 1%"] : [],
+        return reply.send({
+          success: true,
+          data: {
+            url,
+            ipfsHash: cid,
+            style,
+            prompt,
+            bestFrameIndex: scores[0].index,
+            frameScores: scores,
+            timestamp: Date.now(),
+          },
         });
+      } catch (err: unknown) {
+        req.log.error({ err }, "Cloudflare AI avatar generation failed");
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
+        return reply.code(500).send({
+          error: "Avatar generation failed",
+          message: errorMsg,
+        });
+      }
+    }
+  );
 
-        const cardCid = await uploadToIPFS(
-          cardBuffer, `hero-card-${payload.userId}-${Date.now()}.png`, "image/png"
-        );
-        await db.query(
-          `INSERT INTO hero_cards (user_id, card_number, tier, card_ipfs_hash, vibe_score, rizz_score, drip_score, aura_score, badges)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [payload.userId, cardNumber, cardTier, cardCid, vibeScore,
-           Math.round(vibeScore * 0.97), Math.round(vibeScore * 0.95), Math.round(vibeScore * 0.92),
-           JSON.stringify(vibeScore >= 95 ? ["OG MEMBER", "TOP 1%"] : [])]
-        );
-        heroCard = {
-          tier:       cardTier,
-          cardUrl:    `https://gateway.pinata.cloud/ipfs/${cardCid}`,
-          ipfsHash:   cardCid,
-          cardNumber: String(cardNumber).padStart(4, "0"),
-        };
-      } catch (heroErr) {
-        console.error("[hero-card] Auto-generation failed (non-fatal):", heroErr);
+  // POST /users/me/avatar/edit — regenerate avatar with new style or custom prompt
+  // ─────────────────────────────────────────────────────────────────────────
+  // Edit existing avatar by regenerating with different style or custom prompt
+  //
+  // Request body:
+  //   style          string (optional) - new style to apply
+  //   customPrompt   string (optional) - custom prompt override
+  //   negativePrompt string (optional) - custom negative prompt override
+  fastify.post(
+    "/me/avatar/edit",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const body = req.body as {
+        style?: string;
+        customPrompt?: string;
+        negativePrompt?: string;
+      };
+
+      // Fetch current avatar from database
+      const { rows } = await db.query(
+        `SELECT avatar_ipfs_hash FROM users WHERE id = $1`,
+        [payload.userId]
+      );
+
+      if (!rows[0] || !rows[0].avatar_ipfs_hash) {
+        return reply.code(400).send({ error: "No existing avatar found. Generate one first." });
       }
 
-      return {
-        cid,
-        url:          avatarUrl,
-        framesReceived: frames.length,
-        bestFrameIndex: scores[0].index,
-        frameScores:  scores,
-        style:        avatarStyle ?? genzStyle ?? null,
-        gender:       detectedGender,
-        skinTone:     traits.skinTone,
-        hairColour:   traits.hairColour,
-        hasBeard:     traits.hasBeard,
-        hasGlasses:   traits.hasGlasses,
-        provider:     aiProvider,
-        prompt:       aiResult?.prompt,
-        rarity:       rarity ?? null,
-        heroCard,
-        dailyQuota:   { used: currentCount, limit: DAILY_LIMIT, remaining: DAILY_LIMIT - currentCount },
-      };
+      const currentAvatarHash = rows[0].avatar_ipfs_hash;
+
+      // Fetch current avatar image from IPFS
+      const avatarUrl = `https://gateway.pinata.cloud/ipfs/${currentAvatarHash}`;
+      const avatarRes = await fetch(avatarUrl);
+      if (!avatarRes.ok) {
+        return reply.code(502).send({ error: "Failed to fetch current avatar from IPFS" });
+      }
+      const avatarBuffer = Buffer.from(await avatarRes.arrayBuffer());
+
+      // Rate limit: 50 edits per day
+      const today = new Date().toISOString().slice(0, 10);
+      const rateKey = `avatar_edit_rate:${payload.userId}:${today}`;
+      const DAILY_LIMIT = 50;
+      const currentCount = await fastify.redis.incr(rateKey);
+      if (currentCount === 1) await fastify.redis.expire(rateKey, 86400);
+      if (currentCount > DAILY_LIMIT) {
+        return reply.code(429).send({
+          error: `Daily edit limit reached (${DAILY_LIMIT}/day). Try again tomorrow.`,
+          retryAfter: "24h",
+        });
+      }
+
+      // Get style or use custom prompt
+      const style = body.style || "gen-z-creator";
+      const VALID_STYLES = ["gen-z-creator", "notion-style", "bitmoji-style", "lorelei-style", "big-smile", "cyberpunk", "luxury-fashion", "anime-style", "3d-cartoon", "professional-headshot", "retro-90s"];
+      
+      if (!VALID_STYLES.includes(style) && !body.customPrompt) {
+        return reply.code(400).send({ error: "Invalid style" });
+      }
+
+      const prompt = body.customPrompt || getPromptForStyle(style);
+      const negPrompt = body.negativePrompt || getNegativePromptForStyle(style);
+
+      // Generate new avatar using Cloudflare AI
+      try {
+        const cfAccountId = config.CLOUDFLARE_ACCOUNT_ID;
+        const cfApiToken = config.CLOUDFLARE_API_TOKEN;
+
+        if (!cfAccountId || !cfApiToken) {
+          return reply.code(500).send({ error: "Cloudflare AI credentials not configured" });
+        }
+
+        const aiBuffer = await generateAvatarWithCloudflare(avatarBuffer, prompt, negPrompt, cfAccountId, cfApiToken);
+
+        // Upload to IPFS
+        const cid = await uploadToIPFS(aiBuffer, `edited-avatar-${payload.userId}-${Date.now()}.png`, "image/png");
+        const url = ipfsGatewayUrl(cid);
+
+        // Update user avatar
+        await db.query(
+          `UPDATE users SET avatar_ipfs_hash = $1 WHERE id = $2`,
+          [cid, payload.userId]
+        );
+
+        return reply.send({
+          success: true,
+          data: {
+            url,
+            ipfsHash: cid,
+            style,
+            prompt,
+            timestamp: Date.now(),
+            previousAvatar: currentAvatarHash,
+            dailyQuota: { used: currentCount, limit: DAILY_LIMIT, remaining: DAILY_LIMIT - currentCount },
+          },
+        });
+      } catch (err: unknown) {
+        req.log.error({ err }, "Cloudflare AI avatar edit failed");
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
+        return reply.code(500).send({
+          error: "Avatar edit failed",
+          message: errorMsg,
+        });
+      }
     }
   );
 
@@ -563,7 +585,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
          body.aura ?? Math.round(vibeScore * 0.92),
          JSON.stringify(body.badges ?? (vibeScore >= 95 ? ["OG MEMBER", "TOP 1%"] : []))]
       ).catch((e) => {
-        console.error("Failed to store hero card:", e);
+        req.log.error({ err: e }, "Failed to store hero card");
       });
 
       return {

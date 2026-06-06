@@ -29,8 +29,6 @@ import tournamentsRoutes from "./routes/tournaments";
 import couplesRoutes     from "./routes/couples";
 import metadataRoutes   from "./routes/metadata";
 import imagesRoutes    from "./routes/images";
-import bitmojiRoutes   from "./routes/bitmoji";
-import genzAvatarRoutes from "./routes/genz-avatar";
 import kycRoutes       from "./routes/kyc";
 
 import { config } from "./config";
@@ -220,9 +218,7 @@ async function bootstrap() {
   await app.register(couplesRoutes,     { prefix: "/couples"     });
   await app.register(metadataRoutes,   { prefix: ""            });
   await app.register(imagesRoutes,    { prefix: ""            });
-  await app.register(bitmojiRoutes,   { prefix: "/users"      });
-  await app.register(genzAvatarRoutes, { prefix: "" });
-  await app.register(kycRoutes,       { prefix: "" });
+  await app.register(kycRoutes,       { prefix: "/kyc" });
 
   // Global error handler
   app.setErrorHandler((error: Error & { statusCode?: number }, req, reply) => {
