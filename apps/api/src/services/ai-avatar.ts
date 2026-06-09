@@ -674,6 +674,63 @@ async function generateViaFal(
   return Buffer.from(await res.arrayBuffer());
 }
 
+// ─── fal.ai InstantID — face-preserving stylized avatar ──────────────────────
+
+/**
+ * fal-ai/instant-id — Uses InstantID face embedding + SDXL for face-preserving
+ * style transfer. Best results for noir-glamour and other artistic styles where
+ * the user's actual facial identity must be clearly recognizable.
+ *
+ * Cost: ~$0.05/image on fal.ai
+ * Env: FAL_KEY
+ *
+ * Parameters:
+ *   identitynet_strength_ratio — how much to preserve the face (0.0–1.0, higher = more like the user)
+ *   adapter_strength_ratio     — how much to apply the art style (0.0–1.0, higher = more stylized)
+ *   guidance_scale             — prompt adherence (higher = stronger style but may distort)
+ */
+export interface InstantIdParams {
+  guidance_scale?:             number;
+  num_inference_steps?:        number;
+  identitynet_strength_ratio?: number;
+  adapter_strength_ratio?:     number;
+}
+
+export async function generateViaFalInstantId(
+  photoBuffer:    Buffer,
+  mimeType:       string,
+  prompt:         string,
+  negativePrompt: string,
+  falApiKey:      string,
+  params?:        InstantIdParams,
+): Promise<Buffer> {
+  fal.config({ credentials: falApiKey });
+
+  const base64   = photoBuffer.toString("base64");
+  const inputUrl = `data:${mimeType};base64,${base64}`;
+
+  const result = await fal.subscribe("fal-ai/instant-id", {
+    input: {
+      face_image_url:              inputUrl,
+      prompt,
+      negative_prompt:             negativePrompt,
+      guidance_scale:              params?.guidance_scale             ?? 5.5,
+      num_inference_steps:         params?.num_inference_steps        ?? 30,
+      identitynet_strength_ratio:  params?.identitynet_strength_ratio ?? 0.85,
+      adapter_strength_ratio:      params?.adapter_strength_ratio     ?? 0.70,
+      num_samples:                 1,
+    } as any,
+    logs: false,
+  });
+
+  const output = result.data as { images?: Array<{ url: string }> };
+  if (!output?.images?.length) throw new Error("fal.ai InstantID returned no images");
+
+  const res = await fetch(output.images[0].url);
+  if (!res.ok) throw new Error(`Failed to download fal.ai InstantID image: ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
 async function generateViaReplicate(
   photoBuffer: Buffer,
   mimeType:    string,

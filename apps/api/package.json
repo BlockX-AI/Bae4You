@@ -32,7 +32,8 @@
     "ai-avatar-input-batch": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/input-ai-avatar-batch.ts",
     "bitmoji-test": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/bitmoji-test.ts",
     "hero-card-test": "tsx scripts/hero-card-test.ts",
-    "video-kyc-test": "tsx scripts/video-kyc-test.ts"
+    "video-kyc-test": "tsx scripts/video-kyc-test.ts",
+    "migrate:safety": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-safety.ts"
   },
   "dependencies": {
     "@coinbase/cdp-sdk": "^1.48.2",

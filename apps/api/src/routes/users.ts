@@ -4,9 +4,10 @@ import { db } from "../db/client";
 import type { JwtPayload } from "../plugins/auth";
 import { uploadToIPFS, ipfsGatewayUrl } from "../services/ipfs";
 import { registerPushToken, removePushToken } from "../services/push";
-import { upsertPersonality } from "../services/pinecone-match";
+import { upsertPersonality, deletePersonality } from "../services/pinecone-match";
 import { selectBestKycFrame, normaliseKycFrame } from "../services/video-kyc";
 import { generateHeroCard, tierFromVibe, type CardTier } from "../services/hero-card.service";
+import { generateViaFalInstantId } from "../services/ai-avatar";
 import { config } from "../config";
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -76,6 +77,10 @@ const STYLE_PROMPTS: Record<string, { positive: string; negative: string }> = {
   "retro-90s": {
     positive: "retro 90s aesthetic avatar, vintage 90s style, nostalgic vibe, VHS aesthetic, grainy texture, vibrant 90s colors, retro fashion, 90s pop culture inspired, nostalgic portrait, vintage cartoon style, 90s sitcom vibe, retro digital art, nostalgic color palette, throwback aesthetic, 90s cool kid vibe, retro gaming inspired, vintage cool, 90s nostalgia, Saved by the Bell style, Fresh Prince aesthetic",
     negative: "modern, futuristic, cyberpunk, clean, minimalist, realistic photo, photorealistic, high definition, sharp, digital, contemporary, sleek"
+  },
+  "noir-glamour": {
+    positive: "black and white pencil sketch portrait, film noir glamour, vintage hollywood pinup, dramatic chiaroscuro lighting, sharp ink line work, hand-drawn illustration, monochrome with bold red lipstick as only color accent, classic 1940s wavy hairstyle, magazine cover quality, fine art portrait, high contrast, clean white background, highly detailed face, elegant composition, NFT avatar",
+    negative: "color photo, realistic photograph, blurry, low quality, deformed, extra limbs, multiple colors, modern outfit, 3d render, cartoon, anime, watermark, text, signature, nsfw, full color, vibrant colors, neon"
   }
 };
 
@@ -287,7 +292,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       let customPrompt: string | undefined;
       let negativePrompt: string | undefined;
 
-      const VALID_STYLES = ["gen-z-creator", "notion-style", "bitmoji-style", "lorelei-style", "big-smile", "cyberpunk", "luxury-fashion", "anime-style", "3d-cartoon", "professional-headshot", "retro-90s"];
+      const VALID_STYLES = ["gen-z-creator", "notion-style", "bitmoji-style", "lorelei-style", "big-smile", "cyberpunk", "luxury-fashion", "anime-style", "3d-cartoon", "professional-headshot", "retro-90s", "noir-glamour"];
 
       for await (const part of parts) {
         if (part.type === "file" && part.fieldname.startsWith("frame")) {
@@ -325,21 +330,38 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       const { bestFrame, scores } = await selectBestKycFrame(frames);
       const normalisedFrame = await normaliseKycFrame(bestFrame);
 
-      // Cloudflare AI generation
+      // AI generation — prefer InstantID for noir-glamour (face-preserving), else Cloudflare
       try {
         const cfAccountId = config.CLOUDFLARE_ACCOUNT_ID;
         const cfApiToken = config.CLOUDFLARE_API_TOKEN;
-
-        if (!cfAccountId || !cfApiToken) {
-          return reply.code(500).send({ error: "Cloudflare AI credentials not configured" });
-        }
 
         // Get prompt for selected style
         const prompt = customPrompt || getPromptForStyle(style);
         const negPrompt = negativePrompt || getNegativePromptForStyle(style);
 
-        // Generate avatar using Cloudflare AI
-        const aiBuffer = await generateAvatarWithCloudflare(normalisedFrame, prompt, negPrompt, cfAccountId, cfApiToken);
+        // For noir-glamour, prefer fal.ai InstantID — it locks the user's face identity
+        // while applying the noir sketch style (much better than generic SDXL for this look)
+        let aiBuffer: Buffer;
+        const falKey = config.FAL_KEY;
+        if (style === "noir-glamour" && falKey) {
+          try {
+            aiBuffer = await generateViaFalInstantId(normalisedFrame, "image/png", prompt, negPrompt, falKey, {
+              guidance_scale: 5.5,
+              num_inference_steps: 30,
+              identitynet_strength_ratio: 0.85,
+              adapter_strength_ratio: 0.70,
+            });
+          } catch (instantIdErr: unknown) {
+            req.log.warn({ err: instantIdErr }, "InstantID failed for noir-glamour, falling back to Cloudflare");
+            if (!cfAccountId || !cfApiToken) throw instantIdErr;
+            aiBuffer = await generateAvatarWithCloudflare(normalisedFrame, prompt, negPrompt, cfAccountId, cfApiToken);
+          }
+        } else {
+          if (!cfAccountId || !cfApiToken) {
+            return reply.code(500).send({ error: "Cloudflare AI credentials not configured" });
+          }
+          aiBuffer = await generateAvatarWithCloudflare(normalisedFrame, prompt, negPrompt, cfAccountId, cfApiToken);
+        }
 
         // Upload to IPFS
         const cid = await uploadToIPFS(aiBuffer, `kyc-avatar-${payload.userId}-${Date.now()}.png`, "image/png");
@@ -428,7 +450,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Get style or use custom prompt
       const style = body.style || "gen-z-creator";
-      const VALID_STYLES = ["gen-z-creator", "notion-style", "bitmoji-style", "lorelei-style", "big-smile", "cyberpunk", "luxury-fashion", "anime-style", "3d-cartoon", "professional-headshot", "retro-90s"];
+      const VALID_STYLES = ["gen-z-creator", "notion-style", "bitmoji-style", "lorelei-style", "big-smile", "cyberpunk", "luxury-fashion", "anime-style", "3d-cartoon", "professional-headshot", "retro-90s", "noir-glamour"];
       
       if (!VALID_STYLES.includes(style) && !body.customPrompt) {
         return reply.code(400).send({ error: "Invalid style" });
@@ -437,16 +459,32 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       const prompt = body.customPrompt || getPromptForStyle(style);
       const negPrompt = body.negativePrompt || getNegativePromptForStyle(style);
 
-      // Generate new avatar using Cloudflare AI
+      // Generate new avatar — prefer InstantID for noir-glamour, else Cloudflare AI
       try {
         const cfAccountId = config.CLOUDFLARE_ACCOUNT_ID;
         const cfApiToken = config.CLOUDFLARE_API_TOKEN;
 
-        if (!cfAccountId || !cfApiToken) {
-          return reply.code(500).send({ error: "Cloudflare AI credentials not configured" });
+        let aiBuffer: Buffer;
+        const falKey = config.FAL_KEY;
+        if (style === "noir-glamour" && falKey) {
+          try {
+            aiBuffer = await generateViaFalInstantId(avatarBuffer, "image/png", prompt, negPrompt, falKey, {
+              guidance_scale: 5.5,
+              num_inference_steps: 30,
+              identitynet_strength_ratio: 0.85,
+              adapter_strength_ratio: 0.70,
+            });
+          } catch (instantIdErr: unknown) {
+            req.log.warn({ err: instantIdErr }, "InstantID failed for noir-glamour edit, falling back to Cloudflare");
+            if (!cfAccountId || !cfApiToken) throw instantIdErr;
+            aiBuffer = await generateAvatarWithCloudflare(avatarBuffer, prompt, negPrompt, cfAccountId, cfApiToken);
+          }
+        } else {
+          if (!cfAccountId || !cfApiToken) {
+            return reply.code(500).send({ error: "Cloudflare AI credentials not configured" });
+          }
+          aiBuffer = await generateAvatarWithCloudflare(avatarBuffer, prompt, negPrompt, cfAccountId, cfApiToken);
         }
-
-        const aiBuffer = await generateAvatarWithCloudflare(avatarBuffer, prompt, negPrompt, cfAccountId, cfApiToken);
 
         // Upload to IPFS
         const cid = await uploadToIPFS(aiBuffer, `edited-avatar-${payload.userId}-${Date.now()}.png`, "image/png");
@@ -668,6 +706,69 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         steps,
         guidance,
       };
+    }
+  );
+
+  // DELETE /users/me — permanently deactivate account (GDPR soft-delete)
+  // Clears PII from DB, removes from Pinecone, revokes push tokens.
+  // The row is kept with status='deactivated' for referential integrity (matches, messages, etc.).
+  fastify.delete(
+    "/me",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+
+      // Verify user exists and is not already deactivated
+      const { rows: userRows } = await db.query(
+        "SELECT id, status FROM users WHERE id = $1",
+        [payload.userId]
+      );
+      if (!userRows[0]) return reply.code(404).send({ error: "User not found" });
+      if (userRows[0].status === "deactivated") {
+        return reply.code(409).send({ error: "Account already deactivated" });
+      }
+
+      // 1. Remove from Pinecone (best-effort)
+      await deletePersonality(payload.userId).catch(() => {});
+
+      // 2. Clear all PII and set status to deactivated — keep row for FK integrity
+      await db.query(
+        `UPDATE users
+         SET status            = 'deactivated',
+             display_name      = 'Deleted User',
+             username          = NULL,
+             email             = NULL,
+             bio               = NULL,
+             avatar_ipfs_hash  = NULL,
+             birth_date        = NULL,
+             location_city     = NULL,
+             country_code      = NULL,
+             personality_vector = NULL,
+             pinecone_id       = NULL,
+             wallet_address    = NULL,
+             custodial_key_enc = NULL,
+             last_login_at     = NULL
+         WHERE id = $1`,
+        [payload.userId]
+      );
+
+      // 3. Delete push tokens
+      await db.query("DELETE FROM push_tokens WHERE user_id = $1", [payload.userId]);
+
+      // 4. Unmatch all active matches (partner should no longer see them)
+      await db.query(
+        `UPDATE matches SET status = 'unmatched'
+         WHERE (user_a_id = $1 OR user_b_id = $1) AND status = 'matched'`,
+        [payload.userId]
+      );
+
+      // 5. Delete block entries (no longer needed)
+      await db.query(
+        "DELETE FROM blocked_users WHERE blocker_id = $1 OR blocked_id = $1",
+        [payload.userId]
+      );
+
+      return reply.code(200).send({ deleted: true, message: "Account deactivated and data erased." });
     }
   );
 

@@ -150,6 +150,73 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
+  // POST /matches/block/:targetUserId — block a user (removes any existing match too)
+  fastify.post<{ Params: { targetUserId: string } }>(
+    "/block/:targetUserId",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload  = req.user as JwtPayload;
+      const targetId = req.params.targetUserId;
+      if (!UUID_RE.test(targetId)) return reply.code(400).send({ error: "Invalid targetUserId" });
+      if (payload.userId === targetId) return reply.code(400).send({ error: "Cannot block yourself" });
+
+      const { reason } = (req.body ?? {}) as { reason?: string };
+
+      await db.query(
+        `INSERT INTO blocked_users (blocker_id, blocked_id, reason)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (blocker_id, blocked_id) DO NOTHING`,
+        [payload.userId, targetId, reason ?? null]
+      );
+
+      // Unmatch if an active match exists
+      await db.query(
+        `UPDATE matches SET status = 'unmatched'
+         WHERE (user_a_id = $1 AND user_b_id = $2 OR user_a_id = $2 AND user_b_id = $1)
+           AND status = 'matched'`,
+        [payload.userId, targetId]
+      );
+
+      return { blocked: true };
+    }
+  );
+
+  // DELETE /matches/block/:targetUserId — unblock a user
+  fastify.delete<{ Params: { targetUserId: string } }>(
+    "/block/:targetUserId",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload  = req.user as JwtPayload;
+      const targetId = req.params.targetUserId;
+      if (!UUID_RE.test(targetId)) return reply.code(400).send({ error: "Invalid targetUserId" });
+
+      await db.query(
+        "DELETE FROM blocked_users WHERE blocker_id = $1 AND blocked_id = $2",
+        [payload.userId, targetId]
+      );
+      return { unblocked: true };
+    }
+  );
+
+  // GET /matches/blocked — list users I have blocked
+  fastify.get(
+    "/blocked",
+    { preHandler: fastify.authenticate },
+    async (req, _reply) => {
+      const payload = req.user as JwtPayload;
+      const { rows } = await db.query(
+        `SELECT bu.blocked_id AS user_id, bu.reason, bu.created_at,
+                u.username, u.display_name, u.avatar_ipfs_hash
+         FROM blocked_users bu
+         JOIN users u ON u.id = bu.blocked_id
+         WHERE bu.blocker_id = $1
+         ORDER BY bu.created_at DESC`,
+        [payload.userId]
+      );
+      return { blocked: rows };
+    }
+  );
+
   // GET /matches/discover — Pinecone vector-matched candidates (falls back to random)
   fastify.get(
     "/discover",
@@ -160,13 +227,15 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
       const limitNum  = Math.min(Math.max(1, parseInt(limit)  || 10), 100);
       const offsetNum = Math.max(0, parseInt(offset) || 0);
 
-      // Collect already-interacted + already-passed user IDs to exclude
-      const [{ rows: interacted }, { rows: passed }] = await Promise.all([
+      // Collect already-interacted + already-passed + blocked user IDs to exclude
+      const [{ rows: interacted }, { rows: passed }, { rows: blockedBy }, { rows: blockedMe }] = await Promise.all([
         db.query(
           "SELECT user_a_id, user_b_id FROM matches WHERE user_a_id = $1 OR user_b_id = $1",
           [payload.userId]
         ),
         db.query("SELECT target_id FROM swipe_passes WHERE user_id = $1", [payload.userId]),
+        db.query("SELECT blocked_id FROM blocked_users WHERE blocker_id = $1", [payload.userId]),
+        db.query("SELECT blocker_id FROM blocked_users WHERE blocked_id = $1", [payload.userId]),
       ]);
 
       const excludeIds = new Set<string>([payload.userId]);
@@ -175,6 +244,8 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
         excludeIds.add(r.user_b_id);
       });
       passed.forEach((r: { target_id: string }) => excludeIds.add(r.target_id));
+      blockedBy.forEach((r: { blocked_id: string }) => excludeIds.add(r.blocked_id));
+      blockedMe.forEach((r: { blocker_id: string }) => excludeIds.add(r.blocker_id));
 
       const excludeArr = Array.from(excludeIds);
 
@@ -251,6 +322,37 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
       const payload = req.user as JwtPayload;
       if (!UUID_RE.test(req.params.targetUserId)) return reply.code(400).send({ error: "Invalid targetUserId" });
       return passSomeone(payload.userId, req.params.targetUserId, reply);
+    }
+  );
+
+  // POST /matches/report/:targetUserId — report a user (creates block + admin flag)
+  fastify.post<{ Params: { targetUserId: string } }>(
+    "/report/:targetUserId",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload  = req.user as JwtPayload;
+      const targetId = req.params.targetUserId;
+      if (!UUID_RE.test(targetId)) return reply.code(400).send({ error: "Invalid targetUserId" });
+      if (payload.userId === targetId) return reply.code(400).send({ error: "Cannot report yourself" });
+
+      const { reason } = (req.body ?? {}) as { reason?: string };
+
+      // Block them (also removes active match)
+      await db.query(
+        `INSERT INTO blocked_users (blocker_id, blocked_id, reason)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (blocker_id, blocked_id) DO UPDATE SET reason = EXCLUDED.reason`,
+        [payload.userId, targetId, reason ?? null]
+      );
+
+      await db.query(
+        `UPDATE matches SET status = 'unmatched'
+         WHERE (user_a_id = $1 AND user_b_id = $2 OR user_a_id = $2 AND user_b_id = $1)
+           AND status = 'matched'`,
+        [payload.userId, targetId]
+      );
+
+      return { reported: true };
     }
   );
 };

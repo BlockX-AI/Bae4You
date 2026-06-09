@@ -92,6 +92,7 @@ async function bootstrap() {
         { name: "couples",     description: "Fantasy Bae — Couple Card co-minting" },
         { name: "bitmoji",     description: "AI Identity Engine — avatar, stickers, couple generation" },
         { name: "kyc",         description: "KYC Verification — photo/video verification for PetCash access" },
+        { name: "safety",      description: "Block, report, and account deletion (GDPR)" },
       ],
     },
   });

@@ -1,0 +1,13 @@
+# Railway service config for the Weekly Ranking worker (cron).
+# In Railway dashboard: create a new service → point to this repo
+# → set Root Directory to "apps/api"
+# → override Start Command to: pnpm worker:ranking
+
+[build]
+builder = "nixpacks"
+buildCommand = "pnpm install"
+
+[deploy]
+startCommand = "pnpm worker:ranking"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

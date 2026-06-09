@@ -228,6 +228,19 @@ CREATE TABLE IF NOT EXISTS swipe_passes (
 
 CREATE INDEX IF NOT EXISTS idx_swipe_passes_user ON swipe_passes (user_id);
 
+-- Block/Report table
+CREATE TABLE IF NOT EXISTS blocked_users (
+  id           UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  blocker_id   UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  blocked_id   UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reason       TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (blocker_id, blocked_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_blocked_blocker ON blocked_users (blocker_id);
+CREATE INDEX IF NOT EXISTS idx_blocked_blocked ON blocked_users (blocked_id);
+
 -- SIWE nonces (one per wallet, short-lived)
 CREATE TABLE IF NOT EXISTS nonces (
   wallet_address VARCHAR(42)  PRIMARY KEY,

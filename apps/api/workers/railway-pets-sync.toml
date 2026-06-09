@@ -1,0 +1,13 @@
+# Railway service config for the Pets-Sync worker.
+# In Railway dashboard: create a new service → point to this repo
+# → set Root Directory to "apps/api"
+# → override Start Command to: pnpm worker:pets
+
+[build]
+builder = "nixpacks"
+buildCommand = "pnpm install"
+
+[deploy]
+startCommand = "pnpm worker:pets"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5

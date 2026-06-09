@@ -1,0 +1,14 @@
+# Railway deployment config for Bae4U API
+# This file configures the MAIN API service.
+# Workers are deployed as separate Railway services (see RAILWAY_WORKERS.md).
+
+[build]
+builder = "nixpacks"
+buildCommand = "pnpm install && pnpm build"
+
+[deploy]
+startCommand = "pnpm start"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
