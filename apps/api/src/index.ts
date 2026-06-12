@@ -107,11 +107,21 @@ async function bootstrap() {
           "https://app.bae4u.com",
           "https://admin.bae4u.com",
           "https://baebackend-production.up.railway.app",
+          "http://localhost:8080",
+          "http://localhost:3000",
+          "http://localhost:4200",
+          "http://localhost:5000",
+          "http://localhost:5001",
+          "http://127.0.0.1:8080",
+          "http://127.0.0.1:3000",
           /\.expo\.dev$/,
           /localhost/,
+          /127\.0\.0\.1/,
         ]
       : true,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
   });
   await app.register(helmet, { contentSecurityPolicy: false });
 
