@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class SwipeCardStack extends StatefulWidget {
@@ -21,7 +22,7 @@ class _SwipeCardStackState extends State<SwipeCardStack>
       price: '2,100 PCASH',
       tags: ['📚 Bookworm', '🍜 Foodie', '✈️ Travel'],
       gradient: const [
-        Color(0xFF7B2FE8),
+        AppColors.primary,
         Color(0xFF4ECDC4),
       ],
       rotation: -2,
@@ -35,7 +36,7 @@ class _SwipeCardStackState extends State<SwipeCardStack>
       price: '1,540 PCASH',
       tags: ['🎸 Musician', '🏔️ Adventure'],
       gradient: const [
-        Color(0xFF9B4FFF),
+        AppColors.primaryLight,
         Color(0xFFFF6BB0),
       ],
       rotation: 3,
@@ -157,7 +158,7 @@ class _SwipeCardStackState extends State<SwipeCardStack>
             child: _ActionButton(
               icon: '✕',
               color: Colors.white,
-              iconColor: const Color(0xFFFF3D8A),
+              iconColor: AppColors.primaryDark,
               onTap: _onPass,
             ),
           ),
@@ -168,7 +169,7 @@ class _SwipeCardStackState extends State<SwipeCardStack>
             child: _ActionButton(
               icon: '💜',
               color: Colors.white,
-              iconColor: const Color(0xFF7B2FE8),
+              iconColor: AppColors.primary,
               onTap: _onLike,
             ),
           ),
@@ -282,7 +283,7 @@ class _SwipeCard extends StatelessWidget {
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: const Color(0xFF5B1FB8),
+                              color: AppColors.primaryDark,
                             ),
                           ),
                         ),

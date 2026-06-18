@@ -3,10 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/landing_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/ui_showcase_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
-import 'screens/interactive_showcase.dart';
 import 'screens/profile_creation_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'screens/pets_marketplace_screen.dart';
@@ -14,7 +12,12 @@ import 'screens/my_pets_screen.dart';
 import 'screens/pet_detail_screen.dart';
 import 'screens/heroes_leaderboard_screen.dart';
 import 'screens/my_hero_stats_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/transaction_history_screen.dart';
+import 'screens/notifications_screen.dart';
+import 'screens/profile_setup_screen.dart';
 import 'providers/auth_provider.dart';
+import 'theme/app_colors.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,44 +39,49 @@ class CatchUpApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF7B2FE8),
-          brightness: Brightness.dark,
+          seedColor: AppColors.primary,
+          brightness: Brightness.light,
+          primary: AppColors.primary,
+          secondary: AppColors.accent,
+          surface: AppColors.surface,
+          background: AppColors.bgTop,
         ),
+        scaffoldBackgroundColor: AppColors.bgTop,
         textTheme: TextTheme(
           displayLarge: GoogleFonts.fredoka(
             fontSize: 56,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.03,
-            color: Colors.white,
+            color: AppColors.textPrimary,
           ),
           displayMedium: GoogleFonts.fredoka(
             fontSize: 40,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.02,
-            color: Colors.white,
+            color: AppColors.textPrimary,
           ),
           titleLarge: GoogleFonts.inter(
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: Colors.white,
+            color: AppColors.textPrimary,
           ),
           bodyLarge: GoogleFonts.inter(
             fontSize: 16,
             fontWeight: FontWeight.w400,
-            color: Colors.white.withOpacity(0.85),
+            color: AppColors.textSecondary,
           ),
           bodyMedium: GoogleFonts.inter(
             fontSize: 14,
             fontWeight: FontWeight.w400,
-            color: Colors.white.withOpacity(0.7),
+            color: AppColors.textHint,
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: const Color(0xFF5B1FB8),
+            backgroundColor: AppColors.primaryDark,
+            foregroundColor: Colors.white,
             elevation: 4,
-            shadowColor: const Color(0xFFE94B9C).withOpacity(0.3),
+            shadowColor: AppColors.primary.withOpacity(0.4),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(999),
@@ -86,8 +94,8 @@ class CatchUpApp extends StatelessWidget {
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.white,
-            side: BorderSide(color: Colors.white.withOpacity(0.18)),
+            foregroundColor: AppColors.primaryDark,
+            side: const BorderSide(color: AppColors.border),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(999),
@@ -98,13 +106,26 @@ class CatchUpApp extends StatelessWidget {
             ),
           ),
         ),
+        appBarTheme: AppBarTheme(
+          backgroundColor: AppColors.bgTop,
+          foregroundColor: AppColors.textPrimary,
+          elevation: 0,
+          titleTextStyle: GoogleFonts.fredoka(
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        cardTheme: const CardThemeData(
+          color: AppColors.surfaceCard,
+          surfaceTintColor: Colors.transparent,
+        ),
+        dividerColor: AppColors.divider,
       ),
       home: const AuthWrapper(),
       routes: {
-        '/ui-showcase': (context) => const UIShowcaseScreen(),
         '/splash': (context) => const SplashScreenWrapper(),
         '/onboarding': (context) => const OnboardingScreenWrapper(),
-        '/interactive': (context) => const InteractiveShowcase(),
         '/create-profile': (context) => const ProfileCreationScreen(),
         '/edit-profile': (context) => const EditProfileScreen(),
         '/pets-marketplace': (context) => const PetsMarketplaceScreen(),
@@ -112,6 +133,10 @@ class CatchUpApp extends StatelessWidget {
         '/pet-detail': (context) => const PetDetailScreen(),
         '/heroes-leaderboard': (context) => const HeroesLeaderboardScreen(),
         '/my-hero-stats': (context) => const MyHeroStatsScreen(),
+        '/settings': (context) => const SettingsScreen(),
+        '/transaction-history': (context) => const TransactionHistoryScreen(),
+        '/notifications': (context) => const NotificationsScreen(),
+        '/profile-setup': (context) => ProfileSetupScreen(onComplete: () => Navigator.pushReplacementNamed(context, '/home')),
         '/home': (context) => const HomeScreen(),
       },
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:share_plus/share_plus.dart';
 
 /// Profile sharing widget
@@ -104,7 +105,7 @@ https://catchup.app
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+          colors: [Color(0xFFFF6BB0), AppColors.primary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -168,12 +169,12 @@ https://catchup.app
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.share, color: Color(0xFF7B2FE8), size: 20),
+                      Icon(Icons.share, color: AppColors.primary, size: 20),
                       SizedBox(width: 8),
                       Text(
                         'Share',
                         style: TextStyle(
-                          color: Color(0xFF7B2FE8),
+                          color: AppColors.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -239,7 +240,7 @@ https://catchup.app/invite/$inviteCode
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+            colors: [Color(0xFFFF6BB0), AppColors.primary],
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [

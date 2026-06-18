@@ -11,6 +11,9 @@ class ApiService {
   
   static const String baseUrl = 'https://baebackend-production.up.railway.app';
   
+  /// Set to true for offline demo mode (no backend required)
+  static const bool demoMode = false;
+  
   ApiService() {
     _dio = Dio(
       BaseOptions(
@@ -52,6 +55,9 @@ class ApiService {
   
   /// GET /auth/nonce/:wallet - Get SIWE nonce for wallet
   Future<NonceResponse> getNonce(String walletAddress) async {
+    if (demoMode) {
+      return NonceResponse(nonce: 'demo_nonce_123456789');
+    }
     try {
       final response = await _dio.get('/auth/nonce/$walletAddress');
       return NonceResponse.fromJson(response.data);
@@ -65,6 +71,17 @@ class ApiService {
     required String message,
     required String signature,
   }) async {
+    if (demoMode) {
+      return AuthResponse(
+        accessToken: 'demo_token_12345',
+        user: UserAuth(
+          id: 'demo_user_123',
+          wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbD',
+          username: 'demo_user',
+          displayName: 'Demo User',
+        ),
+      );
+    }
     try {
       final response = await _dio.post('/auth/siwe', data: {
         'message': message,
@@ -80,6 +97,19 @@ class ApiService {
   
   /// GET /users/me - Get current user profile
   Future<User> getCurrentUser(String token) async {
+    if (demoMode) {
+      return User(
+        id: 'demo_user_123',
+        walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbD',
+        username: 'demo_user',
+        displayName: 'Demo User',
+        bio: 'Demo account for testing',
+        countryCode: 'IN',
+        isVerified: true,
+        emoji: '🎮',
+        interests: ['Gaming', 'Crypto', 'Web3'],
+      );
+    }
     try {
       final response = await _dio.get(
         '/users/me',
@@ -197,6 +227,28 @@ class ApiService {
     String? country,
     required String token,
   }) async {
+    if (demoMode) {
+      // Return mock candidates
+      final mockCandidates = [
+        DiscoverCandidate(
+          id: 'user_1',
+          displayName: 'Sarah',
+          username: 'sarah_c',
+          bio: 'Love hiking and coffee ☕',
+          countryCode: 'US',
+          isVerified: true,
+        ),
+        DiscoverCandidate(
+          id: 'user_2',
+          displayName: 'Alex',
+          username: 'alex_w',
+          bio: 'Web3 developer 🚀',
+          countryCode: 'UK',
+          isVerified: true,
+        ),
+      ];
+      return DiscoverResponse(candidates: mockCandidates);
+    }
     try {
       final queryParams = <String, dynamic>{
         if (limit != null) 'limit': limit,
@@ -222,6 +274,19 @@ class ApiService {
 
   /// GET /matches - Get user's matches
   Future<List<Match>> getMatches(String token) async {
+    if (demoMode) {
+      // Return mock matches
+      return [
+        Match(
+          id: 'match_1',
+          partnerId: 'user_1',
+          username: 'sarah_c',
+          displayName: 'Sarah',
+          matchedAt: DateTime.now(),
+          lastMessage: 'Hey there! 👋',
+        ),
+      ];
+    }
     try {
       final response = await _dio.get(
         '/matches',
@@ -237,6 +302,12 @@ class ApiService {
   
   /// POST /matches/like - Like a user
   Future<MatchResult> likeUser(String targetUserId, String token) async {
+    if (demoMode) {
+      // Return mock like result
+      return MatchResult(
+        isNewMatch: true,
+      );
+    }
     try {
       final response = await _dio.post(
         '/matches/like',
@@ -262,6 +333,24 @@ class ApiService {
     }
   }
   
+  // ============ MESSAGES ENDPOINTS ============
+
+  /// GET /messages/:matchId — load chat history
+  Future<List<Map<String, dynamic>>> getMessageHistory(String matchId, String token, {String? before}) async {
+    try {
+      final queryParams = <String, dynamic>{if (before != null) 'before': before, 'limit': '50'};
+      final response = await _dio.get(
+        '/messages/$matchId',
+        queryParameters: queryParams,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final messages = response.data['messages'] as List<dynamic>;
+      return messages.map((m) => m as Map<String, dynamic>).toList();
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   // ============ HEROES / TOURNAMENTS ============
   
   /// GET /heroes/leaderboard

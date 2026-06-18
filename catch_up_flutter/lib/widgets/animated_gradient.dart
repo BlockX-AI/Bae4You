@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 class AnimatedGradientBackground extends StatefulWidget {
   final Widget child;
@@ -45,9 +46,9 @@ class _AnimatedGradientBackgroundState extends State<AnimatedGradientBackground>
               ),
               radius: 1.2 + 0.2 * sin(value * 2 * pi),
               colors: [
-                const Color(0xFFFF6BB0).withOpacity(0.8 + 0.2 * sin(value * 2 * pi)),
-                const Color(0xFF7B2FE8).withOpacity(0.9),
-                const Color(0xFF2E0B5C),
+                AppColors.primaryLight.withOpacity(0.8 + 0.2 * sin(value * 2 * pi)),
+                AppColors.bgMid.withOpacity(0.9),
+                AppColors.bgTop,
               ],
               stops: [
                 0.0,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
@@ -178,8 +179,8 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
             radius: 1.2,
             colors: [
               Color(0xFFFF6BB0),
-              Color(0xFF7B2FE8),
-              Color(0xFF2E0B5C),
+              AppColors.primary,
+              AppColors.textPrimary,
             ],
             stops: [0.0, 0.4, 1.0],
           ),
@@ -301,7 +302,7 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedCountry ?? 'ALL',
-                          dropdownColor: const Color(0xFF2E0B5C),
+                          dropdownColor: AppColors.textPrimary,
                           icon: const Icon(Icons.arrow_drop_down, color: Colors.white70, size: 20),
                           style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
                           onChanged: (value) {
@@ -340,7 +341,7 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _sortBy,
-                          dropdownColor: const Color(0xFF2E0B5C),
+                          dropdownColor: AppColors.textPrimary,
                           icon: const Icon(Icons.sort, color: Colors.white70, size: 18),
                           style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
                           onChanged: (value) {
@@ -457,7 +458,7 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
             colors: isLocked
                 ? [Colors.grey[800]!, Colors.grey[900]!]
                 : [
-                    const Color(0xFF7B2FE8).withOpacity(0.8),
+                    AppColors.primary.withOpacity(0.8),
                     const Color(0xFFFF6BB0).withOpacity(0.6),
                   ],
             begin: Alignment.topLeft,
@@ -586,7 +587,7 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
       height: 80,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+          colors: [Color(0xFFFF6BB0), AppColors.primary],
         ),
         shape: BoxShape.circle,
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:lottie/lottie.dart';
 
 /// Pre-built Lottie animation widgets for premium UI effects
@@ -41,7 +42,7 @@ class MatchSuccessAnimation extends StatelessWidget {
                     height: 120,
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                        colors: [Color(0xFFFF6BB0), AppColors.primary],
                       ),
                       shape: BoxShape.circle,
                     ),
@@ -60,7 +61,7 @@ class MatchSuccessAnimation extends StatelessWidget {
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF7B2FE8),
+                color: AppColors.primary,
               ),
             ),
             const SizedBox(height: 8),
@@ -96,7 +97,7 @@ class LoadingLottie extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+            colors: [Color(0xFFFF6BB0), AppColors.primary],
           ),
           shape: BoxShape.circle,
           boxShadow: [
@@ -168,7 +169,7 @@ class _HeartBurstAnimationState extends State<HeartBurstAnimation>
               return Transform.scale(
                 scale: 1 + adjustedValue * 2,
                 child: Opacity(
-                  opacity: 1 - adjustedValue,
+                  opacity: (1 - adjustedValue).toDouble(),
                   child: Container(
                     width: 100,
                     height: 100,
@@ -194,7 +195,7 @@ class _HeartBurstAnimationState extends State<HeartBurstAnimation>
                 height: 80,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                    colors: [Color(0xFFFF6BB0), AppColors.primary],
                   ),
                   shape: BoxShape.circle,
                 ),
@@ -260,7 +261,7 @@ class ConfettiCelebration extends StatelessWidget {
             delay: Duration(milliseconds: index * 50),
             color: [
               const Color(0xFFFF6BB0),
-              const Color(0xFF7B2FE8),
+              AppColors.primary,
               const Color(0xFFFFD700),
               const Color(0xFF00FF88),
             ][index % 4],

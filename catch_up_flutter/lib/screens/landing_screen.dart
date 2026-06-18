@@ -8,6 +8,7 @@ import '../widgets/wallet_modal.dart';
 import '../widgets/glow_button.dart';
 import '../widgets/floating_hearts.dart';
 import '../widgets/animated_gradient.dart';
+import '../theme/app_colors.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -26,13 +27,13 @@ class _LandingScreenState extends State<LandingScreen>
   final GlobalKey _featuresKey = GlobalKey();
   final GlobalKey _howItWorksKey = GlobalKey();
 
-  // Brand colors from CSS
-  static const brandPurple = Color(0xFF7B2FE8);
-  static const brandPurpleDeep = Color(0xFF5B1FB8);
-  static const brandPink = Color(0xFFE94B9C);
-  static const brandPinkHot = Color(0xFFFF3D8A);
-  static const brandCream = Color(0xFFFFF8F0);
-  static const ink = Color(0xFF1A0B2E);
+  // Brand colors - pink palette
+  static const brandPurple = AppColors.primary;
+  static const brandPurpleDeep = AppColors.primaryDark;
+  static const brandPink = AppColors.accent;
+  static const brandPinkHot = AppColors.primaryDark;
+  static const brandCream = AppColors.surface;
+  static const ink = AppColors.textPrimary;
 
   @override
   void initState() {
@@ -78,7 +79,7 @@ class _LandingScreenState extends State<LandingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ink,
+      backgroundColor: AppColors.bgTop,
       body: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
           _onScroll(notification);
@@ -199,32 +200,6 @@ class _LandingScreenState extends State<LandingScreen>
             GlowButton(
               text: 'Get Started',
               onPressed: _openWalletModal,
-            ),
-            const SizedBox(width: 12),
-            // Demo Button
-            TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/splash'),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                side: BorderSide(color: const Color(0xFFFF6BB0).withOpacity(0.5)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.auto_awesome, color: Color(0xFFFF6BB0), size: 18),
-                  const SizedBox(width: 6),
-                  Text(
-                    'UI Demo',
-                    style: TextStyle(
-                      color: const Color(0xFFFF6BB0),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -359,7 +334,7 @@ class _LandingScreenState extends State<LandingScreen>
                       colors: [
                         Color(0xFFFFD700),
                         Color(0xFFFF6BB0),
-                        Color(0xFFFF3D8A),
+                        AppColors.primaryDark,
                       ],
                     ).createShader(
                       const Rect.fromLTWH(0, 0, 200, 70),
@@ -649,9 +624,9 @@ class _LandingScreenState extends State<LandingScreen>
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [
-              Color(0xFFE94B9C),
-              Color(0xFF7B2FE8),
-              Color(0xFF5B1FB8),
+              AppColors.accent,
+              AppColors.primary,
+              AppColors.primaryDark,
             ],
           ),
           borderRadius: BorderRadius.circular(32),

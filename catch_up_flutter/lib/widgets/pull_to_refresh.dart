@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'dart:math';
 
 class CustomPullToRefresh extends StatefulWidget {
@@ -122,7 +123,7 @@ class _PullToRefreshHeaderState extends State<PullToRefreshHeader>
                 height: 40,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                    colors: [Color(0xFFFF6BB0), AppColors.primary],
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [

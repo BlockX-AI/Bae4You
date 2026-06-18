@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
@@ -86,7 +87,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2E0B5C),
+        backgroundColor: AppColors.textPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(title, style: GoogleFonts.fredoka(color: Colors.white)),
         content: Column(
@@ -136,8 +137,8 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
             radius: 1.2,
             colors: [
               Color(0xFFFF6BB0),
-              Color(0xFF7B2FE8),
-              Color(0xFF2E0B5C),
+              AppColors.primary,
+              AppColors.textPrimary,
             ],
             stops: [0.0, 0.4, 1.0],
           ),
@@ -196,7 +197,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                      colors: [Color(0xFFFF6BB0), AppColors.primary],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -389,7 +390,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF2E0B5C).withOpacity(0.9),
+            color: AppColors.textPrimary.withOpacity(0.9),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: SafeArea(
@@ -411,7 +412,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: isLocked ? Colors.grey : const Color(0xFFFFD700),
-                          foregroundColor: isLocked ? Colors.white70 : const Color(0xFF2E0B5C),
+                          foregroundColor: isLocked ? Colors.white70 : AppColors.textPrimary,
                           minimumSize: const Size(double.infinity, 56),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),

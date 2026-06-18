@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'dart:math';
 
 class PulsingLoader extends StatefulWidget {
@@ -48,7 +49,7 @@ class _PulsingLoaderState extends State<PulsingLoader>
                 height: widget.size,
                 decoration: BoxDecoration(
                   gradient: const RadialGradient(
-                    colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                    colors: [Color(0xFFFF6BB0), AppColors.primary],
                   ),
                   shape: BoxShape.circle,
                   boxShadow: [
@@ -68,7 +69,7 @@ class _PulsingLoaderState extends State<PulsingLoader>
               height: widget.size * 0.5,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                  colors: [Color(0xFFFF6BB0), AppColors.primary],
                 ),
                 shape: BoxShape.circle,
               ),
@@ -223,7 +224,7 @@ class LoadingOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF2E0B5C).withOpacity(0.9),
+      color: AppColors.textPrimary.withOpacity(0.9),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

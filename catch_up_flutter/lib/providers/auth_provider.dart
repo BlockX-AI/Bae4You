@@ -69,6 +69,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> connectWallet(WalletType type) async {
     state = state.copyWith(isLoading: true, error: null);
 
+    // DEMO MODE: Skip backend entirely
+    if (ApiService.demoMode) {
+      await Future.delayed(const Duration(seconds: 1));
+      
+      final demoUser = User(
+        id: 'demo_user_123',
+        walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbD',
+        username: 'demo_user',
+        displayName: 'Demo User',
+        bio: 'Demo account for testing',
+        countryCode: 'IN',
+        isVerified: true,
+        emoji: '🎮',
+        interests: ['Gaming', 'Crypto', 'Web3'],
+      );
+      
+      await _storage.write(key: 'access_token', value: 'demo_token_12345');
+      
+      state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: true,
+        token: 'demo_token_12345',
+        user: demoUser,
+      );
+      
+      return true;
+    }
+
     try {
       // Generate a valid wallet address (42 chars: 0x + 40 hex)
       final walletAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbD';
@@ -78,57 +106,56 @@ class AuthNotifier extends StateNotifier<AuthState> {
         // Step 1: Get nonce from backend
         final nonceResponse = await _apiService.getNonce(walletAddress);
 
-      // Step 2: Create SIWE message
-      final siweMessage = SiweMessageBuilder(
-        domain: 'catchup.app',
-        address: walletAddress,
-        statement: 'Sign in to Catch Up',
-        uri: 'https://catchup.app',
-        version: '1',
-        chainId: '8453', // Base mainnet
-        nonce: nonceResponse.nonce,
-        issuedAt: DateTime.now(),
-        expirationTime: DateTime.now().add(const Duration(minutes: 5)),
-      ).build();
+        // Step 2: Create SIWE message
+        final siweMessage = SiweMessageBuilder(
+          domain: 'catchup.app',
+          address: walletAddress,
+          statement: 'Sign in to Catch Up',
+          uri: 'https://catchup.app',
+          version: '1',
+          chainId: '8453',
+          nonce: nonceResponse.nonce,
+          issuedAt: DateTime.now(),
+          expirationTime: DateTime.now().add(const Duration(minutes: 5)),
+        ).build();
 
-      // Step 3: Sign message
-      final signature = await _signMessage(siweMessage, type);
+        // Step 3: Sign message
+        final signature = await _signMessage(siweMessage, type);
 
-      // Step 4: Verify SIWE and get JWT
-      final authResponse = await _apiService.verifySiwe(
-        message: siweMessage,
-        signature: signature,
-      );
+        // Step 4: Verify SIWE and get JWT
+        final authResponse = await _apiService.verifySiwe(
+          message: siweMessage,
+          signature: signature,
+        );
 
-      // Step 5: Store token and fetch user
-      await _storage.write(
-        key: 'access_token',
-        value: authResponse.accessToken,
-      );
+        // Step 5: Store token and fetch user
+        await _storage.write(
+          key: 'access_token',
+          value: authResponse.accessToken,
+        );
 
-      final user = await _apiService.getCurrentUser(authResponse.accessToken);
+        final user = await _apiService.getCurrentUser(authResponse.accessToken);
 
-      state = state.copyWith(
-        isLoading: false,
-        isAuthenticated: true,
-        token: authResponse.accessToken,
-        user: user,
-      );
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: true,
+          token: authResponse.accessToken,
+          user: user,
+        );
 
         return true;
       } catch (e) {
-        // Backend failed - use demo mode for testing
-        print('Backend connection failed, using DEMO MODE: $e');
+        // Backend failed - use demo mode
+        print('Backend failed, using demo mode: $e');
         
-        // Simulate successful auth with demo user
-        await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
+        await Future.delayed(const Duration(seconds: 1));
         
         final demoUser = User(
           id: 'demo_user_123',
-          walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbD',
+          walletAddress: walletAddress,
           username: 'demo_user',
           displayName: 'Demo User',
-          bio: 'This is a demo account for testing',
+          bio: 'Demo account for testing',
           countryCode: 'IN',
           isVerified: true,
           emoji: '🎮',

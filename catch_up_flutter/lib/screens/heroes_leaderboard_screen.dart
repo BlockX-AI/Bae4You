@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
@@ -113,7 +114,7 @@ class _HeroesLeaderboardScreenState extends ConsumerState<HeroesLeaderboardScree
           child: Text(
             '#$rank',
             style: GoogleFonts.fredoka(
-              color: rank == 1 ? const Color(0xFF2E0B5C) : Colors.white,
+              color: rank == 1 ? AppColors.textPrimary : Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 14,
             ),
@@ -152,8 +153,8 @@ class _HeroesLeaderboardScreenState extends ConsumerState<HeroesLeaderboardScree
             radius: 1.2,
             colors: [
               Color(0xFFFF6BB0),
-              Color(0xFF7B2FE8),
-              Color(0xFF2E0B5C),
+              AppColors.primary,
+              AppColors.textPrimary,
             ],
             stops: [0.0, 0.4, 1.0],
           ),
@@ -338,7 +339,7 @@ class _HeroesLeaderboardScreenState extends ConsumerState<HeroesLeaderboardScree
             height: rank == 1 ? 80 : 60,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                colors: [Color(0xFFFF6BB0), AppColors.primary],
               ),
               shape: BoxShape.circle,
               border: Border.all(
@@ -436,7 +437,7 @@ class _HeroesLeaderboardScreenState extends ConsumerState<HeroesLeaderboardScree
             height: 44,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                colors: [Color(0xFFFF6BB0), AppColors.primary],
               ),
               shape: BoxShape.circle,
             ),

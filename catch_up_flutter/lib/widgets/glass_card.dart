@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class GlassCard extends StatelessWidget {
@@ -55,7 +56,7 @@ class GlassCard extends StatelessWidget {
                         gradient: LinearGradient(
                           colors: [
                             Color(0xFFFF6BB0),
-                            Color(0xFF9B4FFF),
+                            AppColors.primaryLight,
                           ],
                         ),
                       ),
@@ -113,7 +114,7 @@ class FeatureCard extends StatelessWidget {
                       gradient: LinearGradient(
                         colors: [
                           Color(0xFFFF6BB0),
-                          Color(0xFF9B4FFF),
+                          AppColors.primaryLight,
                         ],
                       ),
                     ),
@@ -128,7 +129,7 @@ class FeatureCard extends StatelessWidget {
                       gradient: const LinearGradient(
                         colors: [
                           Color(0xFFFF6BB0),
-                          Color(0xFF9B4FFF),
+                          AppColors.primaryLight,
                         ],
                       ),
                     ),
@@ -198,7 +199,7 @@ class StepCard extends StatelessWidget {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFE94B9C).withOpacity(0.4),
+                color: AppColors.accent.withOpacity(0.4),
                 blurRadius: 30,
                 offset: const Offset(0, 10),
               ),
@@ -210,7 +211,7 @@ class StepCard extends StatelessWidget {
               style: GoogleFonts.fredoka(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF5B1FB8),
+                color: AppColors.primaryDark,
               ),
             ),
           ),

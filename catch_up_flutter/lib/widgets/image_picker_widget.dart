@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// Profile Photo Upload Widget
@@ -66,7 +67,7 @@ class _ProfilePhotoPickerState extends State<ProfilePhotoPicker>
   void _showImageSourceDialog() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF2E0B5C),
+      backgroundColor: AppColors.textPrimary,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -92,7 +93,7 @@ class _ProfilePhotoPickerState extends State<ProfilePhotoPicker>
                   onTap: () => _pickImage(ImageSource.camera),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.photo_library, color: Color(0xFF7B2FE8)),
+                  leading: const Icon(Icons.photo_library, color: AppColors.primary),
                   title: const Text('Choose from Gallery', style: TextStyle(color: Colors.white)),
                   onTap: () => _pickImage(ImageSource.gallery),
                 ),
@@ -124,7 +125,7 @@ class _ProfilePhotoPickerState extends State<ProfilePhotoPicker>
               height: widget.size,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                  colors: [Color(0xFFFF6BB0), AppColors.primary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),

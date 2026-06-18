@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'dart:math';
 
 class OnboardingScreen extends StatefulWidget {
@@ -28,7 +29,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       title: 'Own Your Connections',
       description: 'Web3 powered dating where you truly own your data and connections',
       icon: Icons.shield,
-      color: const Color(0xFF7B2FE8),
+      color: AppColors.primary,
     ),
     OnboardingPage(
       title: 'Chat & Connect',
@@ -82,8 +83,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             radius: 1.2,
             colors: [
               Color(0xFFFF6BB0),
-              Color(0xFF7B2FE8),
-              Color(0xFF2E0B5C),
+              AppColors.primary,
+              AppColors.textPrimary,
             ],
           ),
         ),
@@ -140,7 +141,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           decoration: BoxDecoration(
                             gradient: isActive
                                 ? const LinearGradient(
-                                    colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                                    colors: [Color(0xFFFF6BB0), AppColors.primary],
                                   )
                                 : null,
                             color: isActive ? null : Colors.white.withOpacity(0.3),
@@ -169,7 +170,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                            colors: [Color(0xFFFF6BB0), AppColors.primary],
                           ),
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [

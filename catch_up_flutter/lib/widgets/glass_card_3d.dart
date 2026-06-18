@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:shimmer/shimmer.dart';
 
 class GlassCard3D extends StatefulWidget {
@@ -450,7 +451,7 @@ class _GlowButtonState extends State<GlowButton>
                 gradient: const LinearGradient(
                   colors: [
                     Color(0xFFFF6BB0),
-                    Color(0xFF7B2FE8),
+                    AppColors.primary,
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -463,7 +464,7 @@ class _GlowButtonState extends State<GlowButton>
                     spreadRadius: 2,
                   ),
                   BoxShadow(
-                    color: const Color(0xFF7B2FE8).withOpacity(glowOpacity * 0.5),
+                    color: AppColors.primary.withOpacity(glowOpacity * 0.5),
                     blurRadius: 40,
                     spreadRadius: 5,
                   ),

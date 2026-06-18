@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -92,7 +93,7 @@ class _ProfileCreationScreenState extends ConsumerState<ProfileCreationScreen>
   void _showImageSourceDialog() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF2E0B5C),
+      backgroundColor: AppColors.textPrimary,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -120,7 +121,7 @@ class _ProfileCreationScreenState extends ConsumerState<ProfileCreationScreen>
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library, color: Color(0xFF7B2FE8)),
+                leading: const Icon(Icons.photo_library, color: AppColors.primary),
                 title: Text('Choose from Gallery', style: GoogleFonts.inter(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(context);
@@ -235,8 +236,8 @@ class _ProfileCreationScreenState extends ConsumerState<ProfileCreationScreen>
             radius: 1.2,
             colors: [
               Color(0xFFFF6BB0),
-              Color(0xFF7B2FE8),
-              Color(0xFF2E0B5C),
+              AppColors.primary,
+              AppColors.textPrimary,
             ],
             stops: [0.0, 0.4, 1.0],
           ),
@@ -382,7 +383,7 @@ class _ProfileCreationScreenState extends ConsumerState<ProfileCreationScreen>
               height: 200,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                  colors: [Color(0xFFFF6BB0), AppColors.primary],
                 ),
                 shape: BoxShape.circle,
                 border: Border.all(
@@ -626,7 +627,7 @@ class _ProfileCreationScreenState extends ConsumerState<ProfileCreationScreen>
                   decoration: BoxDecoration(
                     gradient: isSelected
                         ? const LinearGradient(
-                            colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                            colors: [Color(0xFFFF6BB0), AppColors.primary],
                           )
                         : null,
                     color: isSelected ? null : Colors.white.withOpacity(0.1),

@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 class WaveBackground extends StatefulWidget {
   final Widget child;
@@ -41,8 +42,8 @@ class _WaveBackgroundState extends State<WaveBackground>
               radius: 1.2,
               colors: [
                 Color(0xFFFF6BB0),
-                Color(0xFF7B2FE8),
-                Color(0xFF2E0B5C),
+                AppColors.primary,
+                AppColors.textPrimary,
               ],
             ),
           ),
@@ -56,7 +57,7 @@ class _WaveBackgroundState extends State<WaveBackground>
               size: Size.infinite,
               painter: WavePainter(
                 progress: _controller.value,
-                color: const Color(0xFF7B2FE8),
+                color: AppColors.primary,
               ),
             );
           },

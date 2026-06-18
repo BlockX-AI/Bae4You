@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/match_provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/chat_provider.dart';
 import '../models/user_models.dart';
 import '../services/chat_service.dart';
 import '../models/chat_models.dart';
@@ -15,94 +18,52 @@ class ChatScreen extends ConsumerWidget {
     final matchesAsync = ref.watch(matchesProvider);
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.topCenter,
-            radius: 1.2,
-            colors: [
-              Color(0xFFFF6BB0),
-              Color(0xFF7B2FE8),
-              Color(0xFF2E0B5C),
-            ],
-            stops: [0.0, 0.4, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Messages',
-                      style: GoogleFonts.fredoka(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+      backgroundColor: AppColors.bgTop,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Messages', style: GoogleFonts.fredoka(fontSize: 28, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00C853).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF00C853).withOpacity(0.3)),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.circle,
-                            color: Color(0xFF00FF88),
-                            size: 8,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Online',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Chat list
-              Expanded(
-                child: matchesAsync.when(
-                  data: (matches) => matches.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: matches.length,
-                          itemBuilder: (context, index) {
-                            return _ChatListItem(match: matches[index]);
-                          },
-                        ),
-                  loading: () => const Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.circle, color: Color(0xFF00C853), size: 8),
+                        const SizedBox(width: 6),
+                        Text('Online', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF00C853))),
+                      ],
                     ),
                   ),
-                  error: (err, stack) => _buildErrorState(err.toString()),
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+
+            // Chat list
+            Expanded(
+              child: matchesAsync.when(
+                data: (matches) => matches.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        itemCount: matches.length,
+                        itemBuilder: (context, index) => _ChatListItem(match: matches[index]),
+                      ),
+                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                error: (err, stack) => _buildErrorState(err.toString()),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -114,34 +75,14 @@ class ChatScreen extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.chat_bubble_outline,
-              size: 48,
-              color: Colors.white54,
-            ),
+            width: 100, height: 100,
+            decoration: BoxDecoration(color: AppColors.surfaceCard, shape: BoxShape.circle),
+            child: const Icon(Icons.chat_bubble_outline, size: 48, color: AppColors.primary),
           ),
           const SizedBox(height: 24),
-          Text(
-            'No messages yet',
-            style: GoogleFonts.fredoka(
-              fontSize: 24,
-              color: Colors.white,
-            ),
-          ),
+          Text('No messages yet', style: GoogleFonts.fredoka(fontSize: 24, color: AppColors.textPrimary)),
           const SizedBox(height: 8),
-          Text(
-            'Start chatting with your matches!',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: Colors.white.withOpacity(0.7),
-            ),
-          ),
+          Text('Match someone to start chatting!', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary)),
         ],
       ),
     );
@@ -152,19 +93,9 @@ class ChatScreen extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.error_outline,
-            size: 48,
-            color: Colors.white54,
-          ),
+          const Icon(Icons.error_outline, size: 48, color: AppColors.textHint),
           const SizedBox(height: 16),
-          Text(
-            'Something went wrong',
-            style: GoogleFonts.fredoka(
-              fontSize: 20,
-              color: Colors.white,
-            ),
-          ),
+          Text('Something went wrong', style: GoogleFonts.fredoka(fontSize: 20, color: AppColors.textPrimary)),
         ],
       ),
     );
@@ -199,13 +130,10 @@ class _ChatListItem extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
+          color: hasUnread ? AppColors.surfaceCard : AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: hasUnread
-                ? const Color(0xFFFF6BB0).withOpacity(0.5)
-                : Colors.white.withOpacity(0.2),
-          ),
+          border: Border.all(color: hasUnread ? AppColors.border : AppColors.divider),
+          boxShadow: hasUnread ? [BoxShadow(color: AppColors.primary.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))] : [],
         ),
         child: Row(
           children: [
@@ -214,12 +142,7 @@ class _ChatListItem extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFFFF6BB0),
-                    Color(0xFF7B2FE8),
-                  ],
-                ),
+                gradient: AppColors.buttonGradient,
                 borderRadius: BorderRadius.circular(28),
               ),
               child: Center(
@@ -244,7 +167,7 @@ class _ChatListItem extends StatelessWidget {
                         style: GoogleFonts.fredoka(
                           fontSize: 18,
                           fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       if (match.isVerified == true)
@@ -264,9 +187,7 @@ class _ChatListItem extends StatelessWidget {
                       match.lastMessage!,
                       style: GoogleFonts.inter(
                         fontSize: 14,
-                        color: hasUnread
-                            ? Colors.white
-                            : Colors.white.withOpacity(0.6),
+                        color: hasUnread ? AppColors.textPrimary : AppColors.textHint,
                         fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
                       ),
                       maxLines: 1,
@@ -277,7 +198,7 @@ class _ChatListItem extends StatelessWidget {
                       '${(match.compatibilityScore! * 100).toInt()}% match · Start chatting!',
                       style: GoogleFonts.inter(
                         fontSize: 14,
-                        color: const Color(0xFFFF6BB0),
+                        color: AppColors.accent,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -287,13 +208,7 @@ class _ChatListItem extends StatelessWidget {
 
             // Time
             if (match.lastMessageAt != null)
-              Text(
-                _formatTime(match.lastMessageAt!),
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: Colors.white.withOpacity(0.5),
-                ),
-              ),
+              Text(_formatTime(match.lastMessageAt!), style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint)),
           ],
         ),
       ),
@@ -322,7 +237,7 @@ class _ChatListItem extends StatelessWidget {
 }
 
 // Chat detail screen (for when a match is selected)
-class ChatDetailScreen extends StatefulWidget {
+class ChatDetailScreen extends ConsumerStatefulWidget {
   final String matchId;
   final String displayName;
   final String partnerId;
@@ -335,110 +250,72 @@ class ChatDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<ChatDetailScreen> createState() => _ChatDetailScreenState();
+  ConsumerState<ChatDetailScreen> createState() => _ChatDetailScreenState();
 }
 
-class _ChatDetailScreenState extends State<ChatDetailScreen> {
+class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
-  final List<Map<String, dynamic>> _messages = [];
-  final _chatService = ChatService();
   bool _isConnected = false;
+  ChatService? _chatService;
 
   @override
   void initState() {
     super.initState();
-    _initWebSocket();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initWebSocket());
   }
 
   void _initWebSocket() {
-    // Connect to WebSocket
-    _chatService.connect('mock_token'); // Replace with actual token
-    _chatService.joinMatch(widget.matchId);
-    
-    _chatService.connectionStream.listen((connected) {
-      setState(() => _isConnected = connected);
-    });
-    
-    _chatService.messageStream.listen((message) {
-      setState(() {
-        _messages.add({
-          'text': message.content,
-          'isMe': message.isMe,
-          'time': message.createdAt,
-        });
-      });
+    final token = ref.read(authProvider).token ?? '';
+    _chatService = ref.read(chatServiceProvider);
+    _chatService!.connect(token);
+    _chatService!.joinMatch(widget.matchId);
+    _chatService!.connectionStream.listen((connected) {
+      if (mounted) setState(() => _isConnected = connected);
     });
   }
 
   @override
   void dispose() {
-    _chatService.disconnect();
+    _chatService?.leaveMatch();
     _messageController.dispose();
     super.dispose();
   }
 
   void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
-
-    final content = _messageController.text;
-    
-    // Send via WebSocket
-    _chatService.sendMessage(content, widget.matchId);
-    
-    // Add to local list
-    setState(() {
-      _messages.add({
-        'text': content,
-        'isMe': true,
-        'time': DateTime.now(),
-      });
-    });
-
+    final content = _messageController.text.trim();
+    if (content.isEmpty) return;
+    final userId = ref.read(authProvider).user?.id ?? 'me';
+    _chatService?.sendMessage(content, widget.matchId);
+    ref.read(chatMessagesProvider(widget.matchId).notifier).addLocal(content, userId);
     _messageController.clear();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.topCenter,
-            radius: 1.2,
-            colors: [
-              Color(0xFFFF6BB0),
-              Color(0xFF7B2FE8),
-              Color(0xFF2E0B5C),
-            ],
-            stops: [0.0, 0.4, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(
-                        Icons.arrow_back,
-                        color: Colors.white,
-                      ),
-                    ),
+      backgroundColor: AppColors.bgTop,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: Border(bottom: BorderSide(color: AppColors.divider)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                  ),
                     const SizedBox(width: 8),
                     Container(
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFFFF6BB0),
-                            Color(0xFF7B2FE8),
-                          ],
-                        ),
+                        gradient: AppColors.buttonGradient,
                         borderRadius: BorderRadius.circular(22),
                       ),
                       child: Center(
@@ -453,34 +330,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.displayName,
-                            style: GoogleFonts.fredoka(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
+                          Text(widget.displayName, style: GoogleFonts.fredoka(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
                           Row(
                             children: [
                               Container(
-                                width: 8,
-                                height: 8,
+                                width: 8, height: 8,
                                 decoration: BoxDecoration(
-                                  color: _isConnected
-                                      ? const Color(0xFF00FF88)
-                                      : Colors.orange,
+                                  color: _isConnected ? const Color(0xFF00C853) : Colors.orange,
                                   shape: BoxShape.circle,
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                _isConnected ? 'Online' : 'Connecting...',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: Colors.white.withOpacity(0.7),
-                                ),
-                              ),
+                              Text(_isConnected ? 'Online' : 'Demo mode', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint)),
                             ],
                           ),
                         ],
@@ -492,29 +353,26 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
               // Messages
               Expanded(
-                child: _messages.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Send a message to start chatting!',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: Colors.white.withOpacity(0.7),
+                child: Builder(builder: (context) {
+                  final messagesAsync = ref.watch(chatMessagesProvider(widget.matchId));
+                  return messagesAsync.when(
+                    loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    error: (_, __) => _buildEmptyChat(),
+                    data: (messages) => messages.isEmpty
+                        ? _buildEmptyChat()
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            reverse: true,
+                            itemCount: messages.length,
+                            itemBuilder: (context, index) {
+                              final msg = messages[messages.length - 1 - index];
+                              final isMe = msg['isMe'] == true || msg['sender_id'] == ref.read(authProvider).user?.id;
+                              final sentAt = msg['sent_at'] != null ? DateTime.tryParse(msg['sent_at'] as String) ?? DateTime.now() : DateTime.now();
+                              return _MessageBubble(text: msg['content'] as String? ?? '', isMe: isMe, time: sentAt);
+                            },
                           ),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        reverse: true,
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          final message = _messages[_messages.length - 1 - index];
-                          return _MessageBubble(
-                            text: message['text'],
-                            isMe: message['isMe'],
-                            time: message['time'],
-                          );
-                        },
-                      ),
+                  );
+                }),
               ),
 
               // Input
@@ -526,24 +384,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: AppColors.surface,
                           borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
-                          ),
+                          border: Border.all(color: AppColors.border),
                         ),
                         child: TextField(
                           controller: _messageController,
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                          ),
+                          style: GoogleFonts.inter(color: AppColors.textPrimary),
                           decoration: InputDecoration(
                             hintText: 'Type a message...',
-                            hintStyle: GoogleFonts.inter(
-                              color: Colors.white.withOpacity(0.5),
-                            ),
+                            hintStyle: GoogleFonts.inter(color: AppColors.textHint),
                             border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
+                          onSubmitted: (_) => _sendMessage(),
                         ),
                       ),
                     ),
@@ -551,21 +405,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     GestureDetector(
                       onTap: _sendMessage,
                       child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Color(0xFFFF6BB0),
-                              Color(0xFF7B2FE8),
-                            ],
-                          ),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.send,
-                          color: Colors.white,
-                        ),
+                        width: 48, height: 48,
+                        decoration: const BoxDecoration(gradient: AppColors.buttonGradient, shape: BoxShape.circle),
+                        child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
                       ),
                     ),
                   ],
@@ -574,8 +416,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ],
           ),
         ),
-      ),
-    );
+      );
+  }
+
+  Widget _buildEmptyChat() {
+    return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Text('💬', style: TextStyle(fontSize: 48)),
+      const SizedBox(height: 12),
+      Text('Say hello!', style: GoogleFonts.fredoka(fontSize: 22, color: AppColors.textPrimary)),
+      const SizedBox(height: 4),
+      Text('Start your conversation', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+    ]));
   }
 
   String _getEmojiForName(String name) {
@@ -606,24 +457,11 @@ class _MessageBubble extends StatelessWidget {
           vertical: 12,
         ),
         decoration: BoxDecoration(
-          gradient: isMe
-              ? const LinearGradient(
-                  colors: [
-                    Color(0xFFFF6BB0),
-                    Color(0xFF7B2FE8),
-                  ],
-                )
-              : null,
-          color: isMe ? null : Colors.white.withOpacity(0.1),
+          gradient: isMe ? AppColors.buttonGradient : null,
+          color: isMe ? null : AppColors.surfaceCard,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Text(
-          text,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: Colors.white,
-          ),
-        ),
+        child: Text(text, style: GoogleFonts.inter(fontSize: 14, color: isMe ? Colors.white : AppColors.textPrimary)),
       ),
     );
   }

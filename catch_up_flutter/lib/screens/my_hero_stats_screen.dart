@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
@@ -87,7 +88,7 @@ class _MyHeroStatsScreenState extends ConsumerState<MyHeroStatsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2E0B5C),
+        backgroundColor: AppColors.textPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -148,8 +149,8 @@ class _MyHeroStatsScreenState extends ConsumerState<MyHeroStatsScreen> {
             radius: 1.2,
             colors: [
               Color(0xFFFF6BB0),
-              Color(0xFF7B2FE8),
-              Color(0xFF2E0B5C),
+              AppColors.primary,
+              AppColors.textPrimary,
             ],
             stops: [0.0, 0.4, 1.0],
           ),
@@ -194,7 +195,7 @@ class _MyHeroStatsScreenState extends ConsumerState<MyHeroStatsScreen> {
                               padding: const EdgeInsets.all(24),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                                  colors: [Color(0xFFFF6BB0), AppColors.primary],
                                 ),
                                 borderRadius: BorderRadius.circular(24),
                                 boxShadow: [
@@ -287,21 +288,21 @@ class _MyHeroStatsScreenState extends ConsumerState<MyHeroStatsScreen> {
                                       style: GoogleFonts.fredoka(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
-                                        color: const Color(0xFF2E0B5C),
+                                        color: AppColors.textPrimary,
                                       ),
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
                                       'Claim +${_stats['bonusAmount']} PCASH now',
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFF2E0B5C).withOpacity(0.8),
+                                        color: AppColors.textPrimary.withOpacity(0.8),
                                       ),
                                     ),
                                     const SizedBox(height: 16),
                                     ElevatedButton(
                                       onPressed: _claimBonus,
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF2E0B5C),
+                                        backgroundColor: AppColors.textPrimary,
                                         foregroundColor: Colors.white,
                                         minimumSize: const Size(double.infinity, 48),
                                         shape: RoundedRectangleBorder(
@@ -465,7 +466,7 @@ class _MyHeroStatsScreenState extends ConsumerState<MyHeroStatsScreen> {
                                     icon: '💎',
                                     title: 'Pet Collector',
                                     description: 'Own 5 or more pets',
-                                    color: const Color(0xFF7B2FE8),
+                                    color: AppColors.primary,
                                   ),
                                   const SizedBox(height: 12),
                                   _buildAchievementItem(

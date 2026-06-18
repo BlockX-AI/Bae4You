@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:flutter/services.dart';
 
 class MagneticButton extends StatefulWidget {
@@ -206,7 +207,7 @@ class _FloatingTooltipState extends State<FloatingTooltip>
                         ),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                            colors: [Color(0xFFFF6BB0), AppColors.primary],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [

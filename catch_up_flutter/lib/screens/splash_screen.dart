@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'dart:math';
 
 class AnimatedSplashScreen extends StatefulWidget {
@@ -77,8 +78,8 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
             radius: 1.5,
             colors: [
               Color(0xFFFF6BB0),
-              Color(0xFF7B2FE8),
-              Color(0xFF2E0B5C),
+              AppColors.primary,
+              AppColors.textPrimary,
               Color(0xFF1A0033),
             ],
             stops: [0.0, 0.3, 0.6, 1.0],
@@ -117,7 +118,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
                             height: 150,
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                                colors: [Color(0xFFFF6BB0), AppColors.primary],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
@@ -197,7 +198,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
                           child: Container(
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                                colors: [Color(0xFFFF6BB0), AppColors.primary],
                               ),
                               borderRadius: BorderRadius.circular(2),
                               boxShadow: [

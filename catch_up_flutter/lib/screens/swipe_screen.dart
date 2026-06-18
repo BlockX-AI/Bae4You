@@ -2,421 +2,488 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../theme/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/match_provider.dart';
 import '../models/user_models.dart';
-import '../widgets/animated_background.dart';
+import 'chat_screen.dart';
 
 class SwipeScreen extends ConsumerStatefulWidget {
   const SwipeScreen({super.key});
-
   @override
   ConsumerState<SwipeScreen> createState() => _SwipeScreenState();
 }
 
 class _SwipeScreenState extends ConsumerState<SwipeScreen> {
+  String _activeFilter = 'All';
+  final List<String> _filters = ['All', 'Near Me', 'Verified', 'New'];
+
   @override
   Widget build(BuildContext context) {
     final candidatesAsync = ref.watch(discoverCandidatesProvider);
-
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.topCenter,
-            radius: 1.2,
-            colors: [
-              Color(0xFFFF6BB0),
-              Color(0xFF7B2FE8),
-              Color(0xFF2E0B5C),
-            ],
-            stops: [0.0, 0.4, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Discover',
-                      style: GoogleFonts.fredoka(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.bolt,
-                            color: Color(0xFFFFD700),
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '2,450',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+      backgroundColor: AppColors.bgTop,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            _buildFilters(),
+            Expanded(
+              child: candidatesAsync.when(
+                data: (candidates) => _CardStack(candidates: candidates),
+                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                error: (err, stack) => Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.wifi_off, size: 48, color: AppColors.textHint),
+                    const SizedBox(height: 12),
+                    Text('Could not load profiles', style: GoogleFonts.fredoka(fontSize: 20, color: AppColors.textPrimary)),
+                    const SizedBox(height: 6),
+                    Text(err.toString(), style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint), textAlign: TextAlign.center),
+                  ]),
                 ),
               ),
-
-              // Cards
-              Expanded(
-                child: candidatesAsync.when(
-                  data: (candidates) => _CardStack(candidates: candidates),
-                  loading: () => const Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                    ),
-                  ),
-                  error: (err, stack) => Center(
-                    child: Text(
-                      'Error loading profiles\n$err',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ),
-
-              // Bottom spacing
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+            const SizedBox(height: 12),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Discover 💘', style: GoogleFonts.fredoka(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceCard,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.bolt, color: Color(0xFFFFB300), size: 16),
+                const SizedBox(width: 4),
+                Text('2,450', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              ]),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: _showFilterSheet,
+              child: Container(
+                width: 38, height: 38,
+                decoration: BoxDecoration(color: AppColors.surfaceCard, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
+                child: const Icon(Icons.tune_rounded, color: AppColors.textPrimary, size: 20),
+              ),
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilters() {
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        scrollDirection: Axis.horizontal,
+        itemCount: _filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final active = _filters[i] == _activeFilter;
+          return GestureDetector(
+            onTap: () => setState(() => _activeFilter = _filters[i]),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: active ? AppColors.buttonGradient : null,
+                color: active ? null : AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: active ? Colors.transparent : AppColors.border),
+              ),
+              child: Text(_filters[i], style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: active ? Colors.white : AppColors.textSecondary)),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Filters', style: GoogleFonts.fredoka(fontSize: 24, color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 20),
+          Text('Distance', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+          const SizedBox(height: 8),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(activeTrackColor: AppColors.primary, thumbColor: AppColors.primaryDark, inactiveTrackColor: AppColors.divider),
+            child: Slider(value: 50, min: 5, max: 200, onChanged: (_) {}),
+          ),
+          const SizedBox(height: 16),
+          Text('Age Range', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+          const SizedBox(height: 8),
+          RangeSlider(
+            values: const RangeValues(20, 35),
+            min: 18, max: 60,
+            activeColor: AppColors.primary,
+            inactiveColor: AppColors.divider,
+            onChanged: (_) {},
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryDark, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), padding: const EdgeInsets.symmetric(vertical: 14)),
+              child: Text('Apply Filters', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ]),
       ),
     );
   }
 }
 
-class _CardStack extends StatefulWidget {
+class _CardStack extends ConsumerStatefulWidget {
   final List<DiscoverCandidate> candidates;
-
   const _CardStack({required this.candidates});
-
   @override
-  State<_CardStack> createState() => _CardStackState();
+  ConsumerState<_CardStack> createState() => _CardStackState();
 }
 
-class _CardStackState extends State<_CardStack> {
+class _CardStackState extends ConsumerState<_CardStack> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
+  late AnimationController _animController;
+  Offset _dragOffset = Offset.zero;
+  double _dragAngle = 0;
 
-  void _swipe(bool like) {
-    if (_currentIndex < widget.candidates.length - 1) {
-      setState(() => _currentIndex++);
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+  }
+
+  @override
+  void dispose() { _animController.dispose(); super.dispose(); }
+
+  Future<void> _swipe(bool like) async {
+    if (_currentIndex >= widget.candidates.length) return;
+    final candidate = widget.candidates[_currentIndex];
+    setState(() {
+      _currentIndex++;
+      _dragOffset = Offset.zero;
+      _dragAngle = 0;
+    });
+    if (like) {
+      try {
+        final result = await ref.read(matchActionProvider.notifier).likeUser(candidate.id);
+        // matchActionProvider returns void; check via provider state
+        if (mounted) {
+          final actionState = ref.read(matchActionProvider);
+          if (actionState is AsyncData) {
+            // Randomly show match popup for demo when backend confirms like
+            // Real: check MatchResult.isNewMatch from API
+          }
+        }
+      } catch (_) {}
+      _maybeShowMatchPopup(candidate);
+    } else {
+      try { await ref.read(matchActionProvider.notifier).passUser(candidate.id); } catch (_) {}
     }
+  }
+
+  void _maybeShowMatchPopup(DiscoverCandidate candidate) {
+    // 30% chance in demo; real: backend returns isNewMatch=true
+    final isMatch = (math.Random().nextInt(10) < 3);
+    if (!isMatch || !mounted) return;
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (_) => _MatchPopup(candidate: candidate),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     if (_currentIndex >= widget.candidates.length) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '🎉',
-              style: GoogleFonts.fredoka(fontSize: 64),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No more profiles!',
-              style: GoogleFonts.fredoka(
-                fontSize: 24,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Check back later for more matches',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: Colors.white.withOpacity(0.7),
-              ),
-            ),
-          ],
+      return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Text('🎉', style: TextStyle(fontSize: 64)),
+        const SizedBox(height: 16),
+        Text('You\'ve seen everyone!', style: GoogleFonts.fredoka(fontSize: 24, color: AppColors.textPrimary)),
+        const SizedBox(height: 8),
+        Text('Check back soon for new profiles', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary)),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: () => setState(() => _currentIndex = 0),
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryDark, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+          child: Text('Start Over', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
         ),
-      );
+      ]));
     }
 
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Next card (preview)
-        if (_currentIndex + 1 < widget.candidates.length)
-          Transform.scale(
-            scale: 0.95,
-            child: _ProfileCard(
-              candidate: widget.candidates[_currentIndex + 1],
-              isTop: false,
+    final screenW = MediaQuery.of(context).size.width;
+    final swipeProgress = (_dragOffset.dx / screenW).clamp(-1.0, 1.0);
+
+    return Column(children: [
+      Expanded(
+        child: Stack(alignment: Alignment.center, children: [
+          // Background card
+          if (_currentIndex + 1 < widget.candidates.length)
+            Transform.scale(
+              scale: 0.92 + 0.08 * (_dragOffset.dx.abs() / 150).clamp(0.0, 1.0),
+              child: _ProfileCard(candidate: widget.candidates[_currentIndex + 1], isTop: false, swipeProgress: 0),
+            ),
+          // Top draggable card
+          GestureDetector(
+            onPanUpdate: (details) => setState(() {
+              _dragOffset += details.delta;
+              _dragAngle = (_dragOffset.dx / screenW) * 0.4;
+            }),
+            onPanEnd: (_) {
+              if (_dragOffset.dx > 100) _swipe(true);
+              else if (_dragOffset.dx < -100) _swipe(false);
+              else setState(() { _dragOffset = Offset.zero; _dragAngle = 0; });
+            },
+            child: Transform.translate(
+              offset: _dragOffset,
+              child: Transform.rotate(
+                angle: _dragAngle,
+                child: _ProfileCard(candidate: widget.candidates[_currentIndex], isTop: true, swipeProgress: swipeProgress),
+              ),
             ),
           ),
-
-        // Current card
-        Draggable<
-        Map
-        <String, dynamic>>(
-          data: {'like': true},
-          feedback: _ProfileCard(
-            candidate: widget.candidates[_currentIndex],
-            isTop: true,
-            isDragging: true,
-          ),
-          childWhenDragging: const SizedBox(),
-          onDragEnd: (details) {
-            if (details.offset.dx > 100) {
-              _swipe(true);
-            } else if (details.offset.dx < -100) {
-              _swipe(false);
-            }
-          },
-          child: _ProfileCard(
-            candidate: widget.candidates[_currentIndex],
-            isTop: true,
-          ),
-        ),
-      ],
-    );
+        ]),
+      ),
+      // Action Buttons
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+          _ActionButton(icon: Icons.close_rounded, color: Colors.white, iconColor: const Color(0xFFFF5252), onTap: () { _swipe(false); }, size: 60, borderColor: const Color(0xFFFFCDD2)),
+          _ActionButton(icon: Icons.star_rounded, color: Colors.white, iconColor: const Color(0xFFFFB300), onTap: () {}, size: 48, borderColor: const Color(0xFFFFF9C4)),
+          _ActionButton(icon: Icons.favorite_rounded, gradient: AppColors.buttonGradient, iconColor: Colors.white, onTap: () { _swipe(true); }, size: 60, borderColor: Colors.transparent),
+        ]),
+      ),
+    ]);
   }
 }
 
 class _ProfileCard extends StatelessWidget {
   final DiscoverCandidate candidate;
   final bool isTop;
-  final bool isDragging;
+  final double swipeProgress;
 
-  const _ProfileCard({
-    required this.candidate,
-    required this.isTop,
-    this.isDragging = false,
-  });
+  const _ProfileCard({required this.candidate, required this.isTop, required this.swipeProgress});
 
   @override
   Widget build(BuildContext context) {
-    final displayName = candidate.displayName ?? candidate.username ?? 'Anonymous';
-    final avatarEmoji = _getEmojiForName(displayName);
+    final name = candidate.displayName ?? candidate.username ?? 'Anonymous';
+    final emoji = ['😊','🎨','🎸','📚','🏔️','☕','🌟','🎯','🔥','💫'][name.length % 10];
+    final compat = 72 + (name.length * 3 % 25);
+    final isLiking = swipeProgress > 0.15;
+    final isDisliking = swipeProgress < -0.15;
 
-    return Container(
-      width: 340,
-      height: 480,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFFFF6BB0).withOpacity(0.8),
-            const Color(0xFF7B2FE8).withOpacity(0.8),
-          ],
+    return Stack(children: [
+      Container(
+        width: 320,
+        height: 460,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: isLiking ? AppColors.primary.withOpacity(0.6) : isDisliking ? const Color(0xFFFF5252).withOpacity(0.4) : AppColors.border, width: isLiking || isDisliking ? 2 : 1),
+          boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.15), blurRadius: 24, offset: const Offset(0, 8))],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Stack(
-          children: [
-            // Gradient overlay
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: Column(children: [
+            // Photo area
+            Expanded(
+              flex: 3,
               child: Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.8),
-                    ],
+                decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.bgMid, AppColors.primaryLight])),
+                child: Stack(children: [
+                  Center(child: Text(emoji, style: const TextStyle(fontSize: 100))),
+                  // Compatibility badge
+                  Positioned(top: 14, right: 14,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), borderRadius: BorderRadius.circular(20)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.favorite, size: 12, color: AppColors.accent),
+                        const SizedBox(width: 4),
+                        Text('$compat%', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                      ]),
+                    ),
                   ),
-                ),
-              ),
-            ),
-
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Verification badge
                   if (candidate.isVerified == true)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00FF88),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.verified,
-                            size: 14,
-                            color: Color(0xFF1A0738),
-                          ),
+                    Positioned(top: 14, left: 14,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: const Color(0xFF00C853), borderRadius: BorderRadius.circular(20)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.verified, size: 12, color: Colors.white),
                           const SizedBox(width: 4),
-                          Text(
-                            'Verified',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF1A0738),
-                            ),
-                          ),
-                        ],
+                          Text('Verified', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                        ]),
                       ),
                     ),
-
-                  const Spacer(),
-
-                  // Avatar emoji
-                  Center(
-                    child: Text(
-                      avatarEmoji,
-                      style: const TextStyle(fontSize: 100),
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // Name
-                  Text(
-                    displayName,
-                    style: GoogleFonts.fredoka(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  // Location
-                  if (candidate.countryCode != null)
-                    Text(
-                      '📍 ${candidate.countryCode}',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
-
-                  const SizedBox(height: 12),
-
-                  // Bio
-                  if (candidate.bio != null)
-                    Text(
-                      candidate.bio!,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.7),
-                        height: 1.4,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
+                ]),
               ),
             ),
-          ],
+            // Info area
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Expanded(child: Text(name, style: GoogleFonts.fredoka(fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.textPrimary))),
+                    if (candidate.countryCode != null)
+                      Text('📍 ${candidate.countryCode}', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textHint)),
+                  ]),
+                  const SizedBox(height: 6),
+                  // Compatibility bar
+                  Row(children: [
+                    Text('Match', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint)),
+                    const SizedBox(width: 8),
+                    Expanded(child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: compat / 100,
+                        backgroundColor: AppColors.divider,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryDark),
+                        minHeight: 6,
+                      ),
+                    )),
+                    const SizedBox(width: 8),
+                    Text('$compat%', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+                  ]),
+                  const SizedBox(height: 8),
+                  if (candidate.bio != null)
+                    Text(candidate.bio!, style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis),
+                ]),
+              ),
+            ),
+          ]),
         ),
       ),
-    );
-  }
-
-  String _getEmojiForName(String name) {
-    final emojis = ['😊', '🎨', '🎸', '📚', '🏔️', '☕', '🌟', '🎯', '🔥', '💫'];
-    return emojis[name.length % emojis.length];
+      // Like / Nope overlay
+      if (isLiking)
+        Positioned(top: 20, left: 20,
+          child: Transform.rotate(angle: -0.3,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(border: Border.all(color: AppColors.primary, width: 3), borderRadius: BorderRadius.circular(10)),
+              child: Text('LIKE', style: GoogleFonts.fredoka(fontSize: 28, color: AppColors.primary, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ),
+      if (isDisliking)
+        Positioned(top: 20, right: 20,
+          child: Transform.rotate(angle: 0.3,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(border: Border.all(color: const Color(0xFFFF5252), width: 3), borderRadius: BorderRadius.circular(10)),
+              child: Text('NOPE', style: GoogleFonts.fredoka(fontSize: 28, color: Color(0xFFFF5252), fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ),
+    ]);
   }
 }
 
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final Color? color;
-  final List<Color>? gradient;
+  final LinearGradient? gradient;
   final Color iconColor;
   final VoidCallback onTap;
   final double size;
+  final Color borderColor;
 
-  const _ActionButton({
-    required this.icon,
-    this.color,
-    this.gradient,
-    required this.iconColor,
-    required this.onTap,
-    this.size = 56,
-  });
+  const _ActionButton({required this.icon, this.color, this.gradient, required this.iconColor, required this.onTap, this.size = 56, required this.borderColor});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: size,
-        height: size,
+        width: size, height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: color,
-          gradient: gradient != null
-              ? LinearGradient(
-                  colors: gradient!,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
+          gradient: gradient,
+          border: Border.all(color: borderColor, width: 1.5),
+          boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4))],
+        ),
+        child: Icon(icon, color: iconColor, size: size * 0.42),
+      ),
+    );
+  }
+}
+
+// ── Match Popup ────────────────────────────────────────────────
+class _MatchPopup extends StatelessWidget {
+  final DiscoverCandidate candidate;
+  const _MatchPopup({required this.candidate});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = candidate.displayName ?? candidate.username ?? 'Someone';
+    final emoji = ['😊','🎨','🎸','📚','🏔️','☕','🌟','🎯','🔥','💫'][name.length % 10];
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 40, spreadRadius: 8)],
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ShaderMask(
+            shaderCallback: (bounds) => AppColors.buttonGradient.createShader(bounds),
+            child: Text('It\'s a Match! 💘', style: GoogleFonts.fredoka(fontSize: 32, fontWeight: FontWeight.w700, color: Colors.white)),
+          ),
+          const SizedBox(height: 8),
+          Text('You and $name liked each other!', style: GoogleFonts.inter(fontSize: 15, color: AppColors.textSecondary), textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Container(width: 72, height: 72, decoration: BoxDecoration(gradient: AppColors.buttonGradient, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3)), child: Center(child: Text('🙂', style: const TextStyle(fontSize: 36)))),
+            const SizedBox(width: 8),
+            const Icon(Icons.favorite, color: AppColors.primary, size: 28),
+            const SizedBox(width: 8),
+            Container(width: 72, height: 72, decoration: BoxDecoration(gradient: AppColors.buttonGradient, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3)), child: Center(child: Text(emoji, style: const TextStyle(fontSize: 36)))),
+          ]),
+          const SizedBox(height: 28),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => ChatDetailScreen(matchId: 'new', displayName: name, partnerId: candidate.id)));
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryDark, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+              child: Text('Send a Message 💬', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15)),
             ),
-          ],
-        ),
-        child: Icon(
-          icon,
-          color: iconColor,
-          size: size * 0.4,
-        ),
+          ),
+          const SizedBox(height: 10),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Keep Swiping', style: GoogleFonts.inter(color: AppColors.textHint, fontSize: 14)),
+          ),
+        ]),
       ),
     );
   }

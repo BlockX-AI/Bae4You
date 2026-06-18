@@ -1,0 +1,6 @@
+[build]
+  command = "flutter build web --release --no-tree-shake-icons"
+  publish = "build/web"
+
+[build.environment]
+  FLUTTER_VERSION = "3.44.1"

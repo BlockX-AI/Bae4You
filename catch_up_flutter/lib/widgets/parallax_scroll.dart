@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 class ParallaxScrollView extends StatefulWidget {
   final List<Widget> children;
@@ -106,8 +107,8 @@ class BlurStickyHeader extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                const Color(0xFF2E0B5C).withOpacity(0.95),
-                const Color(0xFF2E0B5C).withOpacity(0.8),
+                AppColors.textPrimary.withOpacity(0.95),
+                AppColors.textPrimary.withOpacity(0.8),
               ],
             ),
           ),

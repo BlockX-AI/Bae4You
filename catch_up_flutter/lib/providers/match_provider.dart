@@ -3,9 +3,6 @@ import '../models/user_models.dart';
 import '../services/api_service.dart';
 import 'auth_provider.dart';
 
-// API Service provider
-final apiServiceProvider = Provider<ApiService>((ref) => ApiService());
-
 // Discover candidates provider
 final discoverCandidatesProvider = FutureProvider<List<DiscoverCandidate>>((ref) async {
   final apiService = ref.read(apiServiceProvider);

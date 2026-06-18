@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -100,7 +101,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   void _showImageSourceDialog() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF2E0B5C),
+      backgroundColor: AppColors.textPrimary,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -128,7 +129,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library, color: Color(0xFF7B2FE8)),
+                leading: const Icon(Icons.photo_library, color: AppColors.primary),
                 title: Text('Choose from Gallery', style: GoogleFonts.inter(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(context);
@@ -244,8 +245,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             radius: 1.2,
             colors: [
               Color(0xFFFF6BB0),
-              Color(0xFF7B2FE8),
-              Color(0xFF2E0B5C),
+              AppColors.primary,
+              AppColors.textPrimary,
             ],
             stops: [0.0, 0.4, 1.0],
           ),
@@ -318,7 +319,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                   height: 120,
                                   decoration: BoxDecoration(
                                     gradient: const LinearGradient(
-                                      colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                                      colors: [Color(0xFFFF6BB0), AppColors.primary],
                                     ),
                                     shape: BoxShape.circle,
                                     border: Border.all(
@@ -491,7 +492,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
                               value: _selectedCountry,
-                              dropdownColor: const Color(0xFF2E0B5C),
+                              dropdownColor: AppColors.textPrimary,
                               isExpanded: true,
                               icon: const Icon(Icons.arrow_drop_down, color: Colors.white70),
                               style: GoogleFonts.inter(color: Colors.white),
@@ -541,7 +542,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                 decoration: BoxDecoration(
                                   gradient: isSelected
                                       ? const LinearGradient(
-                                          colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+                                          colors: [Color(0xFFFF6BB0), AppColors.primary],
                                         )
                                       : null,
                                   color: isSelected ? null : Colors.white.withOpacity(0.1),
@@ -707,7 +708,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2E0B5C),
+        backgroundColor: AppColors.textPrimary,
         title: Text('Sign Out?', style: GoogleFonts.fredoka(color: Colors.white)),
         content: Text(
           'Are you sure you want to sign out?',
@@ -739,7 +740,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2E0B5C),
+        backgroundColor: AppColors.textPrimary,
         title: Text('Delete Account?', style: GoogleFonts.fredoka(color: Colors.red)),
         content: Text(
           'This action cannot be undone. All your data will be permanently deleted.',

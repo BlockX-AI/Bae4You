@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 
@@ -51,7 +52,7 @@ class CachedProfileImage extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFFF6BB0), Color(0xFF7B2FE8)],
+          colors: [Color(0xFFFF6BB0), AppColors.primary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -131,7 +132,7 @@ class CachedCardImage extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF7B2FE8).withOpacity(0.8),
+            AppColors.primary.withOpacity(0.8),
             const Color(0xFFFF6BB0).withOpacity(0.8),
           ],
           begin: Alignment.topLeft,
@@ -152,7 +153,7 @@ class CachedCardImage extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFF2E0B5C),
+        color: AppColors.textPrimary,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Center(

@@ -24,29 +24,19 @@ dependencies:
   dio: ^5.4.0
   web_socket_channel: ^2.4.0
   
-  # Web3 / Wallet
-  web3dart: ^2.7.1
-  
   # Storage
-  shared_preferences: ^2.2.2
-  flutter_secure_storage: ^9.0.0
+  flutter_secure_storage: ^9.2.4
   
   # Utils
   logger: ^2.0.2+1
-  url_launcher: ^6.2.2
   
   # Recommended Upgrades
-  http: ^1.1.0                    # Simple API calls
-  connectivity_plus: ^5.0.2       # Check internet connection
   cached_network_image: ^3.3.1    # Image caching for profiles
-  flutter_svg: ^2.0.9             # SVG icons support
   lottie: ^3.0.0                  # JSON animations (premium feel)
   timeago: ^3.6.0                # "2 mins ago" formatting
   intl: ^0.18.1                   # Date formatting, localization
-  share_plus: ^7.2.2              # Share profile/match
-  image_picker: ^1.0.7            # Upload profile photos
-  crypto: ^3.0.3                  # Cryptographic functions
-  uuid: ^4.3.0                    # Generate unique IDs
+  share_plus: ^10.1.4             # Share profile/match
+  image_picker: ^1.1.2            # Upload profile photos
   
 dev_dependencies:
   flutter_test:

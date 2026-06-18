@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_colors.dart';
 
 class WalletModal extends ConsumerWidget {
   const WalletModal({super.key});
@@ -17,27 +18,28 @@ class WalletModal extends ConsumerWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFF2E0B5C),
-            Color(0xFF1A0738),
+            AppColors.surface,
+            AppColors.bgTop,
           ],
         ),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         border: Border.all(
-          color: Colors.white.withOpacity(0.18),
+          color: AppColors.border,
         ),
       ),
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               // Handle
               Container(
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
+                  color: AppColors.primaryDark.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -50,7 +52,7 @@ class WalletModal extends ConsumerWidget {
                 style: GoogleFonts.fredoka(
                   fontSize: 26,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                 ),
               ),
 
@@ -60,34 +62,7 @@ class WalletModal extends ConsumerWidget {
                 'Choose how you want to sign in',
                 style: GoogleFonts.inter(
                   fontSize: 15,
-                  color: Colors.white.withOpacity(0.7),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Demo mode badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withOpacity(0.5)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.info_outline, color: Colors.orange, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      'DEMO MODE: Backend offline, using mock data',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.orange,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                  color: AppColors.textSecondary,
                 ),
               ),
 
@@ -147,7 +122,7 @@ class WalletModal extends ConsumerWidget {
                   onPressed: () => Navigator.pop(context),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: BorderSide(color: Colors.white.withOpacity(0.18)),
+                    side: BorderSide(color: AppColors.border),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -156,7 +131,7 @@ class WalletModal extends ConsumerWidget {
                     'Cancel',
                     style: GoogleFonts.inter(
                       fontSize: 15,
-                      color: Colors.white.withOpacity(0.7),
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ),
@@ -165,39 +140,40 @@ class WalletModal extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  void _connectWallet(BuildContext context, WidgetRef ref, WalletType type) {
-    // Show loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(
-          color: Colors.white,
-        ),
+void _connectWallet(BuildContext context, WidgetRef ref, WalletType type) {
+  // Show loading
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(
+      child: CircularProgressIndicator(
+        color: AppColors.textPrimary,
       ),
-    );
+    ),
+  );
 
-    // Trigger auth flow
-    ref.read(authProvider.notifier).connectWallet(type).then((success) {
-      Navigator.pop(context); // Close loading
-      if (success) {
-        Navigator.pop(context); // Close modal
-        // Navigate to main app
-        // Navigator.pushReplacement(...)
-      } else {
-        // Show error
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Connection failed. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    });
-  }
+  // Trigger auth flow
+  ref.read(authProvider.notifier).connectWallet(type).then((success) {
+    Navigator.pop(context); // Close loading
+    if (success) {
+      Navigator.pop(context); // Close modal
+      // Navigate to main app
+      // Navigator.pushReplacement(...)
+    } else {
+      // Show error
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connection failed. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  });
+}
 }
 
 class _WalletOption extends StatelessWidget {
@@ -222,10 +198,10 @@ class _WalletOption extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.08),
+          color: AppColors.surfaceCard,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Colors.white.withOpacity(0.18),
+            color: AppColors.border,
           ),
         ),
         child: Row(
@@ -236,12 +212,7 @@ class _WalletOption extends StatelessWidget {
               height: 44,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFFFF6BB0),
-                    Color(0xFF9B4FFF),
-                  ],
-                ),
+                gradient: AppColors.buttonGradient,
               ),
               child: Center(
                 child: Text(
@@ -265,7 +236,7 @@ class _WalletOption extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       if (tag != null) ...[
@@ -296,7 +267,7 @@ class _WalletOption extends StatelessWidget {
                     description,
                     style: GoogleFonts.inter(
                       fontSize: 13,
-                      color: Colors.white.withOpacity(0.6),
+                      color: AppColors.textHint,
                     ),
                   ),
                 ],
@@ -306,7 +277,7 @@ class _WalletOption extends StatelessWidget {
             // Arrow
             Icon(
               Icons.chevron_right,
-              color: Colors.white.withOpacity(0.4),
+              color: AppColors.textHint,
             ),
           ],
         ),

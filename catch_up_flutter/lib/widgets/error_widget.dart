@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class CatchUpErrorWidget extends StatelessWidget {
@@ -123,7 +124,7 @@ class EmptyStateWidget extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [
                     const Color(0xFFFF6BB0).withOpacity(0.3),
-                    const Color(0xFF7B2FE8).withOpacity(0.3),
+                    AppColors.primary.withOpacity(0.3),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(60),

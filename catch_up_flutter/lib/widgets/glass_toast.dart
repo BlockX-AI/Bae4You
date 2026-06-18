@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'dart:ui';
 
 enum ToastType { success, error, info, warning }
@@ -85,7 +86,7 @@ class _ToastWidgetState extends State<_ToastWidget>
       case ToastType.warning:
         return const Color(0xFFFFA726);
       case ToastType.info:
-        return const Color(0xFF7B2FE8);
+        return AppColors.primary;
     }
   }
 

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 class AnimatedBackground extends StatefulWidget {
   const AnimatedBackground({super.key});
@@ -53,8 +54,8 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
               radius: 1.2,
               colors: [
                 Color(0xFFFF6BB0),
-                Color(0xFF7B2FE8),
-                Color(0xFF2E0B5C),
+                AppColors.primary,
+                AppColors.textPrimary,
               ],
               stops: [0.0, 0.4, 1.0],
             ),
