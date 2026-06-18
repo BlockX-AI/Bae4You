@@ -269,3 +269,218 @@ CREATE TABLE IF NOT EXISTS hero_cards (
 CREATE INDEX IF NOT EXISTS idx_hero_cards_user ON hero_cards(user_id);
 CREATE INDEX IF NOT EXISTS idx_hero_cards_number ON hero_cards(card_number);
 CREATE INDEX IF NOT EXISTS idx_hero_cards_tier ON hero_cards(tier);
+
+-- ============================================
+-- TRADING CORE - Added for pet marketplace
+-- ============================================
+
+-- Enums for trading
+DO $$ BEGIN
+  CREATE TYPE bid_status_t AS ENUM ('active', 'expired', 'accepted', 'withdrawn');
+  EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE tx_type_t AS ENUM ('buy', 'bid_place', 'list_for_sale', 'bid_accepted');
+  EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+-- Extend users table with trading fields
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS pcash_balance INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS gold_balance INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS current_value INTEGER NOT NULL DEFAULT 0,
+  ADD CONSTRAINT chk_pcash_nonnegative CHECK (pcash_balance >= 0);
+
+-- Pets ownership (tracks who owns which pet)
+CREATE TABLE IF NOT EXISTS pets_ownership (
+  id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  owner_id        UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pet_id          BIGINT      NOT NULL REFERENCES pets_state(token_id) ON DELETE CASCADE,
+  purchase_price  INTEGER     NOT NULL,
+  purchased_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  released_at     TIMESTAMPTZ,
+  locked_until    TIMESTAMPTZ
+);
+
+-- Partial unique index: one active ownership per pet
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pets_ownership_active
+  ON pets_ownership (pet_id)
+  WHERE released_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_pets_ownership_owner ON pets_ownership (owner_id);
+CREATE INDEX IF NOT EXISTS idx_pets_ownership_pet ON pets_ownership (pet_id);
+
+-- Value history (tracks value changes over time)
+CREATE TABLE IF NOT EXISTS value_history (
+  id         UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  old_value  INTEGER     NOT NULL,
+  new_value  INTEGER     NOT NULL,
+  reason     TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_value_history_user ON value_history (user_id);
+CREATE INDEX IF NOT EXISTS idx_value_history_created ON value_history (created_at DESC);
+
+-- Transactions (buy/sell/bid audit log)
+CREATE TABLE IF NOT EXISTS transactions (
+  id            UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  type          tx_type_t   NOT NULL,
+  buyer_id      UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pet_id        BIGINT      NOT NULL REFERENCES pets_state(token_id) ON DELETE CASCADE,
+  prev_owner_id UUID        REFERENCES users(id) ON DELETE SET NULL,
+  amount        INTEGER     NOT NULL,
+  value_after   INTEGER     NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_buyer ON transactions (buyer_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_pet ON transactions (pet_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions (type);
+
+-- Bids (active and historical)
+CREATE TABLE IF NOT EXISTS bids (
+  id         UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  bidder_id  UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pet_id     BIGINT      NOT NULL REFERENCES pets_state(token_id) ON DELETE CASCADE,
+  amount     INTEGER     NOT NULL,
+  status     bid_status_t NOT NULL DEFAULT 'active',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '7 days')
+);
+
+CREATE INDEX IF NOT EXISTS idx_bids_bidder ON bids (bidder_id);
+CREATE INDEX IF NOT EXISTS idx_bids_pet ON bids (pet_id);
+CREATE INDEX IF NOT EXISTS idx_bids_active ON bids (pet_id, amount DESC) WHERE status = 'active';
+
+-- ============================================
+-- BUY PET STORED FUNCTION (atomic transaction)
+-- ============================================
+
+CREATE OR REPLACE FUNCTION buy_pet(p_pet_id BIGINT, p_buyer_id UUID)
+RETURNS JSONB AS $$
+DECLARE
+  v_current_price INTEGER;
+  v_new_price INTEGER;
+  v_delta INTEGER;
+  v_prev_owner_id UUID;
+  v_bought_user_id UUID;
+  v_buyer_pcash INTEGER;
+  v_buyer_count INTEGER;
+  v_pet_locked_until TIMESTAMPTZ;
+  v_transaction_id UUID;
+  v_result JSONB;
+BEGIN
+  -- Lock pet row first (prevent concurrent buys)
+  SELECT current_price_wei, user_address, is_locked, lock_expiry
+  INTO v_current_price, v_bought_user_id, v_pet_locked, v_pet_locked_until
+  FROM pets_state
+  WHERE token_id = p_pet_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('error', 'Pet not found', 'code', 'ERR_NOT_FOUND');
+  END IF;
+
+  -- Check if pet is locked
+  IF v_pet_locked AND v_pet_locked_until > NOW() THEN
+    RETURN jsonb_build_object('error', 'Pet is locked', 'code', 'ERR_PET_LOCKED');
+  END IF;
+
+  -- Check if buyer already owns this pet
+  SELECT id INTO v_prev_owner_id
+  FROM pets_ownership
+  WHERE pet_id = p_pet_id AND owner_id = p_buyer_id AND released_at IS NULL;
+
+  IF FOUND THEN
+    RETURN jsonb_build_object('error', 'Already own this pet', 'code', 'ERR_ALREADY_OWNED');
+  END IF;
+
+  -- Get buyer's PCASH and ownership count
+  SELECT pcash_balance, (
+    SELECT COUNT(*) FROM pets_ownership 
+    WHERE owner_id = p_buyer_id AND released_at IS NULL
+  ) INTO v_buyer_pcash, v_buyer_count
+  FROM users WHERE id = p_buyer_id;
+
+  -- Check ownership limit (400 max)
+  IF v_buyer_count >= 400 THEN
+    RETURN jsonb_build_object('error', 'Ownership limit reached', 'code', 'ERR_OWNERSHIP_LIMIT');
+  END IF;
+
+  -- Calculate new price (110% of current)
+  v_new_price := (v_current_price * 110) / 100;
+  v_delta := v_new_price - v_current_price;
+
+  -- Check sufficient funds
+  IF v_buyer_pcash < v_new_price THEN
+    RETURN jsonb_build_object('error', 'Insufficient funds', 'code', 'ERR_INSUFFICIENT_FUNDS');
+  END IF;
+
+  -- Get previous owner (if any)
+  SELECT owner_id INTO v_prev_owner_id
+  FROM pets_ownership
+  WHERE pet_id = p_pet_id AND released_at IS NULL
+  FOR UPDATE;
+
+  -- Debit buyer
+  UPDATE users SET pcash_balance = pcash_balance - v_new_price WHERE id = p_buyer_id;
+
+  -- Credit previous owner or bought user
+  IF v_prev_owner_id IS NOT NULL THEN
+    -- Credit previous owner: current_price + floor(delta/2)
+    UPDATE users 
+    SET pcash_balance = pcash_balance + v_current_price + (v_delta / 2)
+    WHERE id = v_prev_owner_id;
+
+    -- Credit bought user: ceil(delta/2)
+    UPDATE users 
+    SET pcash_balance = pcash_balance + ((v_delta + 1) / 2)
+    WHERE id = v_bought_user_id;
+
+    -- Release previous ownership
+    UPDATE pets_ownership 
+    SET released_at = NOW()
+    WHERE pet_id = p_pet_id AND released_at IS NULL;
+  ELSE
+    -- First time buy: bought user gets full new_price
+    UPDATE users 
+    SET pcash_balance = pcash_balance + v_new_price
+    WHERE id = v_bought_user_id;
+  END IF;
+
+  -- Create new ownership
+  INSERT INTO pets_ownership (owner_id, pet_id, purchase_price, purchased_at)
+  VALUES (p_buyer_id, p_pet_id, v_new_price, NOW());
+
+  -- Update pet price
+  UPDATE pets_state 
+  SET current_price_wei = v_new_price, total_purchases = total_purchases + 1
+  WHERE token_id = p_pet_id;
+
+  -- Record transaction
+  INSERT INTO transactions (type, buyer_id, pet_id, prev_owner_id, amount, value_after)
+  VALUES ('buy', p_buyer_id, p_pet_id, v_prev_owner_id, v_new_price, 
+          (SELECT pcash_balance FROM users WHERE id = p_buyer_id))
+  RETURNING id INTO v_transaction_id;
+
+  -- Record value history for buyer
+  INSERT INTO value_history (user_id, old_value, new_value, reason)
+  VALUES (p_buyer_id, v_buyer_pcash, v_buyer_pcash - v_new_price, 'buy_pet');
+
+  -- Build result
+  v_result := jsonb_build_object(
+    'success', true,
+    'transaction_id', v_transaction_id,
+    'new_value', v_new_price,
+    'prev_owner_value', CASE WHEN v_prev_owner_id IS NULL THEN NULL 
+                             ELSE v_current_price + (v_delta / 2) END,
+    'bought_user_value', CASE WHEN v_prev_owner_id IS NULL THEN v_new_price 
+                              ELSE ((v_delta + 1) / 2) END
+  );
+
+  RETURN v_result;
+END;
+$$ LANGUAGE plpgsql;
