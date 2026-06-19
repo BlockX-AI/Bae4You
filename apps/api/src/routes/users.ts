@@ -7,7 +7,15 @@ import { registerPushToken, removePushToken } from "../services/push";
 import { upsertPersonality, deletePersonality } from "../services/pinecone-match";
 import { selectBestKycFrame, normaliseKycFrame } from "../services/video-kyc";
 import { generateHeroCard, tierFromVibe, type CardTier } from "../services/hero-card.service";
-import { generateViaFalInstantId } from "../services/ai-avatar";
+import { generateAiAvatar } from "../services/ai-avatar";
+import {
+  traitsToNotionConfig,
+  generateNotionSVG,
+  getRandomNotionConfig,
+  generateBitmojiFromTraits,
+  rasterizeNotionSVG,
+  type NotionAvatarConfig,
+} from "../services/bitmoji-avatar";
 import { config } from "../config";
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -330,38 +338,35 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       const { bestFrame, scores } = await selectBestKycFrame(frames);
       const normalisedFrame = await normaliseKycFrame(bestFrame);
 
-      // AI generation — prefer InstantID for noir-glamour (face-preserving), else Cloudflare
+      // AI generation — PuLID-FLUX (Modal) → Replicate → fal.ai → HuggingFace → Cloudflare
       try {
-        const cfAccountId = config.CLOUDFLARE_ACCOUNT_ID;
-        const cfApiToken = config.CLOUDFLARE_API_TOKEN;
+        const bestOfN = parseInt(config.AVATAR_BEST_OF_N ?? "1", 10);
+        const pulidEnabled = config.PULID_ENABLED === "true";
+        const restoreEnabled = config.AVATAR_RESTORE_ENABLED === "true";
 
-        // Get prompt for selected style
-        const prompt = customPrompt || getPromptForStyle(style);
-        const negPrompt = negativePrompt || getNegativePromptForStyle(style);
+        const aiResult = await generateAiAvatar(
+          normalisedFrame,
+          "image/png",
+          undefined,
+          config.FAL_KEY,
+          config.HUGGINGFACE_TOKEN,
+          config.REPLICATE_TOKEN ?? config.REPLICATE_API_TOKEN,
+          undefined,
+          {
+            modalPulidUrl:  config.MODAL_PULID_URL,
+            pulidEnabled,
+            restoreEnabled,
+            bestOfN,
+            cfAccountId:    config.CLOUDFLARE_ACCOUNT_ID,
+            cfApiToken:     config.CLOUDFLARE_API_TOKEN,
+            geminiApiKey:   config.GEMINI_API_KEY,
+            geminiImageEnabled: config.GEMINI_IMAGE_ENABLED === "true",
+            style:          style === "noir-glamour" ? "noir-glamour" : "cosmic",
+          }
+        );
 
-        // For noir-glamour, prefer fal.ai InstantID — it locks the user's face identity
-        // while applying the noir sketch style (much better than generic SDXL for this look)
-        let aiBuffer: Buffer;
-        const falKey = config.FAL_KEY;
-        if (style === "noir-glamour" && falKey) {
-          try {
-            aiBuffer = await generateViaFalInstantId(normalisedFrame, "image/png", prompt, negPrompt, falKey, {
-              guidance_scale: 5.5,
-              num_inference_steps: 30,
-              identitynet_strength_ratio: 0.85,
-              adapter_strength_ratio: 0.70,
-            });
-          } catch (instantIdErr: unknown) {
-            req.log.warn({ err: instantIdErr }, "InstantID failed for noir-glamour, falling back to Cloudflare");
-            if (!cfAccountId || !cfApiToken) throw instantIdErr;
-            aiBuffer = await generateAvatarWithCloudflare(normalisedFrame, prompt, negPrompt, cfAccountId, cfApiToken);
-          }
-        } else {
-          if (!cfAccountId || !cfApiToken) {
-            return reply.code(500).send({ error: "Cloudflare AI credentials not configured" });
-          }
-          aiBuffer = await generateAvatarWithCloudflare(normalisedFrame, prompt, negPrompt, cfAccountId, cfApiToken);
-        }
+        req.log.info({ provider: aiResult.provider, style }, "Avatar generated");
+        const aiBuffer = aiResult.buffer;
 
         // Upload to IPFS
         const cid = await uploadToIPFS(aiBuffer, `kyc-avatar-${payload.userId}-${Date.now()}.png`, "image/png");
@@ -379,14 +384,15 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
             url,
             ipfsHash: cid,
             style,
-            prompt,
+            prompt: aiResult.prompt,
+            provider: aiResult.provider,
             bestFrameIndex: scores[0].index,
             frameScores: scores,
             timestamp: Date.now(),
           },
         });
       } catch (err: unknown) {
-        req.log.error({ err }, "Cloudflare AI avatar generation failed");
+        req.log.error({ err }, "Avatar generation failed");
         const errorMsg = err instanceof Error ? err.message : "Unknown error";
         return reply.code(500).send({
           error: "Avatar generation failed",
@@ -459,32 +465,34 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       const prompt = body.customPrompt || getPromptForStyle(style);
       const negPrompt = body.negativePrompt || getNegativePromptForStyle(style);
 
-      // Generate new avatar — prefer InstantID for noir-glamour, else Cloudflare AI
+      // Generate new avatar — PuLID-FLUX (Modal) → Replicate → fal.ai → HuggingFace → Cloudflare
       try {
-        const cfAccountId = config.CLOUDFLARE_ACCOUNT_ID;
-        const cfApiToken = config.CLOUDFLARE_API_TOKEN;
+        const pulidEnabled  = config.PULID_ENABLED === "true";
+        const restoreEnabled = config.AVATAR_RESTORE_ENABLED === "true";
 
-        let aiBuffer: Buffer;
-        const falKey = config.FAL_KEY;
-        if (style === "noir-glamour" && falKey) {
-          try {
-            aiBuffer = await generateViaFalInstantId(avatarBuffer, "image/png", prompt, negPrompt, falKey, {
-              guidance_scale: 5.5,
-              num_inference_steps: 30,
-              identitynet_strength_ratio: 0.85,
-              adapter_strength_ratio: 0.70,
-            });
-          } catch (instantIdErr: unknown) {
-            req.log.warn({ err: instantIdErr }, "InstantID failed for noir-glamour edit, falling back to Cloudflare");
-            if (!cfAccountId || !cfApiToken) throw instantIdErr;
-            aiBuffer = await generateAvatarWithCloudflare(avatarBuffer, prompt, negPrompt, cfAccountId, cfApiToken);
+        const aiResult = await generateAiAvatar(
+          avatarBuffer,
+          "image/png",
+          undefined,
+          config.FAL_KEY,
+          config.HUGGINGFACE_TOKEN,
+          config.REPLICATE_TOKEN ?? config.REPLICATE_API_TOKEN,
+          undefined,
+          {
+            modalPulidUrl:  config.MODAL_PULID_URL,
+            pulidEnabled,
+            restoreEnabled,
+            bestOfN:    1,
+            cfAccountId:    config.CLOUDFLARE_ACCOUNT_ID,
+            cfApiToken:     config.CLOUDFLARE_API_TOKEN,
+            geminiApiKey:   config.GEMINI_API_KEY,
+            geminiImageEnabled: config.GEMINI_IMAGE_ENABLED === "true",
+            style:          style === "noir-glamour" ? "noir-glamour" : "cosmic",
           }
-        } else {
-          if (!cfAccountId || !cfApiToken) {
-            return reply.code(500).send({ error: "Cloudflare AI credentials not configured" });
-          }
-          aiBuffer = await generateAvatarWithCloudflare(avatarBuffer, prompt, negPrompt, cfAccountId, cfApiToken);
-        }
+        );
+
+        req.log.info({ provider: aiResult.provider, style }, "Avatar edit generated");
+        const aiBuffer = aiResult.buffer;
 
         // Upload to IPFS
         const cid = await uploadToIPFS(aiBuffer, `edited-avatar-${payload.userId}-${Date.now()}.png`, "image/png");
@@ -509,7 +517,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
           },
         });
       } catch (err: unknown) {
-        req.log.error({ err }, "Cloudflare AI avatar edit failed");
+        req.log.error({ err }, "Avatar edit failed");
         const errorMsg = err instanceof Error ? err.message : "Unknown error";
         return reply.code(500).send({
           error: "Avatar edit failed",
@@ -769,6 +777,178 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       );
 
       return reply.code(200).send({ deleted: true, message: "Account deactivated and data erased." });
+    }
+  );
+
+  // ── Bitmoji / Notion-style avatar routes ──────────────────────────────────
+
+  // GET /users/me/bitmoji — return saved config + SVG string
+  fastify.get(
+    "/me/bitmoji",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const { rows } = await db.query(
+        `SELECT bitmoji_config, bitmoji_traits FROM users WHERE id = $1`,
+        [payload.userId]
+      );
+      if (!rows[0]) return reply.code(404).send({ error: "User not found" });
+
+      const cfg: NotionAvatarConfig | null = rows[0].bitmoji_config ?? null;
+      if (!cfg) return reply.send({ config: null, svgString: null });
+
+      const svgString = generateNotionSVG(cfg);
+      return { config: cfg, svgString, traits: rows[0].bitmoji_traits ?? null };
+    }
+  );
+
+  // GET /users/:id/bitmoji.svg — public SVG endpoint (for cards, profile pages)
+  fastify.get<{ Params: { id: string } }>(
+    "/:id/bitmoji.svg",
+    async (req, reply) => {
+      const { id } = req.params;
+      if (!UUID_RE.test(id)) return reply.code(400).send({ error: "Invalid user id" });
+
+      const { rows } = await db.query(
+        `SELECT bitmoji_config FROM users WHERE id = $1 AND status != 'suspended'`,
+        [id]
+      );
+      if (!rows[0]) return reply.code(404).send({ error: "User not found" });
+      if (!rows[0].bitmoji_config) return reply.code(404).send({ error: "No bitmoji for this user" });
+
+      const svgString = generateNotionSVG(rows[0].bitmoji_config);
+      return reply
+        .type("image/svg+xml")
+        .header("Cache-Control", "public, max-age=3600")
+        .send(svgString);
+    }
+  );
+
+  // POST /users/me/bitmoji/generate — from photo frames, extract traits → build config → save
+  fastify.post(
+    "/me/bitmoji/generate",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const { analyzeGenderFromImage, extractVisualTraits } = await import("../services/ai-avatar");
+
+      const parts  = req.parts();
+      const frames: Buffer[] = [];
+
+      for await (const part of parts) {
+        if (part.type === "file" && part.fieldname.startsWith("frame")) {
+          const chunks: Buffer[] = [];
+          for await (const chunk of part.file) chunks.push(chunk as Buffer);
+          const buf = Buffer.concat(chunks);
+          if (buf.length > 0) frames.push(buf);
+        }
+      }
+
+      if (frames.length === 0) {
+        return reply.code(400).send({ error: "Send at least one frame field (frame0…frame4)" });
+      }
+
+      // Pick best frame (largest = least compressed = most detail)
+      const bestFrame = frames.reduce((a, b) => (b.length > a.length ? b : a));
+
+      // Extract traits using the existing pipeline
+      const genderResult = await analyzeGenderFromImage(bestFrame, "image/jpeg", config.HUGGINGFACE_TOKEN).catch(() => ({
+        gender: "other" as const, confidence: 0, provider: "none",
+      }));
+
+      const traits = await extractVisualTraits(bestFrame, genderResult.gender, genderResult.confidence);
+
+      // Map traits → Notion Avatar config
+      const cfg       = traitsToNotionConfig(traits, payload.userId);
+      const svgString = generateNotionSVG(cfg);
+
+      // Persist to DB
+      await db.query(
+        `UPDATE users SET bitmoji_config = $1, bitmoji_traits = $2 WHERE id = $3`,
+        [JSON.stringify(cfg), JSON.stringify(traits), payload.userId]
+      );
+
+      return reply.send({
+        success: true,
+        config: cfg,
+        svgString,
+        traits: {
+          gender:      traits.gender,
+          skinTone:    traits.skinTone,
+          hairColour:  traits.hairColour,
+          hasGlasses:  traits.hasGlasses,
+          hasBeard:    traits.hasBeard,
+          expression:  traits.expression,
+          ethnicRegion: traits.ethnicRegion,
+        },
+      });
+    }
+  );
+
+  // PATCH /users/me/bitmoji — manual config override (customiser screen)
+  fastify.patch(
+    "/me/bitmoji",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const body = req.body as Partial<NotionAvatarConfig>;
+
+      // Fetch current config
+      const { rows } = await db.query(
+        `SELECT bitmoji_config FROM users WHERE id = $1`,
+        [payload.userId]
+      );
+      if (!rows[0]) return reply.code(404).send({ error: "User not found" });
+
+      const current: NotionAvatarConfig = rows[0].bitmoji_config ?? getRandomNotionConfig();
+      const merged: NotionAvatarConfig = { ...current, ...body };
+
+      // Clamp values to valid ranges
+      const clamp = (v: number, max: number) => Math.max(0, Math.min(max, Math.round(v)));
+      merged.face      = clamp(merged.face,      15);
+      merged.eye       = clamp(merged.eye,       13);
+      merged.eyebrow   = clamp(merged.eyebrow,   15);
+      merged.glass     = clamp(merged.glass,     13);
+      merged.hair      = clamp(merged.hair,      57);
+      merged.mouth     = clamp(merged.mouth,     19);
+      merged.nose      = clamp(merged.nose,      13);
+      merged.accessory = clamp(merged.accessory, 13);
+      merged.beard     = clamp(merged.beard,     15);
+      merged.detail    = clamp(merged.detail,    12);
+
+      await db.query(
+        `UPDATE users SET bitmoji_config = $1 WHERE id = $2`,
+        [JSON.stringify(merged), payload.userId]
+      );
+
+      const svgString = generateNotionSVG(merged);
+      return { config: merged, svgString };
+    }
+  );
+
+  // POST /users/me/bitmoji/rasterize — returns PNG buffer for hero card compositing
+  fastify.post(
+    "/me/bitmoji/rasterize",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const { size = 512 } = req.body as { size?: number };
+
+      const { rows } = await db.query(
+        `SELECT bitmoji_config FROM users WHERE id = $1`,
+        [payload.userId]
+      );
+      if (!rows[0]?.bitmoji_config) {
+        return reply.code(404).send({ error: "No bitmoji config found. Generate one first." });
+      }
+
+      const svgString = generateNotionSVG(rows[0].bitmoji_config);
+      const pngBuffer = await rasterizeNotionSVG(svgString, Math.min(Math.max(size, 64), 1024));
+
+      return reply
+        .type("image/png")
+        .header("Cache-Control", "private, max-age=300")
+        .send(pngBuffer);
     }
   );
 

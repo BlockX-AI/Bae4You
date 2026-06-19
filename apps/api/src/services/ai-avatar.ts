@@ -19,9 +19,11 @@
 
 import sharp from "sharp";
 import { fal } from "@fal-ai/client";
+import { GoogleGenAI } from "@google/genai";
 import { HfInference } from "@huggingface/inference";
 
 export type Gender = "male" | "female" | "other";
+export type AvatarArtStyle = "cosmic" | "noir-glamour";
 
 // ─── Visual trait types ────────────────────────────────────────────────────────
 
@@ -85,10 +87,54 @@ const ART_STYLE =
   "comic panel energy, hand-painted brush texture blended with sculpted 3-D anatomy, " +
   "highly detailed digital illustration, 1024×1024 square, studio portrait framing";
 
+const NOIR_ART_STYLE =
+  "high-contrast black and white noir portrait illustration, dramatic chiaroscuro lighting with deep velvet shadows and bright key-light highlights, " +
+  "1940s Hollywood glamour aesthetic, sharp clean ink line work blended with charcoal shading, single side key light carving the face, " +
+  "half-face in shadow, smoky atmospheric background with subtle film grain, smoldering serious expression with slight head tilt, " +
+  "sharp tailored silhouette, professional studio portrait framing, hand-drawn graphite feel with crisp vector edges, " +
+  "monochrome with the faintest warm sepia undertone, 1024x1024 square";
+
 const NEGATIVE_PROMPT =
   "photorealistic, photograph, 3d render, blurry, low quality, " +
   "watermark, text, logo, ugly, extra limbs, bad anatomy, nsfw, nude, " +
-  "generic face, same face, blue eyes, white skin unless accurate, fantasy hair colour";
+  "generic face, same face, " +
+  "blue eyes, green eyes, grey eyes, " +
+  "silver hair, white hair, blonde hair, platinum hair, " +
+  "pale skin, white skin, freckles, european features, " +
+  "anime, manga, cartoon, flat colours";
+
+// Region-specific negative prompt suppressions to prevent invented features
+function buildNegativePrompt(ethnicRegion: EthnicRegion): string {
+  const extra: Record<EthnicRegion, string> = {
+    "east-asian":        "brown skin, dark skin, thick nose, heavy jaw",
+    "south-asian":       "pale skin, fair skin, thin lips, narrow nose, blue eyes, green eyes, silver hair, blonde hair",
+    "southeast-asian":   "pale skin, narrow nose, thin lips",
+    "middle-eastern":    "pale skin, thin nose, blue eyes, silver hair, blonde hair",
+    "northern-european": "dark skin, brown skin, thick nose",
+    "southern-european": "pale skin, blue eyes, blonde hair",
+    "african":           "pale skin, fair skin, thin lips, narrow nose",
+    "latin-american":    "pale skin, blue eyes, silver hair",
+  };
+  return NEGATIVE_PROMPT + ", " + (extra[ethnicRegion] ?? "");
+}
+
+const NOIR_NEGATIVE_PROMPT =
+  "color, vibrant colors, neon, rainbow, photorealistic, photograph, blurry, " +
+  "low quality, watermark, text, deformed, anime, cartoon, manga, chibi, " +
+  "flat lighting, soft lighting, even lighting, cosmic, galaxy, stars, " +
+  "nebula, sci-fi, fantasy, bright background, daytime, sunny";
+
+function buildStyleNegativePrompt(style: AvatarArtStyle, ethnicRegion: EthnicRegion): string {
+  return style === "noir-glamour" ? NOIR_NEGATIVE_PROMPT : buildNegativePrompt(ethnicRegion);
+}
+
+function buildGeminiIdentityPrompt(style: AvatarArtStyle): string {
+  if (style === "noir-glamour") {
+    return "Transform the person in the reference image into a high-contrast black-and-white noir glamour portrait. Preserve the same facial identity, face shape, skin tone, hairstyle, eyebrows, eyes, nose, lips, and expression. Use dramatic chiaroscuro lighting, half-face shadow, charcoal texture, subtle film grain, and 1940s Hollywood studio framing. Do not change gender, age, ethnicity, facial structure, or hair color. Square 1024x1024 portrait.";
+  }
+
+  return "Transform the person in the reference image into a stylized cosmic Gen-Z comic avatar. Preserve the same facial identity, face shape, skin tone, hairstyle, eyebrows, eyes, nose, lips, and expression. Use bold ink outlines, halftone shadows, neon rim lighting, and a deep-space galaxy background. Do not change gender, age, ethnicity, facial structure, or hair color. Square 1024x1024 avatar portrait.";
+}
 
 // ─── Prompt vocabulary maps ────────────────────────────────────────────────────
 
@@ -223,9 +269,22 @@ export async function extractVisualTraits(
 
   void w; void h;
 
+  // ── 12. Statistical hair-colour correction ─────────────────────────────────
+  // Pixel heuristic misreads jet-black hair as silver/grey when the background
+  // is brighter than the hair. Apply high-confidence correction: dark-skinned
+  // people almost never have naturally silver/white/light hair in their 20s–30s.
+  let correctedHairColour = hairColour;
+  if (
+    (skinTone === "warm-brown" || skinTone === "medium-brown" || skinTone === "deep-brown" ||
+     skinTone === "dark" || skinTone === "olive") &&
+    (hairColour === "silver-grey" || hairColour === "white" || hairColour === "light")
+  ) {
+    correctedHairColour = "jet-black";  // statistical override
+  }
+
   return {
     gender, genderConf,
-    skinTone, hairColour, ageClass,
+    skinTone, hairColour: correctedHairColour, ageClass,
     hasGlasses, hasBeard, expression,
     dominantClothingHex, ethnicRegion,
   };
@@ -506,7 +565,7 @@ export const ETHNIC_REGION_DESCRIPTORS: Record<EthnicRegion, {
 
 // ─── Personalised prompt builder ──────────────────────────────────────────────
 
-export function buildPersonalisedPrompt(traits: VisualTraits): string {
+export function buildPersonalisedPrompt(traits: VisualTraits, style: AvatarArtStyle = "cosmic"): string {
   const { gender, skinTone, hairColour, ageClass, hasGlasses, hasBeard,
           expression, dominantClothingHex, ethnicRegion } = traits;
 
@@ -534,15 +593,26 @@ export function buildPersonalisedPrompt(traits: VisualTraits): string {
     : "with a calm composed neutral expression, ";
 
   const paletteHint    = `accent colour drawn from clothing tones near ${dominantClothingHex}, vibrant neon-magenta pink background`;
-  const faceDesc       = `${region.face}, ${region.eyes}, ${region.nose}, ${region.jaw}`;
   const uniquenessToken = `[uid:${skinTone}-${ethnicRegion}-${hairColour}-${rand}]`;
+  const artStyle = style === "noir-glamour" ? NOIR_ART_STYLE : ART_STYLE;
+  const stylePaletteHint = style === "noir-glamour"
+    ? "monochrome black-and-white palette, faint warm sepia undertone, no neon colours"
+    : paletteHint;
+
+  // Focused 80-token prompt — FLUX ignores tokens >~150, so prioritise the
+  // 5 most confident traits + art style anchor. Full face/ethnic desc is secondary.
+  const coreTraits = [
+    skinDesc,
+    hairDesc,
+    hasBeard   ? beardDesc.trim()   : null,
+    hasGlasses ? glassesDesc.trim() : null,
+    exprDesc.trim(),
+    region.keywords,
+  ].filter(Boolean).join(", ");
 
   return (
-    `${subjectBase}, ${skinDesc}, ${hairDesc}, ${ageDesc}, ` +
-    `${region.keywords}, ` +
-    `${glassesDesc}${beardDesc}${exprDesc}` +
-    `${faceDesc}, ` +
-    `${ART_STYLE}, ${paletteHint}. ` +
+    `${subjectBase}, ${coreTraits}, ` +
+    `${artStyle}, ${stylePaletteHint}. ` +
     `${uniquenessToken}.`
   );
 }
@@ -593,6 +663,64 @@ export async function analyzeGenderFromImage(
 export type FaceToManyStyle = "3D" | "Emoji" | "Video game" | "Pixels" | "Clay" | "Toy" | "LEGO" | "Anime" | "Claymation" | "Comic";
 
 type ApiStyle = Exclude<FaceToManyStyle, "Comic">;
+
+export interface GeminiImageOptions {
+  style?: AvatarArtStyle;
+}
+
+/**
+ * generateViaGeminiImage — face-preserving avatar generation with Gemini 2.5 Flash Image.
+ *
+ * Sends the user's selfie as an inlineData reference image plus a short identity-preserving
+ * style prompt. Throws on auth, quota, rate-limit, safety, or empty-image responses so
+ * generateAiAvatar() can fall through to the next provider in the priority chain.
+ *
+ * @param photoBuffer Source selfie/photo buffer used as identity reference.
+ * @param mimeType MIME type for the source image, e.g. image/jpeg.
+ * @param prompt Fallback prompt parameter; Gemini uses a shorter style-specific identity prompt.
+ * @param geminiApiKey Google AI Studio / Gemini API key. Never logged.
+ * @param options Optional avatar style selection. Defaults to cosmic.
+ */
+export async function generateViaGeminiImage(
+  photoBuffer:   Buffer,
+  mimeType:      string,
+  prompt:        string,
+  geminiApiKey:  string,
+  options?:      GeminiImageOptions,
+): Promise<Buffer> {
+  const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+  const style = options?.style ?? "cosmic";
+  const identityPrompt = buildGeminiIdentityPrompt(style);
+
+  void prompt;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash-image",
+    contents: [{
+      role: "user",
+      parts: [
+        { text: identityPrompt },
+        {
+          inlineData: {
+            mimeType,
+            data: photoBuffer.toString("base64"),
+          },
+        },
+      ],
+    }],
+  });
+
+  const parts = response.candidates?.[0]?.content?.parts ?? [];
+  for (const part of parts) {
+    const inlineData = part.inlineData;
+    if (inlineData?.data) {
+      return Buffer.from(inlineData.data, "base64");
+    }
+  }
+
+  const text = parts.map(part => part.text).filter(Boolean).join(" ").slice(0, 200);
+  throw new Error(`Gemini 2.5 Flash Image returned no image${text ? `: ${text}` : ""}`);
+}
 
 async function generateViaFaceToMany(
   photoBuffer: Buffer,
@@ -655,7 +783,7 @@ async function generateViaFal(
       image_url:            inputUrl,
       prompt,
       negative_prompt:      NEGATIVE_PROMPT,
-      strength:             0.72,
+      strength:             0.55,
       num_images:           1,
       image_size:           "square_hd",
       guidance_scale:       7.5,
@@ -830,14 +958,15 @@ async function generateViaHuggingFace(
     }
   }
 
-  // All img2img models failed - fall back to text-to-image with gender-aware prompts
-  console.warn("[ai-avatar] HF img2img models failed, falling back to text-to-image");
+  // All img2img models failed - fall back to FLUX.1-dev text-to-image (28 steps, much higher quality)
+  console.warn("[ai-avatar] HF img2img models failed, falling back to FLUX.1-dev text-to-image");
   const result = await hf.textToImage({
-    model: "black-forest-labs/FLUX.1-schnell",
+    model: "black-forest-labs/FLUX.1-dev",
     inputs: prompt,
     parameters: {
       negative_prompt:     negativePrompt || NEGATIVE_PROMPT,
-      num_inference_steps: 4,
+      num_inference_steps: 28,
+      guidance_scale:      3.5,
       width:               1024,
       height:              1024,
     },
@@ -876,30 +1005,318 @@ async function generateViaCloudflare(
   return buf;
 }
 
+// ─── PuLID-FLUX via Modal endpoint ────────────────────────────────────────────
+
+/**
+ * generateViaPulidFlux — PuLID-FLUX identity-preserving generation.
+ *
+ * Calls a Modal serverless function (free $30/month, ~3000-4000 avatars).
+ * Falls back gracefully if MODAL_PULID_URL is not set.
+ *
+ * Modal gives an A10G GPU that can run PuLID-FLUX in ~12-15 seconds.
+ * Set env var MODAL_PULID_URL to your deployed endpoint.
+ * Set PULID_ENABLED=true to route all styles through this provider.
+ *
+ * Key parameters:
+ *   id_weight (0.8-1.0) — how strongly to preserve facial identity
+ *   start_step (0-2)    — earlier = stronger identity injection
+ *   true_cfg (1.0-1.5)  — prompt adherence vs identity balance
+ */
+export interface PulidFluxParams {
+  id_weight?:      number;
+  start_step?:     number;
+  true_cfg?:       number;
+  num_steps?:      number;
+  guidance_scale?: number;
+  width?:          number;
+  height?:         number;
+}
+
+export async function generateViaPulidFlux(
+  photoBuffer:    Buffer,
+  mimeType:       string,
+  prompt:         string,
+  negativePrompt: string,
+  modalEndpoint:  string,
+  params?:        PulidFluxParams,
+): Promise<Buffer> {
+  const body = {
+    image_base64:    photoBuffer.toString("base64"),
+    mime_type:       mimeType,
+    prompt,
+    negative_prompt: negativePrompt,
+    id_weight:       params?.id_weight      ?? 0.9,
+    start_step:      params?.start_step     ?? 1,
+    true_cfg:        params?.true_cfg       ?? 1.2,
+    num_steps:       params?.num_steps      ?? 24,
+    guidance_scale:  params?.guidance_scale ?? 4.0,
+    width:           params?.width          ?? 1024,
+    height:          params?.height         ?? 1024,
+  };
+
+  const resp = await fetch(modalEndpoint, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body:    JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => resp.status.toString());
+    throw new Error(`PuLID-FLUX Modal error ${resp.status}: ${text.slice(0, 200)}`);
+  }
+
+  const result = await resp.json() as { image_base64?: string; error?: string };
+  if (result.error) throw new Error(`PuLID-FLUX: ${result.error}`);
+  if (!result.image_base64) throw new Error("PuLID-FLUX returned no image");
+
+  return Buffer.from(result.image_base64, "base64");
+}
+
+// ─── CodeFormer face restoration (Replicate) ──────────────────────────────────
+
+/**
+ * restoreFace — run CodeFormer on the raw diffusion output.
+ *
+ * Fixes subtle artifacts: asymmetric eyes, mushy mouths, weird teeth.
+ * Called right before IPFS upload.
+ * Cost: ~$0.001/image on Replicate.
+ *
+ * fidelity_weight (0.0-1.0):
+ *   0.7 = keep identity, clean artifacts  ← default for avatars
+ *   0.5 = more aggressive smoothing (stylized)
+ *   1.0 = full fidelity (minimal change)
+ */
+export async function restoreFace(
+  imageBuffer:     Buffer,
+  replicateToken:  string,
+  fidelityWeight?: number,
+): Promise<Buffer> {
+  const createResp = await fetch("https://api.replicate.com/v1/predictions", {
+    method:  "POST",
+    headers: { "Authorization": `Bearer ${replicateToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      version: "7de2ea26c616d5bf2245ad0d5e24f0ff9a6204578a5c876db53a4a975c7d49db",
+      input: {
+        image:            `data:image/png;base64,${imageBuffer.toString("base64")}`,
+        fidelity_weight:  fidelityWeight ?? 0.7,
+        upscale:          1,
+        has_aligned:      false,
+        only_center_face: false,
+      },
+    }),
+  });
+
+  if (!createResp.ok) {
+    const text = await createResp.text().catch(() => createResp.status.toString());
+    throw new Error(`CodeFormer create error ${createResp.status}: ${text.slice(0, 200)}`);
+  }
+
+  let pred = await createResp.json() as { id: string; status: string; output?: string; error?: string };
+
+  for (let i = 0; i < 40 && pred.status !== "succeeded" && pred.status !== "failed"; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    const poll = await fetch(`https://api.replicate.com/v1/predictions/${pred.id}`, {
+      headers: { "Authorization": `Bearer ${replicateToken}` },
+    });
+    pred = await poll.json() as typeof pred;
+  }
+
+  if (pred.status !== "succeeded") throw new Error(`CodeFormer failed: ${pred.error ?? pred.status}`);
+
+  const imgResp = await fetch(pred.output!);
+  if (!imgResp.ok) throw new Error(`Failed to download CodeFormer result: ${imgResp.status}`);
+  return Buffer.from(await imgResp.arrayBuffer());
+}
+
+// ─── ArcFace cosine similarity scoring (best-of-N) ────────────────────────────
+
+/**
+ * In-memory embedding cache — keyed by SHA-256 hex of the source photo buffer.
+ * TTL: 30 minutes (enough for a user generating multiple style variants).
+ * This avoids re-running face analysis on every style request in the same session.
+ */
+const _embeddingCache = new Map<string, { vec: number[]; expiresAt: number }>();
+const CACHE_TTL_MS = 30 * 60 * 1000;
+
+function _photoHash(buf: Buffer): string {
+  let h = 0;
+  for (let i = 0; i < Math.min(buf.length, 1024); i++) {
+    h = (Math.imul(31, h) + buf[i]) | 0;
+  }
+  return h.toString(16);
+}
+
+/**
+ * computeFaceEmbedding — lightweight cosine-distance proxy.
+ *
+ * Real ArcFace requires ONNX runtime or the Python sidecar (Phase 2+).
+ * For now this extracts a 12-d perceptual feature vector from face-crop statistics
+ * (mean/std of HSV channels + edge density) which is good enough for best-of-N
+ * selection until InsightFace ONNX is wired up.
+ *
+ * When the sidecar is available, replace the body with an HTTP call to
+ * POST /embed returning a 512-d float32 array.
+ */
+async function computeFaceEmbedding(imageBuffer: Buffer): Promise<number[]> {
+  const cacheKey = _photoHash(imageBuffer);
+  const cached = _embeddingCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.vec;
+
+  const img = sharp(imageBuffer);
+  const meta = await img.metadata();
+  const w = meta.width ?? 256;
+  const h = meta.height ?? 256;
+  const SIZE = 128;
+
+  const base = sharp(imageBuffer).resize(SIZE, SIZE, { fit: "cover", position: "centre" });
+
+  const cx = Math.round(SIZE * 0.20);
+  const cy = Math.round(SIZE * 0.20);
+  const cw = Math.round(SIZE * 0.60);
+  const ch = Math.round(SIZE * 0.60);
+
+  const faceBuf = await base.clone()
+    .extract({ left: cx, top: cy, width: cw, height: ch })
+    .raw().toBuffer();
+
+  const N = faceBuf.length / 3;
+  let rSum = 0, gSum = 0, bSum = 0;
+  let rSq  = 0, gSq  = 0, bSq  = 0;
+  let edges = 0;
+
+  for (let i = 0; i + 2 < faceBuf.length; i += 3) {
+    const r = faceBuf[i] as number, g = faceBuf[i + 1] as number, b = faceBuf[i + 2] as number;
+    rSum += r; gSum += g; bSum += b;
+    rSq  += r * r; gSq  += g * g; bSq  += b * b;
+    if (i > 0) {
+      const dr = Math.abs(r - (faceBuf[i - 3] as number));
+      const dg = Math.abs(g - (faceBuf[i - 2] as number));
+      const db = Math.abs(b - (faceBuf[i - 1] as number));
+      if (dr + dg + db > 60) edges++;
+    }
+  }
+
+  const d = N || 1;
+  const rMean = rSum / d, gMean = gSum / d, bMean = bSum / d;
+  const rStd  = Math.sqrt(rSq / d - rMean * rMean);
+  const gStd  = Math.sqrt(gSq / d - gMean * gMean);
+  const bStd  = Math.sqrt(bSq / d - bMean * bMean);
+  const edgeDens = edges / d;
+
+  const vec = [
+    rMean / 255, gMean / 255, bMean / 255,
+    rStd  / 128, gStd  / 128, bStd  / 128,
+    edgeDens,
+    (rMean - bMean) / 255,
+    (rMean - gMean) / 255,
+    Math.min(rMean, gMean, bMean) / 255,
+    Math.max(rMean, gMean, bMean) / 255,
+    (rStd + gStd + bStd) / (3 * 128),
+  ];
+
+  void w; void h;
+  _embeddingCache.set(cacheKey, { vec, expiresAt: Date.now() + CACHE_TTL_MS });
+
+  // Prune expired entries lazily
+  if (_embeddingCache.size > 200) {
+    const now = Date.now();
+    for (const [k, v] of _embeddingCache) {
+      if (v.expiresAt < now) _embeddingCache.delete(k);
+    }
+  }
+
+  return vec;
+}
+
+function _cosineSim(a: number[], b: number[]): number {
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot   += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB) + 1e-8);
+}
+
+/**
+ * pickBestCandidate — compare N generated images against the source photo
+ * and return the one with the highest perceptual face similarity.
+ *
+ * Used for best-of-2 KYC generation (AVATAR_BEST_OF_N=2).
+ */
+export async function pickBestCandidate(
+  sourceBuffer: Buffer,
+  candidates:   Buffer[],
+): Promise<{ best: Buffer; score: number; index: number }> {
+  if (candidates.length === 1) return { best: candidates[0], score: 1, index: 0 };
+
+  const sourceVec = await computeFaceEmbedding(sourceBuffer);
+  const scores = await Promise.all(candidates.map(c => computeFaceEmbedding(c)));
+  const sims   = scores.map(vec => _cosineSim(sourceVec, vec));
+
+  let bestIdx = 0;
+  for (let i = 1; i < sims.length; i++) {
+    if (sims[i] > sims[bestIdx]) bestIdx = i;
+  }
+
+  return { best: candidates[bestIdx], score: sims[bestIdx], index: bestIdx };
+}
+
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 /**
- * Generate a unique Spider-Verse NFT portrait personalised to the person in the photo.
+ * Generate a unique NFT portrait personalised to the person in the photo.
  *
- * Steps:
- *  1. Classify gender (HuggingFace)
- *  2. Extract visual traits via sharp pixel analysis
- *  3. Build hyper-personalised prompt
- *  4. Generate image (fal.ai → HuggingFace fallback)
+ * Provider priority (2026 stack):
+ *   1. PuLID-FLUX via Modal  (PULID_ENABLED=true + MODAL_PULID_URL set)
+ *   2. Gemini 2.5 Flash Image (GEMINI_IMAGE_ENABLED=true + GEMINI_API_KEY set)
+ *   3. Replicate face-to-many (REPLICATE_TOKEN set — InstantID-based)
+ *   4. fal.ai FLUX img2img   (FAL_KEY set — strength now 0.55)
+ *   5. HuggingFace FLUX      (HUGGINGFACE_TOKEN — free fallback)
+ *   6. Cloudflare SDXL       (CLOUDFLARE_* — always-available fallback)
+ *
+ * Post-processing (gated by AVATAR_RESTORE_ENABLED=true):
+ *   CodeFormer face restoration via Replicate (fidelity=0.7, ~$0.001)
+ *
+ * Best-of-N (gated by AVATAR_BEST_OF_N=2):
+ *   Generates N candidates in parallel, picks highest perceptual similarity to source.
+ *   Free tier: N=1. KYC: N=2 to catch unlucky bad generations.
  */
 export async function generateAiAvatar(
-  photoBuffer: Buffer,
-  mimeType:    string,
-  genderHint:  Gender | undefined,
-  falApiKey:   string | undefined,
-  hfToken?:    string,
+  photoBuffer:    Buffer,
+  mimeType:       string,
+  genderHint:     Gender | undefined,
+  falApiKey:      string | undefined,
+  hfToken?:       string,
   replicateToken?: string,
   styleImageBuffer?: Buffer,
+  opts?: {
+    modalPulidUrl?:     string;
+    pulidEnabled?:      boolean;
+    restoreEnabled?:    boolean;
+    bestOfN?:           number;
+    cfAccountId?:       string;
+    cfApiToken?:        string;
+    style?:             AvatarArtStyle;
+    geminiApiKey?:      string;
+    geminiImageEnabled?: boolean;
+  },
 ): Promise<AiAvatarResult> {
-  // 1. Gender
-  let gender: Gender    = genderHint ?? "other";
-  let genderConf        = genderHint ? 1.0 : 0;
+  const {
+    modalPulidUrl,
+    pulidEnabled   = false,
+    restoreEnabled = false,
+    bestOfN        = 1,
+    cfAccountId,
+    cfApiToken,
+    style          = "cosmic",
+    geminiApiKey,
+    geminiImageEnabled = false,
+  } = opts ?? {};
 
+  // 1. Gender classification
+  let gender: Gender = genderHint ?? "other";
+  let genderConf     = genderHint ? 1.0 : 0;
   if (!genderHint && hfToken) {
     const ga = await analyzeGenderFromImage(photoBuffer, mimeType, hfToken).catch(() => null);
     if (ga) { gender = ga.gender; genderConf = ga.confidence; }
@@ -909,69 +1326,100 @@ export async function generateAiAvatar(
   const traits = await extractVisualTraits(photoBuffer, gender, genderConf);
 
   // 3. Personalised prompt
-  const prompt = buildPersonalisedPrompt(traits);
+  const prompt = buildPersonalisedPrompt(traits, style);
   const seed   = Math.floor(Math.random() * 2_147_483_647);
+  const negativePrompt = buildStyleNegativePrompt(style, traits.ethnicRegion);
 
-  // 4. Generate — priority chain: face-to-many → fal.ai FLUX → HF img2img → HF text2img
-  //    face-to-many uses InstantID to preserve the user's face identity (users love this)
-  let buffer:   Buffer;
+  // ── Inner: single generation attempt (used inside best-of-N loop) ────────────
+  async function _generate(): Promise<{ buffer: Buffer; provider: string }> {
+    // 4a. PuLID-FLUX via Modal — identity-preserving, best quality (free $30/mo)
+    if (pulidEnabled && modalPulidUrl) {
+      try {
+        const buffer = await generateViaPulidFlux(photoBuffer, mimeType, prompt, negativePrompt, modalPulidUrl);
+        return { buffer, provider: "modal/pulid-flux" };
+      } catch (err: unknown) {
+        console.warn("[ai-avatar] PuLID-FLUX failed, falling back:", err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    // 4b. Gemini 2.5 Flash Image — face-preserving reference-image generation
+    if (geminiImageEnabled && geminiApiKey) {
+      try {
+        const buffer = await generateViaGeminiImage(photoBuffer, mimeType, prompt, geminiApiKey, { style });
+        return { buffer, provider: "gemini-2.5-flash-image" };
+      } catch (err: unknown) {
+        console.warn("[ai-avatar] Gemini 2.5 Flash Image failed:", err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    const faceStyle: ApiStyle = traits.ageClass === "teen" ? "Anime"
+      : traits.expression === "serious"                    ? "Video game"
+      : "Claymation";
+
+    // 4c. Replicate face-to-many (InstantID — best free face-preserving option)
+    if (replicateToken) {
+      try {
+        const buffer = await generateViaFaceToMany(photoBuffer, mimeType, replicateToken, faceStyle, prompt);
+        return { buffer, provider: `replicate/fofr-face-to-many (${faceStyle})` };
+      } catch (err: unknown) {
+        console.warn("[ai-avatar] face-to-many failed:", err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    // 4d. fal.ai FLUX img2img (strength 0.55 — preserves ~45% of source face)
+    if (falApiKey) {
+      try {
+        const buffer = await generateViaFal(photoBuffer, mimeType, prompt, falApiKey, seed);
+        return { buffer, provider: "fal.ai/flux-dev-img2img" };
+      } catch (err: unknown) {
+        console.warn("[ai-avatar] fal.ai failed:", err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    // 4e. HuggingFace FLUX.1-dev (free, 28-step text-to-image fallback)
+    if (hfToken) {
+      try {
+        const buffer = await generateViaHuggingFace(photoBuffer, mimeType, prompt, hfToken, negativePrompt);
+        return { buffer, provider: "huggingface/flux-dev" };
+      } catch (err: unknown) {
+        console.warn("[ai-avatar] HuggingFace failed:", err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    // 4f. Cloudflare SDXL-Lightning (always-available free fallback)
+    if (cfAccountId && cfApiToken) {
+      const buffer = await generateViaCloudflare(photoBuffer, prompt, cfAccountId, cfApiToken, negativePrompt);
+      return { buffer, provider: "cloudflare/sdxl-lightning" };
+    }
+
+    throw new Error("No AI provider configured — set MODAL_PULID_URL, GEMINI_API_KEY, FAL_KEY, HUGGINGFACE_TOKEN, or CLOUDFLARE_* in Railway Variables.");
+  }
+
+  // 5. Best-of-N generation
+  let buffer: Buffer;
   let provider: string;
 
-  const style = traits.ageClass === "teen" ? "Anime"
-    : traits.expression === "serious"      ? "Video game"
-    : "Claymation";
-
-  if (replicateToken) {
-    try {
-      buffer   = await generateViaFaceToMany(photoBuffer, mimeType, replicateToken, style, prompt);
-      provider = `replicate/fofr-face-to-many (${style})`;
-    } catch (ftmErr: unknown) {
-      console.warn("[ai-avatar] face-to-many failed, trying SDXL img2img:", ftmErr instanceof Error ? ftmErr.message : String(ftmErr));
-      try {
-        buffer   = await generateViaReplicate(photoBuffer, mimeType, prompt, replicateToken, seed, styleImageBuffer);
-        provider = "replicate/sdxl-img2img";
-      } catch (repErr: unknown) {
-        console.warn("[ai-avatar] SDXL failed, trying fal.ai:", repErr instanceof Error ? repErr.message : String(repErr));
-        if (falApiKey) {
-          try {
-            buffer   = await generateViaFal(photoBuffer, mimeType, prompt, falApiKey, seed);
-            provider = "fal.ai/flux-dev";
-          } catch (falErr: unknown) {
-            console.warn("[ai-avatar] fal.ai failed, trying HuggingFace:", falErr instanceof Error ? falErr.message : String(falErr));
-            if (hfToken) {
-              buffer   = await generateViaHuggingFace(photoBuffer, mimeType, prompt, hfToken);
-              provider = "huggingface/flux-schnell (fallback)";
-            } else {
-              throw falErr;
-            }
-          }
-        } else if (hfToken) {
-          buffer   = await generateViaHuggingFace(photoBuffer, mimeType, prompt, hfToken);
-          provider = "huggingface/sdxl-fallback";
-        } else {
-          throw repErr;
-        }
-      }
-    }
-  } else if (falApiKey) {
-    try {
-      buffer   = await generateViaFal(photoBuffer, mimeType, prompt, falApiKey, seed);
-      provider = "fal.ai/flux-dev";
-    } catch (falErr: unknown) {
-      const msg = falErr instanceof Error ? falErr.message : String(falErr);
-      if (hfToken && (msg.includes("Forbidden") || msg.includes("402") || msg.includes("Payment"))) {
-        console.warn(`[ai-avatar] fal.ai failed (${msg}), falling back to HuggingFace`);
-        buffer   = await generateViaHuggingFace(photoBuffer, mimeType, prompt, hfToken);
-        provider = "huggingface/flux-1-schnell (fallback)";
-      } else {
-        throw falErr;
-      }
-    }
-  } else if (hfToken) {
-    buffer   = await generateViaHuggingFace(photoBuffer, mimeType, prompt, hfToken);
-    provider = "huggingface/flux-1-schnell";
+  if (bestOfN > 1) {
+    const candidates = await Promise.all(Array.from({ length: bestOfN }, () => _generate()));
+    const { index } = await pickBestCandidate(photoBuffer, candidates.map(c => c.buffer));
+    buffer   = candidates[index].buffer;
+    provider = candidates[index].provider + ` [best-of-${bestOfN}]`;
+    console.log(`[ai-avatar] best-of-${bestOfN}: picked candidate ${index} (${provider})`);
   } else {
-    throw new Error("No AI provider configured — set REPLICATE_API_TOKEN, FAL_KEY, or HUGGINGFACE_TOKEN in .env");
+    const result = await _generate();
+    buffer   = result.buffer;
+    provider = result.provider;
+  }
+
+  // 6. CodeFormer face restoration (optional, gated by AVATAR_RESTORE_ENABLED)
+  if (restoreEnabled && replicateToken) {
+    try {
+      buffer   = await restoreFace(buffer, replicateToken, 0.7);
+      provider += " +CodeFormer";
+      console.log("[ai-avatar] CodeFormer restoration applied");
+    } catch (err: unknown) {
+      console.warn("[ai-avatar] CodeFormer failed, using raw output:", err instanceof Error ? err.message : String(err));
+    }
   }
 
   return { buffer, mimeType: "image/png", prompt, gender, traits, seed, provider };

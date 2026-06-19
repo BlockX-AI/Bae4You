@@ -1,0 +1,29 @@
+plugins = []
+headers = []
+redirects = []
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "/Users/jalajnagar/Bae4u/Bae4You/catch_up_flutter/build/web"
+publishOrigin = "config"
+commandOrigin = "config"
+base = "/Users/jalajnagar/Bae4u/Bae4You/catch_up_flutter"
+command = "flutter build web --release --no-tree-shake-icons"
+
+[build.environment]
+FLUTTER_VERSION = "3.44.1"
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]

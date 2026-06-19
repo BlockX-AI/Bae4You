@@ -1,0 +1,52 @@
+name: catch_up
+version: 1.0.0+1
+publish_to: 'none'
+description: Catch Up - Web3 Dating App
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  
+  # UI & Animation
+  google_fonts: ^8.1.0
+  flutter_svg: ^2.0.10            # render Notion bitmoji SVGs returned by the API
+
+  # 3D & Premium Animations
+  shimmer: ^3.0.0
+  
+  # State Management
+  flutter_riverpod: ^2.4.9
+  
+  # Networking
+  dio: ^5.4.0
+  web_socket_channel: ^2.4.0
+  
+  # Storage
+  flutter_secure_storage: ^9.2.4
+  
+  # Utils
+  logger: ^2.0.2+1
+  
+  # Recommended Upgrades
+  cached_network_image: ^3.3.1    # Image caching for profiles
+  lottie: ^3.0.0                  # JSON animations (premium feel)
+  timeago: ^3.6.0                # "2 mins ago" formatting
+  intl: ^0.18.1                   # Date formatting, localization
+  share_plus: ^10.1.4             # Share profile/match
+  image_picker: ^1.1.2            # Upload profile photos
+  
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/fonts/

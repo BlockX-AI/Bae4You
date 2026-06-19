@@ -66,6 +66,14 @@ const env = z.object({
 
   CLOUDFLARE_ACCOUNT_ID:    z.string().optional(),
   CLOUDFLARE_API_TOKEN:     z.string().optional(),
+
+  GEMINI_API_KEY:           z.string().optional(),
+  GEMINI_IMAGE_ENABLED:     z.string().default("false"),
+
+  MODAL_PULID_URL:          z.string().optional(),   // Modal PuLID-FLUX endpoint URL
+  PULID_ENABLED:            z.string().default("false"),
+  AVATAR_RESTORE_ENABLED:   z.string().default("false"),  // CodeFormer post-processing
+  AVATAR_BEST_OF_N:         z.string().default("1"),       // 1 or 2 candidates
 });
 
 const parsed = env.safeParse(process.env);

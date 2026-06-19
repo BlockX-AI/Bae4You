@@ -1,0 +1,450 @@
+import { useState, useEffect } from 'react';
+import type { GetServerSidePropsContext, NextPage } from 'next';
+import Head from 'next/head';
+import Link from 'next/link';
+import Image from 'next/legacy/image';
+import dynamic from 'next/dynamic';
+import { useRouter } from 'next/router';
+import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
+import { useTranslation } from 'next-i18next';
+import toast from 'react-hot-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { createServerSideClient } from '@/lib/supabase/server';
+import { usePurchasedPacks } from '@/hooks/useAccountData';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import AvatarEditor from '@/components/AvatarEditor';
+import ProductHuntBanner from '@/components/ProductHuntBanner';
+
+// 延迟加载非首屏组件
+const WhosUsing = dynamic(() => import('@/components/WhosUsing'), {
+  loading: () => null,
+});
+const UseCases = dynamic(() => import('@/components/UseCases'), {
+  loading: () => null,
+});
+const AIFeatureIntroModal = dynamic(
+  () => import('@/components/Modal/AIFeatureIntro'),
+  { loading: () => null },
+);
+const ResourceStore = dynamic(() => import('@/components/ResourceStore'), {
+  loading: () => null,
+});
+
+const URL = `https://notion-avatar.app/`;
+
+const AI_FEATURE_INTRO_KEY = 'ai-feature-intro-dismissed';
+
+interface HomeProps {
+  initialPurchasedPacks: string[];
+}
+
+const Home: NextPage<HomeProps> = ({ initialPurchasedPacks }) => {
+  const { t } = useTranslation(`common`);
+  const router = useRouter();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const [isAIFeatureModalOpen, setIsAIFeatureModalOpen] = useState(false);
+  const { data: purchasedPacks = initialPurchasedPacks, refetch } =
+    usePurchasedPacks(initialPurchasedPacks);
+
+  // eslint-disable-next-line consistent-return
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const dismissed = localStorage.getItem(AI_FEATURE_INTRO_KEY);
+      if (!dismissed) {
+        const timer = setTimeout(() => {
+          setIsAIFeatureModalOpen(true);
+        }, 5000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, []);
+
+  const handleDontShowAgain = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(AI_FEATURE_INTRO_KEY, 'true');
+    }
+    setIsAIFeatureModalOpen(false);
+  };
+
+  const handleDownload = async (packId: string) => {
+    if (!user) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/resources/download?pack=${packId}`);
+      const data = await response.json();
+
+      if (response.ok && data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Failed to download');
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Download error:', error);
+      toast.error('Failed to download resource pack. Please try again.');
+      throw error;
+    }
+  };
+
+  // Check for success query param from Stripe and scroll to resource store
+  useEffect(() => {
+    if (typeof window === 'undefined' || isAuthLoading) return;
+
+    const { hash, search } = window.location;
+    const urlParams = new URLSearchParams(search);
+    const hashParams = hash.includes('?')
+      ? new URLSearchParams(hash.split('?')[1])
+      : null;
+
+    const successParam =
+      urlParams.get('success') || hashParams?.get('success') || null;
+    const packParam = urlParams.get('pack') || hashParams?.get('pack') || null;
+
+    if (successParam === 'true' && packParam) {
+      if (user) {
+        toast.success(
+          'Payment successful! You can now download your resource pack.',
+        );
+        refetch();
+      }
+      window.history.replaceState({}, '', '#resource-store');
+      setTimeout(() => {
+        const element = document.getElementById('resource-store');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 500);
+    } else if (hash === '#resource-store') {
+      setTimeout(() => {
+        const element = document.getElementById('resource-store');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 300);
+    }
+  }, [refetch, user, isAuthLoading]);
+
+  const faqItems = [
+    { question: 'faq.whatIsAvatar', answer: 'faq.whatIsAvatarAnswer' },
+    { question: 'faq.howToUse', answer: 'faq.howToUseAnswer' },
+    { question: 'faq.commercialUse', answer: 'faq.commercialUseAnswer' },
+    {
+      question: 'faq.supportedBrowsers',
+      answer: 'faq.supportedBrowsersAnswer',
+    },
+    {
+      question: 'faq.isBelongToNotion',
+      answer: 'faq.isBelongToNotionAnswer',
+    },
+  ];
+
+  return (
+    <>
+      <Head>
+        {/* 关键资源预加载 */}
+        <link rel="preload" href="/logo.gif" as="image" />
+        <link rel="preload" href="/image/avatar-diff.png" as="image" />
+
+        {/* Favicon - 只保留关键尺寸 */}
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="/favicon/favicon-32x32.png"
+        />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="16x16"
+          href="/favicon/favicon-16x16.png"
+        />
+        <link
+          rel="apple-touch-icon"
+          sizes="180x180"
+          href="/favicon/apple-icon-180x180.png"
+        />
+        <link rel="manifest" href="/manifest.json" />
+
+        {/* SEO Meta Tags */}
+        <title>{t(`siteTitle`)}</title>
+        <meta name="description" content={t(`siteDescription`)} />
+        <meta name="keywords" content={t('siteKeywords')} />
+        <meta name="author" content="Notion Avatar" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="theme-color" content="#fffefc" />
+        <meta name="msapplication-TileColor" content="#fffefc" />
+        <meta
+          name="msapplication-TileImage"
+          content="/favicon/ms-icon-144x144.png"
+        />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Notion Avatar" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content={t(`siteTitle`)} />
+        <meta property="og:title" content={t(`siteTitle`)} />
+        <meta property="og:description" content={t(`siteDescription`)} />
+        <meta property="og:url" content={URL} />
+        <meta property="og:image" content="https://i.imgur.com/F5R0K03.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://i.imgur.com/F5R0K03.png" />
+        <meta name="twitter:site" content="@phillzou" />
+        <meta name="twitter:title" content={t(`siteTitle`)} />
+        <meta name="twitter:description" content={t(`siteDescription`)} />
+        <meta charSet="utf-8" />
+        <meta name="theme-color" content="#fffefc" />
+        {/* Robots & Canonical */}
+        <meta name="robots" content="index, follow" />
+        <meta name="googlebot" content="index, follow" />
+        <meta name="google" content="notranslate" />
+        <link
+          rel="canonical"
+          href={`https://notion-avatar.app${
+            router.locale && router.locale !== 'en' ? `/${router.locale}` : ''
+          }`}
+        />
+
+        {/* Hreflang - 使用更简洁的方式 */}
+        {['en', 'zh', 'zh-TW', 'ja', 'ko', 'es', 'fr', 'de', 'ru', 'pt'].map(
+          (lang) => (
+            <link
+              key={lang}
+              rel="alternate"
+              hrefLang={lang}
+              href={`https://notion-avatar.app/${lang === 'en' ? '' : lang}`}
+            />
+          ),
+        )}
+        <link
+          rel="alternate"
+          hrefLang="x-default"
+          href="https://notion-avatar.app"
+        />
+        <link
+          rel="preload"
+          href="/fonts/Quicksand.ttf"
+          as="font"
+          type="font/ttf"
+          crossOrigin="anonymous"
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebApplication',
+              name: t('siteTitle'),
+              description: t('siteDescription'),
+              url: URL,
+              applicationCategory: 'DesignApplication',
+              operatingSystem: 'Web',
+            }),
+          }}
+        />
+      </Head>
+
+      <ProductHuntBanner />
+      <Header />
+      <main className="my-5">
+        <AvatarEditor />
+        <section className="py-16 my-12">
+          <div className="container mx-auto px-4 md:px-8">
+            <h2 className="text-2xl font-bold text-center mb-12 text-gray-900 ">
+              {t('steps.title')}
+            </h2>
+            <div className="max-w-3xl mx-auto space-y-8">
+              <div className="flex">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-black flex items-center justify-center text-white font-bold mr-4">
+                  1
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                    {t('steps.step1Title')}
+                  </h3>
+                  <p className="text-gray-700 leading-relaxed">
+                    {t('steps.step1Desc')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-black flex items-center justify-center text-white font-bold mr-4">
+                  2
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                    {t('steps.step2Title')}
+                  </h3>
+                  <p className="text-gray-700 leading-relaxed">
+                    {t('steps.step2Desc')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-black flex items-center justify-center text-white font-bold mr-4">
+                  3
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                    {t('steps.step3Title')}
+                  </h3>
+                  <p className="text-gray-700 leading-relaxed">
+                    {t('steps.step3Desc')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-black flex items-center justify-center text-white font-bold mr-4">
+                  4
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                    {t('steps.step4Title')}
+                  </h3>
+                  <p className="text-gray-700 leading-relaxed">
+                    {t('steps.step4Desc')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        {/* AI Avatar Hero Section */}
+        <section className="py-16 my-12">
+          <div className="container mx-auto px-4 md:px-8">
+            <div className="text-center mb-8">
+              <div className="relative inline-block mb-6">
+                <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 relative">
+                  {t('ai.title')}
+                </h2>
+                <div className="absolute -right-6 -top-4 md:-top-8 md:-right-12">
+                  <Image
+                    src="/icon/ai-stars.svg"
+                    width={48}
+                    height={48}
+                    alt="Stars"
+                    unoptimized
+                  />
+                </div>
+              </div>
+              <p className="text-lg md:text-xl text-gray-700 max-w-2xl mx-auto mb-8 leading-relaxed">
+                {t('ai.heroSubtitle')}
+              </p>
+              <div className="mb-8">
+                <Image
+                  src="/image/avatar-diff.png"
+                  alt="Notion AI Avatar"
+                  width={1024}
+                  height={485}
+                  className="mx-auto"
+                  priority
+                  loading="eager"
+                  unoptimized
+                />
+              </div>
+              <Link
+                href="/ai-generator"
+                className="inline-flex items-center gap-2 py-3 px-8 rounded-full bg-black text-white font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-lg hover:shadow-xl"
+              >
+                {t('ai.heroCTA')}
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
+                </svg>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <div id="resource-store">
+          <ResourceStore
+            purchasedPacks={purchasedPacks}
+            onDownload={handleDownload}
+            showDownloadButton
+          />
+        </div>
+        <WhosUsing />
+        <UseCases />
+
+        <section className="py-16 my-12">
+          <div className="container mx-auto px-4 md:px-8">
+            <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">
+              {t('faq.title')}
+            </h2>
+            <div className="max-w-3xl mx-auto space-y-10">
+              {faqItems.map((item) => (
+                <div
+                  key={item.answer}
+                  className="bg-white rounded-lg shadow-sm p-6 border-3 border-black"
+                >
+                  <h3 className="text-xl font-semibold text-gray-800 mb-3">
+                    {t(item.question)}
+                  </h3>
+                  <p className="text-gray-700 leading-relaxed">
+                    {t(item.answer)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+      <Footer />
+      <AIFeatureIntroModal
+        isOpen={isAIFeatureModalOpen}
+        onClose={() => setIsAIFeatureModalOpen(false)}
+        onDontShowAgain={handleDontShowAgain}
+      />
+    </>
+  );
+};
+
+export async function getServerSideProps(
+  context: GetServerSidePropsContext & { locale: string },
+) {
+  const { locale } = context;
+  let purchasedPacks: string[] = [];
+
+  try {
+    const supabase = createServerSideClient(context);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const { data: purchases, error } = await supabase
+        .from('resource_purchases')
+        .select('resource_pack_id')
+        .eq('user_id', user.id);
+
+      if (!error && purchases) {
+        purchasedPacks = purchases.map((p) => p.resource_pack_id);
+      }
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Error fetching purchased packs in SSR:', error);
+  }
+
+  return {
+    props: {
+      initialPurchasedPacks: purchasedPacks,
+      ...(await serverSideTranslations(locale, [`common`])),
+    },
+  };
+}
+
+export default Home;

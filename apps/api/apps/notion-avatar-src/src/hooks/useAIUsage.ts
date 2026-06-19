@@ -1,0 +1,120 @@
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
+import { getToday, FREE_DAILY_LIMIT } from '@/lib/date';
+
+export interface AIUsageState {
+  remaining: number;
+  total: number;
+  isUnlimited: boolean;
+  freeRemaining?: number;
+  paidCredits?: number;
+  planType?: string;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}
+const STORAGE_KEY = 'ai_avatar_usage_guest';
+
+function getGuestUsage(): AIUsageState {
+  if (typeof window === 'undefined') {
+    return {
+      remaining: FREE_DAILY_LIMIT,
+      total: FREE_DAILY_LIMIT,
+      isUnlimited: false,
+      isAuthenticated: false,
+      isLoading: false,
+    };
+  }
+
+  const today = getToday();
+  const usage = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+  if (usage.date !== today) {
+    return {
+      remaining: FREE_DAILY_LIMIT,
+      total: FREE_DAILY_LIMIT,
+      isUnlimited: false,
+      isAuthenticated: false,
+      isLoading: false,
+    };
+  }
+
+  return {
+    remaining: Math.max(0, FREE_DAILY_LIMIT - (usage.count || 0)),
+    total: FREE_DAILY_LIMIT,
+    isUnlimited: false,
+    isAuthenticated: false,
+    isLoading: false,
+  };
+}
+
+async function fetchUsageCheck(): Promise<AIUsageState> {
+  const response = await fetch('/api/usage/check');
+  const data = await response.json();
+
+  return {
+    remaining: data.remaining,
+    total: data.total,
+    isUnlimited: data.isUnlimited,
+    freeRemaining: data.freeRemaining,
+    paidCredits: data.paidCredits,
+    planType: data.planType,
+    isAuthenticated: true,
+    isLoading: false,
+  };
+}
+
+export function useAIUsage() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: usageState, isLoading } = useQuery<AIUsageState>({
+    queryKey: ['usageCheck', !!user],
+    queryFn: async () => {
+      if (user) {
+        return fetchUsageCheck();
+      }
+      return getGuestUsage();
+    },
+    staleTime: 1000 * 60 * 2,
+    retry: 1,
+  });
+
+  const defaultState: AIUsageState = {
+    remaining: 0,
+    total: FREE_DAILY_LIMIT,
+    isUnlimited: false,
+    isAuthenticated: !!user,
+    isLoading: true,
+  };
+
+  const checkUsage = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['usageCheck'] });
+  }, [queryClient]);
+
+  const incrementUsage = useCallback(async () => {
+    if (user) {
+      await checkUsage();
+    } else {
+      const today = getToday();
+      const usage = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      const newCount = usage.date === today ? (usage.count || 0) + 1 : 1;
+
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          date: today,
+          count: newCount,
+        }),
+      );
+
+      await checkUsage();
+    }
+  }, [user, checkUsage]);
+
+  return {
+    usageState: usageState || { ...defaultState, isLoading },
+    incrementUsage,
+    checkUsage,
+  };
+}
