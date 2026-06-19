@@ -1,9 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../design/tokens.dart';
 import '../providers/auth_provider.dart';
-import '../theme/app_colors.dart';
 
 class WalletModal extends ConsumerWidget {
   const WalletModal({super.key});
@@ -18,13 +17,13 @@ class WalletModal extends ConsumerWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            AppColors.surface,
-            AppColors.bgTop,
+            AppTokens.surface,
+            AppTokens.bg,
           ],
         ),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         border: Border.all(
-          color: AppColors.border,
+          color: AppTokens.border,
         ),
       ),
       child: SafeArea(
@@ -39,7 +38,7 @@ class WalletModal extends ConsumerWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryDark.withOpacity(0.3),
+                  color: AppTokens.accentMuted.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -48,22 +47,15 @@ class WalletModal extends ConsumerWidget {
 
               // Header
               Text(
-                'Welcome to Catch Up 🐾',
-                style: GoogleFonts.fredoka(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
+                'Welcome to Catch Up',
+                style: AppTokens.textStyles.h2,
               ),
 
               const SizedBox(height: 8),
 
               Text(
                 'Choose how you want to sign in',
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  color: AppColors.textSecondary,
-                ),
+                style: AppTokens.textStyles.body,
               ),
 
               const SizedBox(height: 24),
@@ -122,17 +114,14 @@ class WalletModal extends ConsumerWidget {
                   onPressed: () => Navigator.pop(context),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: BorderSide(color: AppColors.border),
+                    side: BorderSide(color: AppTokens.border),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: Text(
                     'Cancel',
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: AppTokens.textStyles.body,
                   ),
                 ),
               ),
@@ -198,10 +187,10 @@ class _WalletOption extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surfaceCard,
+          color: AppTokens.surface2,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppColors.border,
+            color: AppTokens.border,
           ),
         ),
         child: Row(
@@ -212,7 +201,9 @@ class _WalletOption extends StatelessWidget {
               height: 44,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                gradient: AppColors.buttonGradient,
+                gradient: const LinearGradient(
+                  colors: [AppTokens.accent, AppTokens.accentMuted],
+                ),
               ),
               child: Center(
                 child: Text(
@@ -247,15 +238,13 @@ class _WalletOption extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFD700).withOpacity(0.2),
+                            color: AppTokens.accent.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             tag!,
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFFFFD700),
+                            style: AppTokens.textStyles.label.copyWith(
+                              color: AppTokens.accent,
                             ),
                           ),
                         ),
@@ -265,10 +254,7 @@ class _WalletOption extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     description,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: AppColors.textHint,
-                    ),
+                    style: AppTokens.textStyles.bodySm.copyWith(color: AppTokens.textMid),
                   ),
                 ],
               ),
@@ -277,7 +263,7 @@ class _WalletOption extends StatelessWidget {
             // Arrow
             Icon(
               Icons.chevron_right,
-              color: AppColors.textHint,
+              color: AppTokens.textMid,
             ),
           ],
         ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../design/tokens.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../models/pet_models.dart';
@@ -60,42 +59,188 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
   }
 
   Future<void> _buyPet() async {
+    final pet = _pet;
+    if (pet == null) return;
+    
     setState(() => _isProcessing = true);
     
-    // Simulate purchase
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final authState = ref.read(authProvider);
+      if (authState.token == null) throw Exception('Not authenticated');
+      
+      await _apiService.buyPet(pet.tokenId, authState.token!);
+      
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        _showSuccessDialog('Purchase Successful', 'You now own this pet.');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        _showErrorDialog('Purchase Failed', e.toString());
+      }
+    }
+  }
+
+  Future<void> _placeBid() async {
+    final pet = _pet;
+    if (pet == null) return;
     
-    if (mounted) {
-      setState(() => _isProcessing = false);
-      _showSuccessDialog('Purchase Successful!', 'You now own this pet! 🎉');
+    final amount = await _showBidDialog();
+    if (amount == null || amount.isEmpty) return;
+    
+    setState(() => _isProcessing = true);
+    
+    try {
+      final authState = ref.read(authProvider);
+      if (authState.token == null) throw Exception('Not authenticated');
+      
+      await _apiService.placeBid(pet.tokenId, amount, authState.token!);
+      
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        _showSuccessDialog('Bid Placed', 'Your bid has been submitted.');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        _showErrorDialog('Bid Failed', e.toString());
+      }
     }
   }
 
   Future<void> _sellPet() async {
+    final pet = _pet;
+    if (pet == null) return;
+    
+    final price = await _showPriceDialog();
+    if (price == null || price.isEmpty) return;
+    
     setState(() => _isProcessing = true);
     
-    // Simulate sale
-    await Future.delayed(const Duration(seconds: 2));
-    
-    if (mounted) {
-      setState(() => _isProcessing = false);
-      _showSuccessDialog('Listed for Sale!', 'Your pet is now on the marketplace! 🐾');
+    try {
+      final authState = ref.read(authProvider);
+      if (authState.token == null) throw Exception('Not authenticated');
+      
+      await _apiService.listPetForSale(pet.tokenId, price, authState.token!);
+      
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        _showSuccessDialog('Listed for Sale', 'Your pet is now on the marketplace.');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        _showErrorDialog('Listing Failed', e.toString());
+      }
     }
+  }
+
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTokens.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTokens.r16)),
+        title: Text(title, style: AppTokens.textStyles.h3),
+        content: Text(message, style: AppTokens.textStyles.body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<String?> _showBidDialog() async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTokens.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTokens.r16)),
+        title: Text('Place Bid', style: AppTokens.textStyles.h3),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            hintText: 'Enter amount in wei',
+            hintStyle: AppTokens.textStyles.bodySm.copyWith(color: AppTokens.textMid),
+            filled: true,
+            fillColor: AppTokens.surface2,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTokens.r12),
+              borderSide: const BorderSide(color: AppTokens.border),
+            ),
+          ),
+          style: AppTokens.textStyles.body,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Place Bid'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<String?> _showPriceDialog() async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTokens.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTokens.r16)),
+        title: Text('Set Sale Price', style: AppTokens.textStyles.h3),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            hintText: 'Enter price in wei',
+            hintStyle: AppTokens.textStyles.bodySm.copyWith(color: AppTokens.textMid),
+            filled: true,
+            fillColor: AppTokens.surface2,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTokens.r12),
+              borderSide: const BorderSide(color: AppTokens.border),
+            ),
+          ),
+          style: AppTokens.textStyles.body,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('List'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSuccessDialog(String title, String message) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.textPrimary,
+        backgroundColor: AppTokens.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(title, style: GoogleFonts.fredoka(color: Colors.white)),
+        title: Text(title, style: AppTokens.textStyles.h3),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🎉', style: TextStyle(fontSize: 48)),
+            const Icon(Icons.check_circle, size: 48, color: AppTokens.success),
             const SizedBox(height: 16),
-            Text(message, style: GoogleFonts.inter(color: Colors.white70)),
+            Text(message, style: AppTokens.textStyles.body),
           ],
         ),
         actions: [
@@ -105,10 +250,10 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF6BB0),
-              foregroundColor: Colors.white,
+              backgroundColor: AppTokens.accent,
+              foregroundColor: AppTokens.textHi,
             ),
-            child: const Text('Awesome!'),
+            child: const Text('Done'),
           ),
         ],
       ),
@@ -132,20 +277,11 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.topCenter,
-            radius: 1.2,
-            colors: [
-              Color(0xFFFF6BB0),
-              AppColors.primary,
-              AppColors.textPrimary,
-            ],
-            stops: [0.0, 0.4, 1.0],
-          ),
+          color: AppTokens.bg,
         ),
         child: SafeArea(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6BB0)))
+              ? const Center(child: CircularProgressIndicator(color: AppTokens.accent))
               : _error.isNotEmpty
                   ? _buildErrorWidget()
                   : _pet == null
@@ -169,17 +305,13 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
             children: [
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: const Icon(Icons.arrow_back, color: AppTokens.textHi),
               ),
               Expanded(
                 child: Text(
                   'Pet Details',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.fredoka(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                  style: AppTokens.textStyles.h3,
                 ),
               ),
               const SizedBox(width: 48),
@@ -196,19 +328,9 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFF6BB0), AppColors.primary],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: AppTokens.surface,
+                    border: Border.all(color: AppTokens.border, width: 1),
                     borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFFF6BB0).withOpacity(0.4),
-                        blurRadius: 30,
-                        spreadRadius: 10,
-                      ),
-                    ],
                   ),
                   child: Column(
                     children: [
@@ -217,9 +339,9 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                         width: 140,
                         height: 140,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: AppTokens.textHi.withOpacity(0.2),
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withOpacity(0.3), width: 4),
+                          border: Border.all(color: AppTokens.textHi.withOpacity(0.3), width: 4),
                         ),
                         child: Center(
                           child: pet.avatarIpfsHash != null
@@ -233,11 +355,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                                 )
                               : Text(
                                   pet.displayName?.substring(0, 1).toUpperCase() ?? '?',
-                                  style: GoogleFonts.fredoka(
-                                    color: Colors.white,
-                                    fontSize: 64,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: AppTokens.textStyles.display1.copyWith(fontSize: 64),
                                 ),
                         ),
                       ),
@@ -249,11 +367,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                         children: [
                           Text(
                             pet.displayName ?? 'Unknown',
-                            style: GoogleFonts.fredoka(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                            style: AppTokens.textStyles.h2,
                           ),
                           if (pet.isVerified ?? false)
                             const Padding(
@@ -265,10 +379,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                       const SizedBox(height: 4),
                       Text(
                         '@${pet.username ?? 'unknown'}',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
+                        style: AppTokens.textStyles.body,
                       ),
                       const SizedBox(height: 8),
                       
@@ -276,15 +387,12 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: AppTokens.textHi.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          '🇮🇳 ${pet.countryCode ?? 'Unknown'}',
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          pet.countryCode ?? 'Unknown',
+                          style: AppTokens.textStyles.label,
                         ),
                       ),
                     ],
@@ -297,19 +405,15 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: AppTokens.textHi.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    border: Border.all(color: AppTokens.textHi.withOpacity(0.2)),
                   ),
                   child: Column(
                     children: [
                       Text(
                         'Statistics',
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                        style: AppTokens.textStyles.h3,
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -323,7 +427,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                             icon: Icons.attach_money,
                             label: 'Current Price',
                             value: _formatPrice(pet.currentPriceWei),
-                            valueColor: const Color(0xFFFFD700),
+                            valueColor: AppTokens.accent,
                           ),
                         ],
                       ),
@@ -339,7 +443,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                             icon: Icons.pets,
                             label: 'Status',
                             value: isLocked ? 'LOCKED' : (pet.petStatus ?? 'Active'),
-                            valueColor: isLocked ? Colors.red : const Color(0xFF00FF88),
+                            valueColor: isLocked ? AppTokens.danger : AppTokens.success,
                           ),
                         ],
                       ),
@@ -353,27 +457,21 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: AppTokens.textHi.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    border: Border.all(color: AppTokens.textHi.withOpacity(0.1)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Owner Information',
-                        style: GoogleFonts.inter(
-                          color: Colors.white.withOpacity(0.7),
-                          fontSize: 14,
-                        ),
+                        style: AppTokens.textStyles.body,
                       ),
                       const SizedBox(height: 8),
                       Text(
                         pet.ownerAddress,
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
+                        style: AppTokens.textStyles.bodySm,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -389,15 +487,17 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
         // Bottom Action Button
         Container(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.textPrimary.withOpacity(0.9),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: const BoxDecoration(
+            color: AppTokens.surface,
+            border: Border(
+              top: BorderSide(color: AppTokens.border, width: 1),
+            ),
           ),
           child: SafeArea(
             top: false,
             child: _isProcessing
                 ? const Center(
-                    child: CircularProgressIndicator(color: Color(0xFFFF6BB0)),
+                    child: CircularProgressIndicator(color: AppTokens.accent),
                   )
                 : _isOwned
                     ? ElevatedButton.icon(
@@ -405,42 +505,57 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                         icon: const Icon(Icons.sell),
                         label: Text(
                           isLocked ? 'Locked until ${_formatDate(pet.lockExpiry)}' : 'Sell Pet',
-                          style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: AppTokens.textStyles.h3,
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isLocked ? Colors.grey : const Color(0xFFFFD700),
-                          foregroundColor: isLocked ? Colors.white70 : AppColors.textPrimary,
+                          backgroundColor: isLocked ? AppTokens.surface2 : AppTokens.accent,
+                          foregroundColor: AppTokens.textHi,
                           minimumSize: const Size(double.infinity, 56),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
                       )
-                    : ElevatedButton.icon(
-                        onPressed: isLocked ? null : _buyPet,
-                        icon: const Icon(Icons.shopping_cart),
-                        label: Text(
-                          isLocked
-                              ? 'Currently Locked'
-                              : 'Buy for ${_formatPrice(pet.currentPriceWei)}',
-                          style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                    : Column(
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: isLocked ? null : _buyPet,
+                            icon: const Icon(Icons.shopping_cart),
+                            label: Text(
+                              isLocked
+                                  ? 'Currently Locked'
+                                  : 'Buy for ${_formatPrice(pet.currentPriceWei)}',
+                              style: AppTokens.textStyles.h3,
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isLocked ? AppTokens.surface2 : AppTokens.accent,
+                              foregroundColor: AppTokens.textHi,
+                              minimumSize: const Size(double.infinity, 56),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(AppTokens.r12),
+                              ),
+                            ),
                           ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isLocked ? Colors.grey : const Color(0xFFFF6BB0),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(double.infinity, 56),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 8,
-                          shadowColor: const Color(0xFFFF6BB0).withOpacity(0.5),
-                        ),
+                          if (!isLocked) ...[
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: _placeBid,
+                              icon: const Icon(Icons.gavel),
+                              label: Text(
+                                'Place Bid',
+                                style: AppTokens.textStyles.h3,
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppTokens.textHi,
+                                side: const BorderSide(color: AppTokens.border),
+                                minimumSize: const Size(double.infinity, 48),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(AppTokens.r12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
           ),
         ),
@@ -457,23 +572,18 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     return Expanded(
       child: Column(
         children: [
-          Icon(icon, color: const Color(0xFFFF6BB0), size: 28),
+          Icon(icon, color: AppTokens.accent, size: 28),
           const SizedBox(height: 8),
           Text(
             value,
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: valueColor ?? Colors.white,
+            style: AppTokens.textStyles.h2.copyWith(
+              color: valueColor ?? AppTokens.textHi,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: Colors.white.withOpacity(0.7),
-            ),
+            style: AppTokens.textStyles.label,
           ),
         ],
       ),
@@ -485,11 +595,11 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+          const Icon(Icons.error_outline, color: AppTokens.danger, size: 48),
           const SizedBox(height: 16),
           Text(
             'Failed to load pet',
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+            style: AppTokens.textStyles.body,
           ),
           const SizedBox(height: 16),
           ElevatedButton(

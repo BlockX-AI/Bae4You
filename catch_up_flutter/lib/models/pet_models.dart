@@ -134,3 +134,35 @@ class WishlistItem {
         avatarIpfsHash: json['avatarIpfsHash'] ?? json['avatar_ipfs_hash'] as String?,
       );
 }
+
+class Bid {
+  final String id;
+  final String tokenId;
+  final String bidderAddress;
+  final String amountWei;
+  final DateTime? createdAt;
+  final String? bidderUsername;
+  final String? bidderDisplayName;
+
+  Bid({
+    required this.id,
+    required this.tokenId,
+    required this.bidderAddress,
+    required this.amountWei,
+    this.createdAt,
+    this.bidderUsername,
+    this.bidderDisplayName,
+  });
+
+  factory Bid.fromJson(Map<String, dynamic> json) => Bid(
+        id: json['id'] as String,
+        tokenId: json['tokenId'] ?? json['token_id'] as String,
+        bidderAddress: json['bidderAddress'] ?? json['bidder_address'] as String,
+        amountWei: json['amountWei'] ?? json['amount_wei'] as String,
+        createdAt: json['createdAt'] != null || json['created_at'] != null
+            ? DateTime.parse(json['createdAt'] ?? json['created_at'] as String)
+            : null,
+        bidderUsername: json['bidderUsername'] ?? json['bidder_username'] as String?,
+        bidderDisplayName: json['bidderDisplayName'] ?? json['bidder_display_name'] as String?,
+      );
+}

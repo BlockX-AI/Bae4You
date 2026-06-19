@@ -8,7 +8,6 @@ import '../providers/chat_provider.dart';
 import '../models/user_models.dart';
 import '../services/chat_service.dart';
 import '../models/chat_models.dart';
-import '../widgets/chat_timestamp.dart';
 
 class ChatScreen extends ConsumerWidget {
   const ChatScreen({super.key});

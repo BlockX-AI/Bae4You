@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+import '../design/tokens.dart';
 import 'dart:math';
 
 class AnimatedSplashScreen extends StatefulWidget {
@@ -77,10 +77,10 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
             center: Alignment.center,
             radius: 1.5,
             colors: [
-              Color(0xFFFF6BB0),
-              AppColors.primary,
-              AppColors.textPrimary,
-              Color(0xFF1A0033),
+              AppTokens.accent,
+              AppTokens.accent,
+              AppTokens.textHi,
+              AppTokens.bg,
             ],
             stops: [0.0, 0.3, 0.6, 1.0],
           ),
@@ -118,14 +118,14 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
                             height: 150,
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFFFF6BB0), AppColors.primary],
+                                colors: [AppTokens.accent, AppTokens.accent],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
                               borderRadius: BorderRadius.circular(30),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFFF6BB0).withOpacity(0.6),
+                                  color: const AppTokens.accent.withOpacity(0.6),
                                   blurRadius: 60,
                                   spreadRadius: 20,
                                 ),
@@ -133,7 +133,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
                             ),
                             child: const Icon(
                               Icons.favorite,
-                              color: Colors.white,
+                              color: AppTokens.textHi,
                               size: 80,
                             ),
                           ),
@@ -152,7 +152,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
                         const Text(
                           'Catch Up',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: AppTokens.textHi,
                             fontSize: 48,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 2,
@@ -162,7 +162,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
                         Text(
                           'Find Your Match',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
+                            color: AppTokens.textHi.withOpacity(0.8),
                             fontSize: 18,
                             letterSpacing: 4,
                           ),
@@ -186,7 +186,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
                     width: 200,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: AppTokens.textHi.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(2),
                     ),
                     child: AnimatedBuilder(
@@ -198,12 +198,12 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
                           child: Container(
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFFFF6BB0), AppColors.primary],
+                                colors: [AppTokens.accent, AppTokens.accent],
                               ),
                               borderRadius: BorderRadius.circular(2),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFFF6BB0).withOpacity(0.8),
+                                  color: const AppTokens.accent.withOpacity(0.8),
                                   blurRadius: 10,
                                   spreadRadius: 2,
                                 ),
@@ -233,7 +233,7 @@ class SplashParticlePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final random = Random(42); // Fixed seed for consistency
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.3)
+      ..color = AppTokens.textHi.withOpacity(0.3)
       ..style = PaintingStyle.fill;
 
     for (int i = 0; i < 30; i++) {
@@ -245,7 +245,7 @@ class SplashParticlePainter extends CustomPainter {
       final animatedRadius = radius * (1 + 0.5 * sin(progress * 2 * pi + phase));
       final opacity = 0.3 + 0.2 * sin(progress * 2 * pi + phase);
       
-      paint.color = Colors.white.withOpacity(opacity);
+      paint.color = AppTokens.textHi.withOpacity(opacity);
       canvas.drawCircle(Offset(x, y), animatedRadius, paint);
     }
   }

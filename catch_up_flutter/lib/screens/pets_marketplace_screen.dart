@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../design/tokens.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../models/pet_models.dart';
@@ -29,13 +28,13 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
   final ScrollController _scrollController = ScrollController();
 
   final List<Map<String, String>> _countries = [
-    {'code': 'ALL', 'name': 'All Countries', 'flag': '🌍'},
-    {'code': 'IN', 'name': 'India', 'flag': '🇮🇳'},
-    {'code': 'US', 'name': 'United States', 'flag': '🇺🇸'},
-    {'code': 'UK', 'name': 'United Kingdom', 'flag': '🇬🇧'},
-    {'code': 'CA', 'name': 'Canada', 'flag': '🇨🇦'},
-    {'code': 'AU', 'name': 'Australia', 'flag': '🇦🇺'},
-    {'code': 'SG', 'name': 'Singapore', 'flag': '🇸🇬'},
+    {'code': 'ALL', 'name': 'All Countries', 'flag': 'WW'},
+    {'code': 'IN', 'name': 'India', 'flag': 'IN'},
+    {'code': 'US', 'name': 'United States', 'flag': 'US'},
+    {'code': 'UK', 'name': 'United Kingdom', 'flag': 'UK'},
+    {'code': 'CA', 'name': 'Canada', 'flag': 'CA'},
+    {'code': 'AU', 'name': 'Australia', 'flag': 'AU'},
+    {'code': 'SG', 'name': 'Singapore', 'flag': 'SG'},
   ];
 
   @override
@@ -178,9 +177,9 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
             center: Alignment.topCenter,
             radius: 1.2,
             colors: [
-              Color(0xFFFF6BB0),
-              AppColors.primary,
-              AppColors.textPrimary,
+              AppTokens.accent,
+              AppTokens.accent,
+              AppTokens.textHi,
             ],
             stops: [0.0, 0.4, 1.0],
           ),
@@ -195,7 +194,7 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                   children: [
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      icon: const Icon(Icons.arrow_back, color: AppTokens.textHi),
                     ),
                     Expanded(
                       child: Column(
@@ -203,18 +202,11 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                         children: [
                           Text(
                             'Pet Marketplace',
-                            style: GoogleFonts.fredoka(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                            style: AppTokens.textStyles.h2,
                           ),
                           Text(
                             'Buy unique NFT pets',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              color: Colors.white.withOpacity(0.7),
-                            ),
+                            style: AppTokens.textStyles.body.copyWith(color: AppTokens.textMid),
                           ),
                         ],
                       ),
@@ -225,22 +217,18 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withOpacity(0.2)),
+                          color: AppTokens.surface2,
+                          borderRadius: BorderRadius.circular(AppTokens.r12),
+                          border: Border.all(color: AppTokens.border),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.pets, color: Color(0xFFFFD700), size: 18),
+                            const Icon(Icons.pets, color: AppTokens.accent, size: 18),
                             const SizedBox(width: 6),
                             Text(
                               'My Pets',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
+                              style: AppTokens.textStyles.label,
                             ),
                           ],
                         ),
@@ -255,22 +243,22 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: AppTokens.surface2,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    border: Border.all(color: AppTokens.border),
                   ),
                   child: TextField(
                     onChanged: (value) {
                       setState(() => _searchQuery = value);
                     },
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: AppTokens.textHi),
                     decoration: InputDecoration(
                       hintText: 'Search pets by name...',
-                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-                      prefixIcon: const Icon(Icons.search, color: Colors.white70),
+                      hintStyle: TextStyle(color: AppTokens.textMid),
+                      prefixIcon: const Icon(Icons.search, color: AppTokens.textMid),
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear, color: Colors.white70),
+                              icon: const Icon(Icons.clear, color: AppTokens.textMid),
                               onPressed: () {
                                 setState(() => _searchQuery = '');
                               },
@@ -295,16 +283,16 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: AppTokens.surface2,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.2)),
+                        border: Border.all(color: AppTokens.border),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedCountry ?? 'ALL',
-                          dropdownColor: AppColors.textPrimary,
-                          icon: const Icon(Icons.arrow_drop_down, color: Colors.white70, size: 20),
-                          style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                          dropdownColor: AppTokens.textHi,
+                          icon: const Icon(Icons.arrow_drop_down, color: AppTokens.textMid, size: 20),
+                          style: AppTokens.textStyles.body,
                           onChanged: (value) {
                             setState(() {
                               _selectedCountry = value;
@@ -334,16 +322,16 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: AppTokens.surface2,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.2)),
+                        border: Border.all(color: AppTokens.border),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _sortBy,
-                          dropdownColor: AppColors.textPrimary,
-                          icon: const Icon(Icons.sort, color: Colors.white70, size: 18),
-                          style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                          dropdownColor: AppTokens.textHi,
+                          icon: const Icon(Icons.sort, color: AppTokens.textMid, size: 18),
+                          style: AppTokens.textStyles.body,
                           onChanged: (value) {
                             if (value != null) {
                               setState(() => _sortBy = value);
@@ -354,9 +342,9 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                               value: 'price_asc',
                               child: Row(
                                 children: [
-                                  const Icon(Icons.arrow_upward, size: 14, color: Colors.white70),
+                                  const Icon(Icons.arrow_upward, size: 14, color: AppTokens.textMid),
                                   const SizedBox(width: 6),
-                                  Text('Price: Low to High', style: GoogleFonts.inter(fontSize: 13)),
+                                  Text('Price: Low to High', style: AppTokens.textStyles.bodySm),
                                 ],
                               ),
                             ),
@@ -364,9 +352,9 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                               value: 'price_desc',
                               child: Row(
                                 children: [
-                                  const Icon(Icons.arrow_downward, size: 14, color: Colors.white70),
+                                  const Icon(Icons.arrow_downward, size: 14, color: AppTokens.textMid),
                                   const SizedBox(width: 6),
-                                  Text('Price: High to Low', style: GoogleFonts.inter(fontSize: 13)),
+                                  Text('Price: High to Low', style: AppTokens.textStyles.bodySm),
                                 ],
                               ),
                             ),
@@ -374,9 +362,9 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                               value: 'popular',
                               child: Row(
                                 children: [
-                                  const Icon(Icons.trending_up, size: 14, color: Colors.white70),
+                                  const Icon(Icons.trending_up, size: 14, color: AppTokens.textMid),
                                   const SizedBox(width: 6),
-                                  Text('Most Popular', style: GoogleFonts.inter(fontSize: 13)),
+                                  Text('Most Popular', style: AppTokens.textStyles.bodySm),
                                 ],
                               ),
                             ),
@@ -393,11 +381,11 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withOpacity(0.2)),
+                          color: AppTokens.surface2,
+                          borderRadius: BorderRadius.circular(AppTokens.r12),
+                          border: Border.all(color: AppTokens.border),
                         ),
-                        child: const Icon(Icons.refresh, color: Colors.white70, size: 18),
+                        child: const Icon(Icons.refresh, color: AppTokens.textMid, size: 18),
                       ),
                     ),
                   ],
@@ -426,7 +414,7 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                               if (index >= _filteredPets.length) {
                                 return const Center(
                                   child: CircularProgressIndicator(
-                                    color: Color(0xFFFF6BB0),
+                                    color: AppTokens.accent,
                                   ),
                                 );
                               }
@@ -456,10 +444,10 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: isLocked
-                ? [Colors.grey[800]!, Colors.grey[900]!]
+                ? [AppTokens.surface2, AppTokens.bg]
                 : [
-                    AppColors.primary.withOpacity(0.8),
-                    const Color(0xFFFF6BB0).withOpacity(0.6),
+                    AppTokens.accent.withOpacity(0.8),
+                    AppTokens.accent.withOpacity(0.6),
                   ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -467,8 +455,8 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isLocked
-                ? Colors.grey.withOpacity(0.3)
-                : Colors.white.withOpacity(0.2),
+                ? AppTokens.border
+                : AppTokens.border,
           ),
         ),
         child: Column(
@@ -511,26 +499,19 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                         Expanded(
                           child: Text(
                             pet.displayName ?? 'Unknown',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
+                            style: AppTokens.textStyles.body.copyWith(fontWeight: FontWeight.w600),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (pet.isVerified ?? false)
-                          const Icon(Icons.verified, color: Color(0xFF00FF88), size: 14),
+                          const Icon(Icons.verified, color: AppTokens.success, size: 14),
                       ],
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '@${pet.username ?? 'unknown'}',
-                      style: GoogleFonts.inter(
-                        color: Colors.white.withOpacity(0.6),
-                        fontSize: 11,
-                      ),
+                      style: AppTokens.textStyles.label.copyWith(color: AppTokens.textMid),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -540,30 +521,27 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                       children: [
                         Text(
                           _formatPrice(pet.currentPriceWei),
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFFFD700),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                          style: AppTokens.textStyles.body.copyWith(
+                            color: AppTokens.accent,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         if (isLocked)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.3),
+                              color: AppTokens.danger.withOpacity(0.3),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.lock, color: Colors.red, size: 10),
+                                const Icon(Icons.lock, color: AppTokens.danger, size: 10),
                                 const SizedBox(width: 2),
                                 Text(
                                   'LOCKED',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.red,
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.bold,
+                                  style: AppTokens.textStyles.label.copyWith(
+                                    color: AppTokens.danger,
                                   ),
                                 ),
                               ],
@@ -587,18 +565,14 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
       height: 80,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFFF6BB0), AppColors.primary],
+          colors: [AppTokens.accent, AppTokens.accent],
         ),
         shape: BoxShape.circle,
       ),
       child: Center(
         child: Text(
           pet.displayName?.substring(0, 1).toUpperCase() ?? '?',
-          style: GoogleFonts.fredoka(
-            color: Colors.white,
-            fontSize: 36,
-            fontWeight: FontWeight.bold,
-          ),
+          style: AppTokens.textStyles.display1,
         ),
       ),
     );
@@ -609,16 +583,16 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+          const Icon(Icons.error_outline, color: AppTokens.danger, size: 48),
           const SizedBox(height: 16),
           Text(
             'Failed to load pets',
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+            style: AppTokens.textStyles.body,
           ),
           const SizedBox(height: 8),
           Text(
             _error,
-            style: GoogleFonts.inter(color: Colors.white70, fontSize: 12),
+            style: AppTokens.textStyles.bodySm.copyWith(color: AppTokens.textMid),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -636,22 +610,16 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('🐾', style: TextStyle(fontSize: 64)),
+          const Icon(Icons.search_off, size: 64, color: AppTokens.textMid),
           const SizedBox(height: 16),
           Text(
             'No pets found',
-            style: GoogleFonts.fredoka(
-              color: Colors.white,
-              fontSize: 24,
-            ),
+            style: AppTokens.textStyles.h2,
           ),
           const SizedBox(height: 8),
           Text(
             'Try adjusting your filters',
-            style: GoogleFonts.inter(
-              color: Colors.white.withOpacity(0.7),
-              fontSize: 14,
-            ),
+            style: AppTokens.textStyles.body,
           ),
         ],
       ),

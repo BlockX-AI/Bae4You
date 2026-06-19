@@ -1,14 +1,6 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../widgets/animated_background.dart';
-import '../widgets/glass_card.dart';
-import '../widgets/swipe_card_stack.dart';
+import '../design/tokens.dart';
 import '../widgets/wallet_modal.dart';
-import '../widgets/glow_button.dart';
-import '../widgets/floating_hearts.dart';
-import '../widgets/animated_gradient.dart';
-import '../theme/app_colors.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -17,55 +9,9 @@ class LandingScreen extends StatefulWidget {
   State<LandingScreen> createState() => _LandingScreenState();
 }
 
-class _LandingScreenState extends State<LandingScreen>
-    with TickerProviderStateMixin {
-  late final AnimationController _animationController;
-  late final ScrollController _scrollController;
-  bool _showNavBackground = false;
-  
-  // Global keys for scrolling to sections
-  final GlobalKey _featuresKey = GlobalKey();
+class _LandingScreenState extends State<LandingScreen> {
+  final ScrollController _scrollController = ScrollController();
   final GlobalKey _howItWorksKey = GlobalKey();
-
-  // Brand colors - pink palette
-  static const brandPurple = AppColors.primary;
-  static const brandPurpleDeep = AppColors.primaryDark;
-  static const brandPink = AppColors.accent;
-  static const brandPinkHot = AppColors.primaryDark;
-  static const brandCream = AppColors.surface;
-  static const ink = AppColors.textPrimary;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(vsync: this);
-    _scrollController = ScrollController();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-  
-  void _scrollToSection(GlobalKey key) {
-    final context = key.currentContext;
-    if (context != null) {
-      Scrollable.ensureVisible(
-        context,
-        duration: const Duration(milliseconds: 800),
-        curve: Curves.easeInOutCubic,
-      );
-    }
-  }
-
-  void _onScroll(ScrollNotification notification) {
-    final showBg = notification.metrics.pixels > 50;
-    if (showBg != _showNavBackground) {
-      setState(() => _showNavBackground = showBg);
-    }
-  }
 
   void _openWalletModal() {
     showModalBottomSheet(
@@ -76,636 +22,493 @@ class _LandingScreenState extends State<LandingScreen>
     );
   }
 
+  void _scrollToHowItWorks() {
+    final context = _howItWorksKey.currentContext;
+    if (context != null) {
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: AppTokens.base),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= 900;
+
     return Scaffold(
-      backgroundColor: AppColors.bgTop,
-      body: NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          _onScroll(notification);
-          return false;
-        },
-        child: Stack(
+      backgroundColor: AppTokens.bg,
+      body: SingleChildScrollView(
+        controller: _scrollController,
+        child: Column(
           children: [
-            // Animated flowing gradient background
-            const AnimatedGradientBackground(child: SizedBox.expand()),
-
-            // Floating hearts effect
-            const FloatingHearts(),
-
-            // Main scrollable content
-            CustomScrollView(
-              controller: _scrollController,
-              slivers: [
-                // Hero Section
-                SliverToBoxAdapter(
-                  child: _buildHeroSection(),
-                ),
-
-                // Features Section
-                SliverToBoxAdapter(
-                  key: _featuresKey,
-                  child: _buildFeaturesSection(),
-                ),
-
-                // How It Works Section
-                SliverToBoxAdapter(
-                  key: _howItWorksKey,
-                  child: _buildHowItWorksSection(),
-                ),
-
-                // CTA Section
-                SliverToBoxAdapter(
-                  child: _buildCTASection(),
-                ),
-
-                // Footer
-                SliverToBoxAdapter(
-                  child: _buildFooter(),
-                ),
-              ],
-            ),
-
-            // Fixed Navigation
-            _buildNavigation(),
+            _buildNav(isDesktop),
+            _buildHero(isDesktop),
+            _buildStatsStrip(isDesktop),
+            _buildHowItWorks(isDesktop),
+            _buildFooter(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNavigation() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: _showNavBackground
-            ? const Color(0xFF140632).withOpacity(0.6)
-            : Colors.transparent,
-        border: Border(
-          bottom: BorderSide(
-            color: _showNavBackground
-                ? Colors.white.withOpacity(0.18)
-                : Colors.transparent,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Logo
-            Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      '🐾',
-                      style: TextStyle(fontSize: 22),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'Catch Up',
-                  style: GoogleFonts.fredoka(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: -0.02,
-                  ),
-                ),
-              ],
-            ),
-
-            // Nav Links (Desktop only - hidden on mobile)
-            if (MediaQuery.of(context).size.width > 600)
-              Row(
-                children: [
-                  _buildNavLink('Features', () => _scrollToSection(_featuresKey)),
-                  _buildNavLink('How it Works', () => _scrollToSection(_howItWorksKey)),
-                  _buildNavLink('Fantasy Bae', () {}),
-                  const SizedBox(width: 16),
-                ],
-              ),
-
-            // CTA Button with glow effect
-            GlowButton(
-              text: 'Get Started',
-              onPressed: _openWalletModal,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavLink(String text, VoidCallback onPressed) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: TextButton(
-        onPressed: onPressed,
-        child: Text(
-          text,
-          style: GoogleFonts.inter(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: Colors.white.withOpacity(0.85),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeroSection() {
-    final isMobile = MediaQuery.of(context).size.width < 900;
-
+  Widget _buildNav(bool isDesktop) {
     return Container(
-      height: MediaQuery.of(context).size.height,
-      padding: EdgeInsets.only(
-        top: 100,
-        left: isMobile ? 20 : 40,
-        right: isMobile ? 20 : 40,
-        bottom: 40,
+      height: 64,
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? AppTokens.s24 : AppTokens.s16,
       ),
-      child: isMobile
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeroContent(),
-                const SizedBox(height: 40),
-                const Expanded(
-                  child: Center(
-                    child: SwipeCardStack(),
-                  ),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: AppTokens.border, width: 1),
+        ),
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1280),
+          child: Row(
+            children: [
+              Text(
+                'Catch Up',
+                style: AppTokens.textStyles.display2,
+              ),
+              const Spacer(),
+              if (isDesktop) ...[
+                _buildNavLink('Pets'),
+                _buildNavLink('Leaderboard'),
+                _buildNavLink('How it works'),
+                const SizedBox(width: AppTokens.s24),
+                ElevatedButton(
+                  onPressed: _openWalletModal,
+                  child: const Text('Get started'),
                 ),
-              ],
-            )
-          : Row(
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: _buildHeroContent(),
+              ] else
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.menu),
+                  color: AppTokens.textHi,
                 ),
-                const Expanded(
-                  flex: 5,
-                  child: Center(
-                    child: SwipeCardStack(),
-                  ),
-                ),
-              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavLink(String text) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () {
+          if (text == 'How it works') _scrollToHowItWorks();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppTokens.s16),
+          child: Text(
+            text,
+            style: AppTokens.textStyles.body.copyWith(
+              color: AppTokens.textMid,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHero(bool isDesktop) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? AppTokens.s24 : AppTokens.s16,
+        vertical: isDesktop ? AppTokens.s64 : AppTokens.s32,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1280),
+          child: isDesktop
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 60,
+                      child: _buildHeroContent(),
+                    ),
+                    const SizedBox(width: AppTokens.s48),
+                    Expanded(
+                      flex: 40,
+                      child: Center(child: _buildHeroCard()),
+                    ),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeroContent(),
+                    const SizedBox(height: AppTokens.s32),
+                    Center(child: _buildHeroCard()),
+                  ],
+                ),
+        ),
+      ),
     );
   }
 
   Widget _buildHeroContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Badge
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: Colors.white.withOpacity(0.18)),
+        Text(
+          'THE MARKET FOR INTERESTING HUMANS',
+          style: AppTokens.textStyles.label.copyWith(
+            color: AppTokens.accent,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+        ),
+        const SizedBox(height: AppTokens.s16),
+        Text(
+          'Buy low. Sell high. Own people.',
+          style: AppTokens.textStyles.display1,
+        ),
+        const SizedBox(height: AppTokens.s16),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Text(
+            'Your collection is worth real PCASH. Trade pets, climb ranks, earn when your assets get bought.',
+            style: AppTokens.textStyles.bodyLg.copyWith(
+              color: AppTokens.textMid,
+            ),
+          ),
+        ),
+        const SizedBox(height: AppTokens.s24),
+        ElevatedButton(
+          onPressed: _openWalletModal,
+          child: const Text('View collection'),
+        ),
+        const SizedBox(height: AppTokens.s12),
+        TextButton(
+          onPressed: _scrollToHowItWorks,
+          child: Text(
+            'How it works',
+            style: AppTokens.textStyles.body.copyWith(
+              color: AppTokens.textMid,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeroCard() {
+    return Transform.rotate(
+      angle: 0.02,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF00FF88),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0xFF00FF88),
-                      blurRadius: 10,
+              AspectRatio(
+                aspectRatio: 4 / 3,
+                child: Container(
+                  color: AppTokens.surface2,
+                  child: Center(
+                    child: Text(
+                      'MY',
+                      style: AppTokens.textStyles.display1.copyWith(
+                        color: AppTokens.textLow,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AppTokens.s16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Maya, 24',
+                          style: AppTokens.textStyles.h3,
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppTokens.s8,
+                            vertical: AppTokens.s4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTokens.surface2,
+                            borderRadius: BorderRadius.circular(AppTokens.r24),
+                            border: Border.all(color: AppTokens.border),
+                          ),
+                          child: Text(
+                            'Bronze',
+                            style: AppTokens.textStyles.label,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppTokens.s4),
+                    Text(
+                      'Mumbai',
+                      style: AppTokens.textStyles.bodySm,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Live on Base · Web3 Dating Reimagined',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white.withOpacity(0.9),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Headline
-        RichText(
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: 'Where hearts\nget ',
-                style: GoogleFonts.fredoka(
-                  fontSize: 56,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  letterSpacing: -0.03,
-                  height: 1.1,
-                ),
-              ),
-              TextSpan(
-                text: 'caught',
-                style: GoogleFonts.fredoka(
-                  fontSize: 56,
-                  fontWeight: FontWeight.w700,
-                  foreground: Paint()
-                    ..shader = const LinearGradient(
-                      colors: [
-                        Color(0xFFFFD700),
-                        Color(0xFFFF6BB0),
-                        AppColors.primaryDark,
-                      ],
-                    ).createShader(
-                      const Rect.fromLTWH(0, 0, 200, 70),
+              const Divider(),
+              Padding(
+                padding: const EdgeInsets.all(AppTokens.s16),
+                child: Row(
+                  children: [
+                    Text(
+                      'PCASH 1,210',
+                      style: AppTokens.textStyles.money,
                     ),
-                ),
-              ),
-              TextSpan(
-                text: '.',
-                style: GoogleFonts.fredoka(
-                  fontSize: 56,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                    const Spacer(),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.arrow_drop_up,
+                          color: AppTokens.success,
+                          size: 16,
+                        ),
+                        Text(
+                          '12%',
+                          style: AppTokens.textStyles.moneySm.copyWith(
+                            color: AppTokens.success,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
 
-        const SizedBox(height: 24),
+  Widget _buildStatsStrip(bool isDesktop) {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: AppTokens.border, width: 1),
+          bottom: BorderSide(color: AppTokens.border, width: 1),
+        ),
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? AppTokens.s24 : AppTokens.s16,
+        vertical: AppTokens.s48,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1280),
+          child: isDesktop
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildStat('12,400', 'active traders'),
+                    _buildStat('PCASH 4.2M', 'traded this week'),
+                    _buildStat('6 cities', 'live now'),
+                  ],
+                )
+              : Column(
+                  children: [
+                    _buildStat('12,400', 'active traders'),
+                    const SizedBox(height: AppTokens.s24),
+                    _buildStat('PCASH 4.2M', 'traded this week'),
+                    const SizedBox(height: AppTokens.s24),
+                    _buildStat('6 cities', 'live now'),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
 
-        // Subtitle
+  Widget _buildStat(String value, String label) {
+    final isDesktop = MediaQuery.of(context).size.width >= 900;
+    return Column(
+      crossAxisAlignment:
+          isDesktop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      children: [
         Text(
-          'Swipe, match, and chat — but this time, your profile is an asset and every connection has value. Welcome to dating, leveled up.',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w400,
-            color: Colors.white.withOpacity(0.85),
-            height: 1.6,
-          ),
+          value,
+          style: AppTokens.textStyles.moneyLg,
         ),
-
-        const SizedBox(height: 32),
-
-        // CTA Buttons
-        Wrap(
-          spacing: 16,
-          runSpacing: 12,
-          children: [
-            ElevatedButton.icon(
-              onPressed: _openWalletModal,
-              icon: const Text('✨', style: TextStyle(fontSize: 18)),
-              label: const Text('Start Catching'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
-                textStyle: GoogleFonts.inter(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Text('→', style: TextStyle(fontSize: 18)),
-              label: const Text('How it works'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
-                textStyle: GoogleFonts.inter(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 48),
-
-        // Stats
-        Row(
-          children: [
-            _buildStat('8', 'On-chain Contracts'),
-            const SizedBox(width: 40),
-            _buildStat('\$0', 'Gas Fees For You'),
-            const SizedBox(width: 40),
-            _buildStat('∞', 'Earning Potential'),
-          ],
+        const SizedBox(height: AppTokens.s4),
+        Text(
+          label,
+          style: AppTokens.textStyles.bodySm,
         ),
       ],
     );
   }
 
-  Widget _buildStat(String number, String label) {
+  Widget _buildHowItWorks(bool isDesktop) {
+    return Container(
+      key: _howItWorksKey,
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? AppTokens.s24 : AppTokens.s16,
+        vertical: AppTokens.s64,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1280),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'HOW IT WORKS',
+                style: AppTokens.textStyles.label.copyWith(
+                  color: AppTokens.accent,
+                ),
+              ),
+              const SizedBox(height: AppTokens.s8),
+              Text(
+                'Three steps to your first pet',
+                style: AppTokens.textStyles.h1,
+              ),
+              const SizedBox(height: AppTokens.s32),
+              isDesktop
+                  ? Row(
+                      children: [
+                        Expanded(
+                          child: _buildStep(
+                            '01',
+                            'Browse',
+                            'Find profiles by city, value, or interests.',
+                          ),
+                        ),
+                        const SizedBox(width: AppTokens.s32),
+                        Expanded(
+                          child: _buildStep(
+                            '02',
+                            'Buy',
+                            'Spend PCASH to add them to your collection.',
+                          ),
+                        ),
+                        const SizedBox(width: AppTokens.s32),
+                        Expanded(
+                          child: _buildStep(
+                            '03',
+                            'Earn',
+                            'Their value grows. You earn when they get bought.',
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        _buildStep(
+                          '01',
+                          'Browse',
+                          'Find profiles by city, value, or interests.',
+                        ),
+                        const SizedBox(height: AppTokens.s32),
+                        _buildStep(
+                          '02',
+                          'Buy',
+                          'Spend PCASH to add them to your collection.',
+                        ),
+                        const SizedBox(height: AppTokens.s32),
+                        _buildStep(
+                          '03',
+                          'Earn',
+                          'Their value grows. You earn when they get bought.',
+                        ),
+                      ],
+                    ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStep(String number, String title, String description) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Colors.white, Color(0xFFFFD9EF)],
-          ).createShader(bounds),
-          child: Text(
-            number,
-            style: GoogleFonts.fredoka(
-              fontSize: 32,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
+        Text(
+          number,
+          style: AppTokens.textStyles.display2.copyWith(
+            color: AppTokens.accentMuted,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppTokens.s8),
         Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: Colors.white.withOpacity(0.7),
-            letterSpacing: 0.5,
+          title,
+          style: AppTokens.textStyles.h3,
+        ),
+        const SizedBox(height: AppTokens.s4),
+        Text(
+          description,
+          style: AppTokens.textStyles.body.copyWith(
+            color: AppTokens.textMid,
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildFeaturesSection() {
-    final features = [
-      ('💕', 'Smart Matchmaking',
-          '18-dimensional personality vectors find people who actually fit your vibe. Real chemistry, less swiping.'),
-      ('⚡', 'Earn While You Date',
-          'Your profile is an asset. When others "collect" you, you earn passive income. The more loved, the more earned.'),
-      ('🎮', 'Fantasy Bae League',
-          'Collect cards, build decks, win weekly tournaments. A whole game layer on top of dating.'),
-      ('💬', 'Real-Time Chat',
-          'Lightning-fast messaging with images, GIFs, voice notes. Read receipts. Typing indicators. The works.'),
-      ('💎', 'Daily PCASH Bonus',
-          'Claim free PCASH tokens every 4 hours. Use them to collect profiles, gift matches, or trade.'),
-      ('🛡️', 'Zero Web3 Hassle',
-          'No gas. No wallet popups. No transactions to sign. We handle all the blockchain stuff invisibly.'),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 80),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            const Color(0xFF140632).withOpacity(0.4),
-          ],
-        ),
-      ),
-      child: Column(
-        children: [
-          // Section Header
-          Text(
-            'WHY CATCH UP',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFFFFD700),
-              letterSpacing: 2,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Dating that actually values you.',
-            style: GoogleFonts.fredoka(
-              fontSize: 40,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              height: 1.1,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Three layers of awesome — a normal dating app on the surface, with a hidden economy that rewards being interesting.',
-            style: GoogleFonts.inter(
-              fontSize: 17,
-              color: Colors.white.withOpacity(0.75),
-              height: 1.5,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 48),
-
-          // Feature Grid
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final crossAxisCount = constraints.maxWidth > 900
-                  ? 3
-                  : constraints.maxWidth > 600
-                      ? 2
-                      : 1;
-
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.2,
-                ),
-                itemCount: features.length,
-                itemBuilder: (context, index) {
-                  final (icon, title, desc) = features[index];
-                  return FeatureCard(
-                    icon: icon,
-                    title: title,
-                    description: desc,
-                  );
-                },
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHowItWorksSection() {
-    final steps = [
-      ('1', 'Connect', 'Sign in with your wallet — or we\'ll make one for you. Takes 30 seconds.'),
-      ('2', 'Profile', 'Add your photos, bio, vibe. We mint you as a unique on-chain profile.'),
-      ('3', 'Swipe', 'Discover people who match your personality vector — not just your filters.'),
-      ('4', 'Catch', 'Match, chat, meet. Earn PCASH the whole way through.'),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 80),
-      child: Column(
-        children: [
-          Text(
-            'GET STARTED IN MINUTES',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFFFFD700),
-              letterSpacing: 2,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'From signup to "It\'s a match!"',
-            style: GoogleFonts.fredoka(
-              fontSize: 40,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              height: 1.1,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 48),
-
-          // Steps
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 800;
-
-              if (isWide) {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: steps.map((step) => Expanded(
-                    child: StepCard(
-                      number: step.$1,
-                      title: step.$2,
-                      description: step.$3,
-                    ),
-                  )).toList(),
-                );
-              } else {
-                return Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  children: steps.map((step) => SizedBox(
-                    width: constraints.maxWidth > 400 ? 180 : double.infinity,
-                    child: StepCard(
-                      number: step.$1,
-                      title: step.$2,
-                      description: step.$3,
-                    ),
-                  )).toList(),
-                );
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCTASection() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 80),
-      child: Container(
-        padding: const EdgeInsets.all(48),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              AppColors.accent,
-              AppColors.primary,
-              AppColors.primaryDark,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(32),
-          boxShadow: [
-            BoxShadow(
-              color: brandPurple.withOpacity(0.4),
-              blurRadius: 60,
-              offset: const Offset(0, 20),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // Decorative circle
-            Positioned(
-              top: -100,
-              right: -50,
-              child: Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      Colors.white.withOpacity(0.2),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Column(
-              children: [
-                Text(
-                  'Ready to get caught?',
-                  style: GoogleFonts.fredoka(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Join the dating revolution where you actually own your story.',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    color: Colors.white.withOpacity(0.95),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                GlowButton(
-                  text: '✨ Catch Your Match',
-                  onPressed: _openWalletModal,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   Widget _buildFooter() {
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         border: Border(
-          top: BorderSide(color: Colors.white.withOpacity(0.18)),
+          top: BorderSide(color: AppTokens.border, width: 1),
         ),
       ),
-      child: Text(
-        '© 2026 Catch Up · Built on Base · Powered by Bae4U Protocol',
-        style: GoogleFonts.inter(
-          fontSize: 14,
-          color: Colors.white.withOpacity(0.6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTokens.s24,
+        vertical: AppTokens.s32,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1280),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Catch Up',
+                style: AppTokens.textStyles.h3,
+              ),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: () {},
+                    child: Text(
+                      'Privacy',
+                      style: AppTokens.textStyles.bodySm,
+                    ),
+                  ),
+                  const SizedBox(width: AppTokens.s16),
+                  TextButton(
+                    onPressed: () {},
+                    child: Text(
+                      'Terms',
+                      style: AppTokens.textStyles.bodySm,
+                    ),
+                  ),
+                  const SizedBox(width: AppTokens.s16),
+                  TextButton(
+                    onPressed: () {},
+                    child: Text(
+                      'Contact',
+                      style: AppTokens.textStyles.bodySm,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        textAlign: TextAlign.center,
       ),
     );
   }

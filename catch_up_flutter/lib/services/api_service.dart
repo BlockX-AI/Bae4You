@@ -401,7 +401,72 @@ class ApiService {
       throw _handleError(e);
     }
   }
-  
+
+  // ============ TRADING / PETS ============
+
+  /// POST /pets/:tokenId/buy - Buy a pet at current price
+  Future<PetTransaction> buyPet(int tokenId, String token) async {
+    try {
+      final response = await _dio.post(
+        '/pets/$tokenId/buy',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return PetTransaction.fromJson(response.data);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// POST /pets/:tokenId/bid - Place a bid on a pet
+  Future<Map<String, dynamic>> placeBid(
+    int tokenId,
+    String amount, // in wei
+    String token,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/pets/$tokenId/bid',
+        data: {'amount': amount},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// POST /pets/:tokenId/list - List pet for sale
+  Future<Map<String, dynamic>> listPetForSale(
+    int tokenId,
+    String price, // in wei
+    String token,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/pets/$tokenId/list',
+        data: {'price': price},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// GET /pets/:tokenId/bids - Get active bids on a pet
+  Future<List<Map<String, dynamic>>> getPetBids(int tokenId, String token) async {
+    try {
+      final response = await _dio.get(
+        '/pets/$tokenId/bids',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final bids = response.data['bids'] as List<dynamic>;
+      return bids.map((b) => b as Map<String, dynamic>).toList();
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   // ============ ERROR HANDLING ============
   
   Exception _handleError(dynamic error) {
