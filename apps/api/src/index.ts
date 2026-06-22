@@ -5,6 +5,7 @@ import helmet from "@fastify/helmet";
 import multipart from "@fastify/multipart";
 import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
+import fastifyStatic from "@fastify/static";
 
 import dbPlugin    from "./plugins/db";
 import redisPlugin from "./plugins/redis";
@@ -102,6 +103,12 @@ async function bootstrap() {
     routePrefix: "/docs",
     uiConfig: { docExpansion: "list", deepLinking: true },
     staticCSP: true,
+  });
+
+  // Static file serving for Notion avatar parts
+  await app.register(fastifyStatic, {
+    root: path.resolve(__dirname, "../public"),
+    prefix: "/",
   });
 
   // Multipart — used for avatar uploads (10 MB limit, 2 files for couple endpoint)
