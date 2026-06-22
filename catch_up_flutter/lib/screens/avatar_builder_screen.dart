@@ -72,7 +72,8 @@ class _AvatarBuilderScreenState extends ConsumerState<AvatarBuilderScreen> {
   Future<void> _syncToBackend(String token, CartoonAvatar avatar) async {
     final api = ApiService();
     try {
-      await api.updateCartoonAvatar(token: token, cartoonAvatar: avatar.toJson());
+      // TODO: Migrate to Notion avatar system
+      // await api.updateBitmoji(token: token, config: avatar.toJson());
     } catch (_) {/* non-blocking */}
     try {
       final png = await renderAvatarToPng(avatar);

@@ -1,36 +1,39 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../models/cartoon_avatar.dart';
+import 'dart:convert';
+import '../models/notion_avatar.dart';
 import '../models/user_models.dart';
 import 'auth_provider.dart';
 
-/// Stores the user's cartoon avatar locally (offline-first).
+/// Stores the user's Notion avatar config locally (offline-first).
 ///
 /// The avatar is saved to secure storage as JSON, so it survives restarts
 /// and never depends on the backend.
-class AvatarNotifier extends StateNotifier<CartoonAvatar?> {
-  static const _key = 'cartoon_avatar_v1';
+class NotionAvatarNotifier extends StateNotifier<NotionAvatarConfig?> {
+  static const _key = 'notion_avatar_v1';
   final _storage = const FlutterSecureStorage();
 
-  AvatarNotifier() : super(null) {
+  NotionAvatarNotifier() : super(null) {
     _load();
   }
 
   Future<void> _load() async {
     try {
       final raw = await _storage.read(key: _key);
-      final parsed = CartoonAvatar.tryParse(raw);
-      if (parsed != null) state = parsed;
+      if (raw != null) {
+        final json = jsonDecode(raw) as Map<String, dynamic>;
+        state = NotionAvatarConfig.fromJson(json);
+      }
     } catch (_) {
       // ignore – first run / no avatar yet
     }
   }
 
   /// Persist a finished avatar.
-  Future<void> save(CartoonAvatar avatar) async {
-    state = avatar.copy();
+  Future<void> save(NotionAvatarConfig avatar) async {
+    state = avatar;
     try {
-      await _storage.write(key: _key, value: avatar.toJsonString());
+      await _storage.write(key: _key, value: jsonEncode(avatar.toJson()));
     } catch (_) {
       // local save failed — keep in-memory state anyway
     }
@@ -42,9 +45,9 @@ class AvatarNotifier extends StateNotifier<CartoonAvatar?> {
   Future<void> hydrateFromBackend(Map<String, dynamic>? config) async {
     if (state != null || config == null) return;
     try {
-      final avatar = CartoonAvatar.fromJson(config);
+      final avatar = NotionAvatarConfig.fromJson(config);
       state = avatar;
-      await _storage.write(key: _key, value: avatar.toJsonString());
+      await _storage.write(key: _key, value: jsonEncode(avatar.toJson()));
     } catch (_) {
       // malformed config — ignore
     }
@@ -61,10 +64,10 @@ class AvatarNotifier extends StateNotifier<CartoonAvatar?> {
   bool get hasAvatar => state != null;
 }
 
-final avatarProvider =
-    StateNotifierProvider<AvatarNotifier, CartoonAvatar?>((ref) {
-  final notifier = AvatarNotifier();
-  // When the authenticated user carries a cartoon avatar (e.g. fresh device),
+final notionAvatarProvider =
+    StateNotifierProvider<NotionAvatarNotifier, NotionAvatarConfig?>((ref) {
+  final notifier = NotionAvatarNotifier();
+  // When the authenticated user carries a bitmoji config (e.g. fresh device),
   // hydrate local state from it — but only if nothing is stored locally.
   ref.listen<User?>(currentUserProvider, (_, user) {
     notifier.hydrateFromBackend(user?.bitmojiConfig);

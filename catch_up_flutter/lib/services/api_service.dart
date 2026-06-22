@@ -4,6 +4,7 @@ import 'package:logger/logger.dart';
 import '../models/auth_models.dart';
 import '../models/user_models.dart';
 import '../models/pet_models.dart';
+import '../models/notion_avatar.dart';
 
 class ApiService {
   late final Dio _dio;
@@ -193,26 +194,27 @@ class ApiService {
   /// PUT /users/me - Update user profile
   Future<User> updateProfile({
     required String token,
-    required String displayName,
-    required String username,
-    required String bio,
-    required String countryCode,
-    required List<String> interests,
+    String? displayName,
+    String? username,
+    String? bio,
+    String? countryCode,
+    List<String>? interests,
     String? avatarUrl,
     Map<String, dynamic>? cartoonAvatar,
   }) async {
     try {
+      final data = <String, dynamic>{};
+      if (displayName != null && displayName.isNotEmpty) data['displayName'] = displayName;
+      if (username != null && username.isNotEmpty) data['username'] = username;
+      if (bio != null && bio.isNotEmpty) data['bio'] = bio;
+      if (countryCode != null && countryCode.isNotEmpty) data['countryCode'] = countryCode;
+      if (interests != null && interests.isNotEmpty) data['interests'] = interests;
+      if (avatarUrl != null && avatarUrl.isNotEmpty) data['avatarUrl'] = avatarUrl;
+      if (cartoonAvatar != null) data['cartoonAvatar'] = cartoonAvatar;
+
       final response = await _dio.put(
         '/users/me',
-        data: {
-          'displayName': displayName,
-          'username': username,
-          'bio': bio,
-          'countryCode': countryCode,
-          'interests': interests,
-          if (avatarUrl != null) 'avatarUrl': avatarUrl,
-          if (cartoonAvatar != null) 'cartoonAvatar': cartoonAvatar,
-        },
+        data: data,
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       return User.fromJson(response.data);
@@ -221,18 +223,55 @@ class ApiService {
     }
   }
 
-  /// PUT /users/me — persist just the cartoon avatar config (JSON).
-  /// Used by the avatar builder, which doesn't carry the full profile form.
-  Future<void> updateCartoonAvatar({
-    required String token,
-    required Map<String, dynamic> cartoonAvatar,
-  }) async {
+  /// GET /users/me/bitmoji — fetch current Notion avatar config + SVG
+  Future<BitmojiResponse> getBitmoji({required String token}) async {
     try {
-      await _dio.put(
-        '/users/me',
-        data: {'cartoonAvatar': cartoonAvatar},
+      final response = await _dio.get(
+        '/users/me/bitmoji',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      return BitmojiResponse.fromJson(response.data);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// PATCH /users/me/bitmoji — update Notion avatar config (customizer)
+  Future<BitmojiResponse> updateBitmoji({
+    required String token,
+    required Map<String, dynamic> config,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        '/users/me/bitmoji',
+        data: config,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return BitmojiResponse.fromJson(response.data);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// POST /users/me/bitmoji/generate — generate from photo
+  Future<BitmojiResponse> generateBitmoji({
+    required String token,
+    required Uint8List photoBytes,
+  }) async {
+    try {
+      final form = FormData.fromMap({
+        'photo': MultipartFile.fromBytes(
+          photoBytes,
+          filename: 'photo.jpg',
+          contentType: DioMediaType('image', 'jpeg'),
+        ),
+      });
+      final response = await _dio.post(
+        '/users/me/bitmoji/generate',
+        data: form,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return BitmojiResponse.fromJson(response.data);
     } catch (e) {
       throw _handleError(e);
     }

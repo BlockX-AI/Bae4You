@@ -305,7 +305,7 @@ class _ProfileCard extends StatelessWidget {
                 child: Stack(children: [
                   Center(
                     child: AvatarDisplay(
-                      cartoonConfig: candidate.cartoonAvatar,
+                      cartoonConfig: candidate.bitmojiConfig,
                       avatarIpfsHash: candidate.avatarIpfsHash,
                       size: 180,
                       fallback: Text(emoji, style: const TextStyle(fontSize: 100)),

@@ -2,6 +2,20 @@ class User {
   final String id;
   final String walletAddress;
   final int? tokenId;
+
+  static int? _parseTokenId(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  static int _parseInt(dynamic value, int defaultValue) {
+    if (value == null) return defaultValue;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? defaultValue;
+    return defaultValue;
+  }
   final String? username;
   final String? displayName;
   final String? avatarIpfsHash;
@@ -16,7 +30,7 @@ class User {
   final String? emoji;
   final List<String>? interests;
   final String? avatarUrl;
-  final Map<String, dynamic>? cartoonAvatar;
+  final Map<String, dynamic>? bitmojiConfig;
   final int pcashBalance;
   final int goldBalance;
   final int currentValue;
@@ -39,7 +53,7 @@ class User {
     this.emoji,
     this.interests,
     this.avatarUrl,
-    this.cartoonAvatar,
+    this.bitmojiConfig,
     this.pcashBalance = 0,
     this.goldBalance = 0,
     this.currentValue = 0,
@@ -48,7 +62,7 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) => User(
         id: json['id'] as String,
         walletAddress: json['walletAddress'] ?? json['wallet_address'] as String,
-        tokenId: json['tokenId'] ?? json['token_id'] as int?,
+        tokenId: _parseTokenId(json['tokenId'] ?? json['token_id']),
         username: json['username'] as String?,
         displayName: json['displayName'] ?? json['display_name'] as String?,
         avatarIpfsHash: json['avatarIpfsHash'] ?? json['avatar_ipfs_hash'] as String?,
@@ -69,11 +83,11 @@ class User {
             ? List<String>.from(json['interests'] as List)
             : null,
         avatarUrl: json['avatarUrl'] ?? json['avatar_url'] as String?,
-        cartoonAvatar: (json['cartoonAvatar'] ?? json['cartoon_avatar'])
+        bitmojiConfig: (json['bitmojiConfig'] ?? json['bitmoji_config'])
             as Map<String, dynamic>?,
-        pcashBalance: (json['pcashBalance'] ?? json['pcash_balance'] ?? 0) as int,
-        goldBalance: (json['goldBalance'] ?? json['gold_balance'] ?? 0) as int,
-        currentValue: (json['currentValue'] ?? json['current_value'] ?? 0) as int,
+        pcashBalance: User._parseInt(json['pcashBalance'] ?? json['pcash_balance'], 0),
+        goldBalance: User._parseInt(json['goldBalance'] ?? json['gold_balance'], 0),
+        currentValue: User._parseInt(json['currentValue'] ?? json['current_value'], 0),
       );
 
   Map<String, dynamic> toJson() => {
@@ -91,7 +105,7 @@ class User {
         'emoji': emoji,
         'interests': interests,
         'avatarUrl': avatarUrl,
-        'cartoonAvatar': cartoonAvatar,
+        'bitmojiConfig': bitmojiConfig,
         'pcashBalance': pcashBalance,
         'goldBalance': goldBalance,
         'currentValue': currentValue,
@@ -105,7 +119,7 @@ class User {
     String? emoji,
     List<String>? interests,
     String? avatarUrl,
-    Map<String, dynamic>? cartoonAvatar,
+    Map<String, dynamic>? bitmojiConfig,
     int? pcashBalance,
     int? goldBalance,
     int? currentValue,
@@ -128,7 +142,7 @@ class User {
         emoji: emoji ?? this.emoji,
         interests: interests ?? this.interests,
         avatarUrl: avatarUrl ?? this.avatarUrl,
-        cartoonAvatar: cartoonAvatar ?? this.cartoonAvatar,
+        bitmojiConfig: bitmojiConfig ?? this.bitmojiConfig,
         pcashBalance: pcashBalance ?? this.pcashBalance,
         goldBalance: goldBalance ?? this.goldBalance,
         currentValue: currentValue ?? this.currentValue,
@@ -143,7 +157,7 @@ class Match {
   final String? username;
   final String? displayName;
   final String? avatarIpfsHash;
-  final Map<String, dynamic>? cartoonAvatar;
+  final Map<String, dynamic>? bitmojiConfig;
   final bool? isVerified;
   final String? lastMessage;
   final DateTime? lastMessageAt;
@@ -156,7 +170,7 @@ class Match {
     this.username,
     this.displayName,
     this.avatarIpfsHash,
-    this.cartoonAvatar,
+    this.bitmojiConfig,
     this.isVerified,
     this.lastMessage,
     this.lastMessageAt,
@@ -172,7 +186,7 @@ class Match {
         username: json['username'] as String?,
         displayName: json['displayName'] ?? json['display_name'] as String?,
         avatarIpfsHash: json['avatarIpfsHash'] ?? json['avatar_ipfs_hash'] as String?,
-        cartoonAvatar: (json['cartoonAvatar'] ?? json['cartoon_avatar'])
+        bitmojiConfig: (json['bitmojiConfig'] ?? json['bitmoji_config'])
             as Map<String, dynamic>?,
         isVerified: json['isVerified'] ?? json['is_verified'] as bool?,
         lastMessage: json['lastMessage'] ?? json['last_message'] as String?,
@@ -210,7 +224,7 @@ class DiscoverCandidate {
   final String? username;
   final String? displayName;
   final String? avatarIpfsHash;
-  final Map<String, dynamic>? cartoonAvatar;
+  final Map<String, dynamic>? bitmojiConfig;
   final String? bio;
   final String? countryCode;
   final bool? isVerified;
@@ -222,7 +236,7 @@ class DiscoverCandidate {
     this.username,
     this.displayName,
     this.avatarIpfsHash,
-    this.cartoonAvatar,
+    this.bitmojiConfig,
     this.bio,
     this.countryCode,
     this.isVerified,
@@ -236,12 +250,12 @@ class DiscoverCandidate {
         username: json['username'] as String?,
         displayName: json['displayName'] ?? json['display_name'] as String?,
         avatarIpfsHash: json['avatarIpfsHash'] ?? json['avatar_ipfs_hash'] as String?,
-        cartoonAvatar: (json['cartoonAvatar'] ?? json['cartoon_avatar'])
+        bitmojiConfig: (json['bitmojiConfig'] ?? json['bitmoji_config'])
             as Map<String, dynamic>?,
         bio: json['bio'] as String?,
         countryCode: json['countryCode'] ?? json['country_code'] as String?,
         isVerified: json['isVerified'] ?? json['is_verified'] as bool?,
-        tokenId: json['tokenId'] ?? json['token_id'] as int?,
+        tokenId: User._parseTokenId(json['tokenId'] ?? json['token_id']),
         createdAt: json['createdAt'] != null
             ? DateTime.parse(json['createdAt'] as String)
             : null,

@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../providers/auth_provider.dart';
-import '../providers/avatar_provider.dart';
 import '../services/api_service.dart';
-import '../widgets/cartoon_avatar_painter.dart';
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {
   final VoidCallback onComplete;
@@ -76,7 +74,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
       final token = ref.read(authProvider).token;
       if (token != null) {
         final countryCode = _selectedCountry.split(' ').last.substring(0, 2).toUpperCase();
-        final cartoon = ref.read(avatarProvider);
+        // Note: Notion avatar is synced separately via NotionAvatarBuilderScreen
         await ApiService().updateProfile(
           token: token,
           displayName: _nameController.text.trim().isEmpty ? 'Anonymous' : _nameController.text.trim(),
@@ -86,7 +84,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
           bio: _bioController.text.trim(),
           countryCode: countryCode,
           interests: _selectedInterests.toList(),
-          cartoonAvatar: cartoon?.toJson(),
         );
         await ref.read(authProvider.notifier).refreshUser();
       }
@@ -255,7 +252,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
   // ── STEP 2: Avatar ────────────────────────────────────────
   Widget _buildAvatarStep() {
     final emojis = ['😊','😎','🥰','🤩','😏','🌟','🔥','💫','🎯','🎨','🎸','📚','🏔️','☕','🌈','🦋','🐉','🌺','🎭','🚀'];
-    final cartoon = ref.watch(avatarProvider);
+    // Note: Using emoji for now - Notion avatar builder available separately
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(children: [
@@ -264,43 +261,20 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
           animation: _pulseController,
           builder: (_, __) => Transform.scale(
             scale: 1.0 + 0.05 * _pulseController.value,
-            child: cartoon != null
-                ? Container(
-                    width: 130, height: 130,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primaryDark, width: 3),
-                      boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 24, spreadRadius: 4)],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: CartoonAvatarView(avatar: cartoon, size: 130),
-                  )
-                : Container(
-                    width: 120, height: 120,
-                    decoration: BoxDecoration(gradient: AppColors.buttonGradient, shape: BoxShape.circle,
-                      boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 24, spreadRadius: 4)]),
-                    child: Center(child: Text(_selectedEmoji, style: const TextStyle(fontSize: 60))),
-                  ),
+            child: Container(
+              width: 120, height: 120,
+              decoration: BoxDecoration(gradient: AppColors.buttonGradient, shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 24, spreadRadius: 4)]),
+              child: Center(child: Text(_selectedEmoji, style: const TextStyle(fontSize: 60))),
+            ),
           ),
         ),
         const SizedBox(height: 12),
-        // Build a cartoon avatar from scratch (offline, Snapchat-style)
-        GestureDetector(
-          onTap: () => Navigator.pushNamed(context, '/avatar-studio'),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              gradient: AppColors.buttonGradient,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 3))],
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(cartoon != null ? Icons.edit : Icons.auto_awesome, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              Text(cartoon != null ? 'Edit cartoon avatar' : 'Build cartoon avatar', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
-            ]),
-          ),
-        ),
+        // TODO: Add Notion avatar builder integration
+        // GestureDetector(
+        //   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotionAvatarBuilderScreen())),
+        //   child: Container(...),
+        // ),
         const SizedBox(height: 24),
         Text('Or pick an emoji vibe', style: GoogleFonts.fredoka(fontSize: 22, color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
         const SizedBox(height: 16),
