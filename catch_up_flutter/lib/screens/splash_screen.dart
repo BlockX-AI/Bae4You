@@ -125,7 +125,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
                               borderRadius: BorderRadius.circular(30),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const AppTokens.accent.withOpacity(0.6),
+                                  color: AppTokens.accent.withOpacity(0.6),
                                   blurRadius: 60,
                                   spreadRadius: 20,
                                 ),
@@ -203,7 +203,7 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
                               borderRadius: BorderRadius.circular(2),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const AppTokens.accent.withOpacity(0.8),
+                                  color: AppTokens.accent.withOpacity(0.8),
                                   blurRadius: 10,
                                   spreadRadius: 2,
                                 ),

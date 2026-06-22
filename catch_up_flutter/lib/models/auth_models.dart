@@ -9,12 +9,14 @@ class NonceResponse {
 
 class AuthResponse {
   final String accessToken;
+  final String? refreshToken;
   final UserAuth user;
 
-  AuthResponse({required this.accessToken, required this.user});
+  AuthResponse({required this.accessToken, this.refreshToken, required this.user});
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) => AuthResponse(
         accessToken: json['accessToken'] as String,
+        refreshToken: json['refreshToken'] as String?,
         user: UserAuth.fromJson(json['user'] as Map<String, dynamic>),
       );
 }

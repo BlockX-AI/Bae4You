@@ -21,6 +21,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
   String _error = '';
   bool _isOwned = false;
   bool _isProcessing = false;
+  List<Map<String, dynamic>> _bids = [];
 
   @override
   void didChangeDependencies() {
@@ -46,8 +47,16 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
 
       final pet = await _apiService.getPet(tokenId, token);
 
+      // Bids are best-effort: a pet with none (or a transient failure) should
+      // not block rendering the pet itself.
+      List<Map<String, dynamic>> bids = [];
+      try {
+        bids = await _apiService.getPetBids(pet.tokenId, token);
+      } catch (_) {}
+
       setState(() {
         _pet = pet;
+        _bids = bids;
         _isLoading = false;
       });
     } catch (e) {
@@ -96,7 +105,13 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
       if (authState.token == null) throw Exception('Not authenticated');
       
       await _apiService.placeBid(pet.tokenId, amount, authState.token!);
-      
+
+      // Reflect the new bid in the list without leaving the screen.
+      try {
+        final bids = await _apiService.getPetBids(pet.tokenId, authState.token!);
+        if (mounted) setState(() => _bids = bids);
+      } catch (_) {}
+
       if (mounted) {
         setState(() => _isProcessing = false);
         _showSuccessDialog('Bid Placed', 'Your bid has been submitted.');
@@ -166,7 +181,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
           controller: controller,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
-            hintText: 'Enter amount in wei',
+            hintText: 'Enter amount in PCASH',
             hintStyle: AppTokens.textStyles.bodySm.copyWith(color: AppTokens.textMid),
             filled: true,
             fillColor: AppTokens.surface2,
@@ -203,7 +218,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
           controller: controller,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
-            hintText: 'Enter price in wei',
+            hintText: 'Enter price in PCASH',
             hintStyle: AppTokens.textStyles.bodySm.copyWith(color: AppTokens.textMid),
             filled: true,
             fillColor: AppTokens.surface2,
@@ -260,11 +275,12 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     );
   }
 
-  String _formatPrice(String? priceWei) {
-    if (priceWei == null) return '0 ETH';
-    final price = int.tryParse(priceWei) ?? 0;
-    final eth = price / 1e18;
-    return '${eth.toStringAsFixed(4)} ETH';
+  String _formatPrice(String? price) {
+    // Off-chain PCASH prices are plain integers (the source of truth), not wei.
+    final value = int.tryParse(price ?? '') ?? 0;
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M PCASH';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K PCASH';
+    return '$value PCASH';
   }
 
   String _formatDate(DateTime? date) {
@@ -478,6 +494,11 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                   ),
                 ),
 
+                if (_bids.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  _buildBidsSection(),
+                ],
+
                 const SizedBox(height: 80),
               ],
             ),
@@ -585,6 +606,55 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
             label,
             style: AppTokens.textStyles.label,
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBidsSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTokens.textHi.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTokens.textHi.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.gavel, color: AppTokens.accent, size: 20),
+              const SizedBox(width: 8),
+              Text('Active Bids (${_bids.length})', style: AppTokens.textStyles.h3),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ..._bids.map((bid) {
+            final name = (bid['bidder_display_name'] ??
+                    bid['bidder_name'] ??
+                    'Anonymous')
+                .toString();
+            final amount = bid['amount']?.toString();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(name, style: AppTokens.textStyles.body),
+                  ),
+                  Text(
+                    _formatPrice(amount),
+                    style: AppTokens.textStyles.body.copyWith(
+                      color: AppTokens.accent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );

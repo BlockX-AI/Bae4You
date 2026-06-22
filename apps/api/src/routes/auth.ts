@@ -6,7 +6,39 @@ import crypto from "crypto";
 import { db } from "../db/client";
 import { config } from "../config";
 import { getUserTokenId } from "../services/token-gate";
-import { initPetState } from "../services/pets-sync";
+import { initPetState, initPetStateOffchain } from "../services/pets-sync";
+import { scrypt as scryptCb, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
+
+const scrypt = promisify(scryptCb) as (
+  password: string | Buffer,
+  salt: string | Buffer,
+  keylen: number
+) => Promise<Buffer>;
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16);
+  const derived = await scrypt(password, salt, 64);
+  return `scrypt$${salt.toString("hex")}$${derived.toString("hex")}`;
+}
+
+async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  const parts = stored.split("$");
+  if (parts.length !== 3 || parts[0] !== "scrypt") return false;
+  const salt = Buffer.from(parts[1], "hex");
+  const expected = Buffer.from(parts[2], "hex");
+  const derived = await scrypt(password, salt, expected.length);
+  return derived.length === expected.length && timingSafeEqual(derived, expected);
+}
+
+/** Deterministic synthetic wallet for non-crypto (email) users, so
+ *  pets_state.user_address links back to the user row for buy_pet() credits. */
+function syntheticWalletForEmail(email: string): string {
+  const h = crypto.createHash("md5").update(`email:${email.toLowerCase()}`).digest("hex");
+  return `0x${h.slice(0, 40)}`;
+}
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /auth/nonce — frontend calls this before building the SIWE message
@@ -266,6 +298,137 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     );
 
     return { token, userId: memberId, name: memberName };
+  });
+
+  // Issue access + refresh tokens for a user row (shared by register/login).
+  function issueTokens(user: { id: string; wallet_address: string | null; role: string }) {
+    const wallet = user.wallet_address ?? "";
+    const accessToken = fastify.jwt.sign(
+      { userId: user.id, wallet, role: user.role },
+      { expiresIn: "1h" }
+    );
+    const refreshToken = jwt.sign(
+      { userId: user.id, wallet, role: user.role, type: "refresh" },
+      config.JWT_REFRESH_SECRET,
+      { expiresIn: "30d" }
+    );
+    return { accessToken, refreshToken };
+  }
+
+  // POST /auth/register — email/password signup for non-crypto users.
+  // Grants starting PCASH and seeds an off-chain pet so the user is tradeable.
+  fastify.post("/register", async (req, reply) => {
+    const { email, password, displayName } = (req.body ?? {}) as {
+      email?: string; password?: string; displayName?: string;
+    };
+
+    if (!email || !EMAIL_RE.test(email)) {
+      return reply.code(400).send({ error: "Valid email required" });
+    }
+    if (!password || password.length < 8) {
+      return reply.code(400).send({ error: "Password must be at least 8 characters" });
+    }
+
+    const normEmail = email.toLowerCase();
+
+    const { rows: existing } = await db.query(
+      "SELECT id FROM users WHERE LOWER(email) = $1",
+      [normEmail]
+    );
+    if (existing[0]) {
+      return reply.code(409).send({ error: "Email already registered" });
+    }
+
+    const passwordHash = await hashPassword(password);
+    const wallet = syntheticWalletForEmail(normEmail);
+
+    const { rows } = await db.query(
+      `INSERT INTO users (email, password_hash, display_name, wallet_address, wallet_type,
+                          pcash_balance, current_value, last_login_at)
+       VALUES ($1, $2, $3, $4, 'self_custody', $5, $6, NOW())
+       ON CONFLICT (wallet_address) DO NOTHING
+       RETURNING id, wallet_address, token_id, username, display_name, role, status, is_creator, bonus_claimed_at`,
+      [normEmail, passwordHash, displayName ?? null, wallet,
+       config.STARTING_PCASH_GRANT, config.STARTING_PRICE_PCASH_OFFCHAIN]
+    );
+
+    if (!rows[0]) {
+      return reply.code(409).send({ error: "Email already registered" });
+    }
+    const user = rows[0];
+
+    // Seed an off-chain pet representing this user so they can be discovered/bought.
+    try {
+      const tokenId = await initPetStateOffchain(wallet, config.STARTING_PRICE_PCASH_OFFCHAIN);
+      await db.query("UPDATE users SET token_id = $1 WHERE id = $2", [tokenId, user.id]);
+      user.token_id = tokenId;
+    } catch (err) {
+      fastify.log.error({ err, wallet }, "[auth] off-chain pet seed failed");
+    }
+
+    const { accessToken, refreshToken } = issueTokens(user);
+    return reply.code(201).send({
+      accessToken,
+      refreshToken,
+      user: {
+        id:          user.id,
+        wallet:      user.wallet_address,
+        tokenId:     user.token_id,
+        username:    user.username,
+        displayName: user.display_name,
+        isCreator:   user.is_creator,
+      },
+    });
+  });
+
+  // POST /auth/login — email/password login.
+  fastify.post("/login", async (req, reply) => {
+    const { email, password } = (req.body ?? {}) as { email?: string; password?: string };
+    if (!email || !password) {
+      return reply.code(400).send({ error: "Email and password required" });
+    }
+    const normEmail = email.toLowerCase();
+
+    const { rows } = await db.query(
+      `SELECT id, wallet_address, token_id, username, display_name, role, status,
+              is_creator, bonus_claimed_at, password_hash
+       FROM users WHERE LOWER(email) = $1`,
+      [normEmail]
+    );
+    const user = rows[0];
+    if (!user || !user.password_hash) {
+      return reply.code(401).send({ error: "Invalid email or password" });
+    }
+    if (user.status === "suspended") {
+      return reply.code(403).send({ error: "Account suspended" });
+    }
+
+    const ok = await verifyPassword(password, user.password_hash);
+    if (!ok) {
+      return reply.code(401).send({ error: "Invalid email or password" });
+    }
+
+    await db.query("UPDATE users SET last_login_at = NOW() WHERE id = $1", [user.id]);
+
+    const { accessToken, refreshToken } = issueTokens(user);
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id:             user.id,
+        wallet:         user.wallet_address,
+        tokenId:        user.token_id,
+        username:       user.username,
+        displayName:    user.display_name,
+        isCreator:      user.is_creator,
+        bonusClaimedAt: user.bonus_claimed_at,
+      },
+    };
+  });
+
+  // POST /auth/logout — stateless ack; client drops its tokens.
+  fastify.post("/logout", async (_req, reply) => {
+    return reply.send({ success: true });
   });
 };
 

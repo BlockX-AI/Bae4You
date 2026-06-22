@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/chat_service.dart';
 import '../services/api_service.dart';
-import '../models/chat_models.dart';
 import 'auth_provider.dart';
 
 // Chat service singleton provider
@@ -18,19 +17,21 @@ class ChatMessagesNotifier extends StateNotifier<AsyncValue<List<Map<String, dyn
       : super(const AsyncValue.loading()) {
     _loadHistory(token);
     _chatService.messageStream.listen((msg) {
-      if (msg.matchId == _matchId || state.value != null) {
-        final current = state.value ?? [];
-        state = AsyncValue.data([
-          ...current,
-          {
-            'id': msg.id,
-            'sender_id': msg.isMe ? _currentUserId : 'other',
-            'content': msg.content,
-            'sent_at': msg.createdAt.toIso8601String(),
-            'isMe': msg.isMe,
-          }
-        ]);
-      }
+      if (msg.matchId != _matchId) return;
+      final isMe = msg.senderId == _currentUserId;
+      final current = state.value ?? [];
+      // Skip if we already have this message id (avoids dupes on reconnect).
+      if (msg.id.isNotEmpty && current.any((m) => m['id'] == msg.id)) return;
+      state = AsyncValue.data([
+        ...current,
+        {
+          'id': msg.id,
+          'sender_id': msg.senderId,
+          'content': msg.content,
+          'sent_at': msg.createdAt.toIso8601String(),
+          'isMe': isMe,
+        }
+      ]);
     });
   }
 
@@ -44,13 +45,6 @@ class ChatMessagesNotifier extends StateNotifier<AsyncValue<List<Map<String, dyn
     }
   }
 
-  void addLocal(String content, String senderId) {
-    final current = state.value ?? [];
-    state = AsyncValue.data([
-      ...current,
-      {'sender_id': senderId, 'content': content, 'sent_at': DateTime.now().toIso8601String(), 'isMe': true},
-    ]);
-  }
 }
 
 final chatMessagesProvider = StateNotifierProvider.family<ChatMessagesNotifier, AsyncValue<List<Map<String, dynamic>>>, String>(

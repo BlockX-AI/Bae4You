@@ -80,7 +80,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
       const { rows } = await db.query(
         `SELECT m.id, m.compatibility_score, m.matched_at,
                 CASE WHEN m.user_a_id = $1 THEN m.user_b_id ELSE m.user_a_id END AS partner_id,
-                u.username, u.display_name, u.avatar_ipfs_hash, u.is_verified,
+                u.username, u.display_name, u.avatar_ipfs_hash, u.cartoon_avatar, u.is_verified,
                 (SELECT content FROM messages WHERE match_id = m.id ORDER BY sent_at DESC LIMIT 1) AS last_message,
                 (SELECT sent_at FROM messages WHERE match_id = m.id ORDER BY sent_at DESC LIMIT 1) AS last_message_at
          FROM matches m
@@ -271,7 +271,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
         // Fetch users in Pinecone similarity order, apply optional country filter
         const params: unknown[] = [orderedIds];
         let q = `
-          SELECT id, username, display_name, avatar_ipfs_hash, bio,
+          SELECT id, username, display_name, avatar_ipfs_hash, cartoon_avatar, bio,
                  country_code, is_verified, token_id, created_at
           FROM users
           WHERE id = ANY($1::uuid[]) AND status = 'active'
@@ -288,7 +288,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
         // Fallback: random
         const params: unknown[] = [excludeArr, limitNum, offsetNum];
         let q = `
-          SELECT id, username, display_name, avatar_ipfs_hash, bio,
+          SELECT id, username, display_name, avatar_ipfs_hash, cartoon_avatar, bio,
                  country_code, is_verified, token_id, created_at
           FROM users
           WHERE id != ALL($1::uuid[]) AND status = 'active'

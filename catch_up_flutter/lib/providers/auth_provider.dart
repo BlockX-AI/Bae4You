@@ -4,7 +4,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/auth_models.dart';
 import '../models/user_models.dart';
 import '../services/api_service.dart';
-import '../widgets/wallet_modal.dart';
 
 // Auth state
 class AuthState {
@@ -65,126 +64,97 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Connect wallet and authenticate
-  Future<bool> connectWallet(WalletType type) async {
+  /// Register a new account with email + password.
+  Future<bool> register({
+    required String email,
+    required String password,
+    String? displayName,
+  }) async {
     state = state.copyWith(isLoading: true, error: null);
-
-    // DEMO MODE: Skip backend entirely
-    if (ApiService.demoMode) {
-      await Future.delayed(const Duration(seconds: 1));
-      
-      final demoUser = User(
-        id: 'demo_user_123',
-        walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbD',
-        username: 'demo_user',
-        displayName: 'Demo User',
-        bio: 'Demo account for testing',
-        countryCode: 'IN',
-        isVerified: true,
-        emoji: '🎮',
-        interests: ['Gaming', 'Crypto', 'Web3'],
+    try {
+      final auth = await _apiService.register(
+        email: email,
+        password: password,
+        displayName: displayName,
       );
-      
-      await _storage.write(key: 'access_token', value: 'demo_token_12345');
-      
+      await _persistTokens(auth);
+      final user = await _apiService.getCurrentUser(auth.accessToken);
       state = state.copyWith(
         isLoading: false,
         isAuthenticated: true,
-        token: 'demo_token_12345',
-        user: demoUser,
+        token: auth.accessToken,
+        user: user,
       );
-      
       return true;
-    }
-
-    try {
-      // Generate a valid wallet address (42 chars: 0x + 40 hex)
-      final walletAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEbD';
-
-      // Try backend first, fall back to demo mode if it fails
-      try {
-        // Step 1: Get nonce from backend
-        final nonceResponse = await _apiService.getNonce(walletAddress);
-
-        // Step 2: Create SIWE message
-        final siweMessage = SiweMessageBuilder(
-          domain: 'catchup.app',
-          address: walletAddress,
-          statement: 'Sign in to Catch Up',
-          uri: 'https://catchup.app',
-          version: '1',
-          chainId: '8453',
-          nonce: nonceResponse.nonce,
-          issuedAt: DateTime.now(),
-          expirationTime: DateTime.now().add(const Duration(minutes: 5)),
-        ).build();
-
-        // Step 3: Sign message
-        final signature = await _signMessage(siweMessage, type);
-
-        // Step 4: Verify SIWE and get JWT
-        final authResponse = await _apiService.verifySiwe(
-          message: siweMessage,
-          signature: signature,
-        );
-
-        // Step 5: Store token and fetch user
-        await _storage.write(
-          key: 'access_token',
-          value: authResponse.accessToken,
-        );
-
-        final user = await _apiService.getCurrentUser(authResponse.accessToken);
-
-        state = state.copyWith(
-          isLoading: false,
-          isAuthenticated: true,
-          token: authResponse.accessToken,
-          user: user,
-        );
-
-        return true;
-      } catch (e) {
-        // Backend failed - use demo mode
-        print('Backend failed, using demo mode: $e');
-        
-        await Future.delayed(const Duration(seconds: 1));
-        
-        final demoUser = User(
-          id: 'demo_user_123',
-          walletAddress: walletAddress,
-          username: 'demo_user',
-          displayName: 'Demo User',
-          bio: 'Demo account for testing',
-          countryCode: 'IN',
-          isVerified: true,
-          emoji: '🎮',
-          interests: ['Gaming', 'Crypto', 'Web3'],
-        );
-        
-        await _storage.write(key: 'access_token', value: 'demo_token_12345');
-        
-        state = state.copyWith(
-          isLoading: false,
-          isAuthenticated: true,
-          token: 'demo_token_12345',
-          user: demoUser,
-        );
-        
-        return true;
-      }
     } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
+  /// Log in with email + password.
+  Future<bool> login({
+    required String email,
+    required String password,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final auth = await _apiService.login(email: email, password: password);
+      await _persistTokens(auth);
+      final user = await _apiService.getCurrentUser(auth.accessToken);
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        isAuthenticated: true,
+        token: auth.accessToken,
+        user: user,
       );
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
+  Future<void> _persistTokens(AuthResponse auth) async {
+    await _storage.write(key: 'access_token', value: auth.accessToken);
+    if (auth.refreshToken != null) {
+      await _storage.write(key: 'refresh_token', value: auth.refreshToken!);
+    }
+  }
+
+  /// DEV/TEAM login — gets a REAL JWT from the backend's /auth/team-login
+  /// endpoint and loads the real user. No wallet signing required.
+  /// This is the path that actually exercises the deployed backend.
+  Future<bool> teamLogin({String name = 'sarthak-test'}) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final token = await _apiService.teamLogin(
+        secret: const String.fromEnvironment('TEAM_SECRET', defaultValue: 'bae4u2026'),
+        name: name,
+      );
+      await _storage.write(key: 'access_token', value: token);
+      final user = await _apiService.getCurrentUser(token);
+      state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: true,
+        token: token,
+        user: user,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
       return false;
     }
   }
 
   /// Sign out
   Future<void> signOut() async {
+    final token = state.token;
+    if (token != null) {
+      await _apiService.logout(token);
+    }
     await _storage.delete(key: 'access_token');
+    await _storage.delete(key: 'refresh_token');
     state = const AuthState();
   }
 
@@ -203,18 +173,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Get current token
   String? get token => state.token;
-
-  // Wallet signing implementation
-  Future<String> _signMessage(String message, WalletType type) async {
-    // Simulate wallet interaction delay
-    await Future.delayed(const Duration(seconds: 2));
-    
-    // Generate a realistic signature
-    final random = DateTime.now().millisecondsSinceEpoch;
-    final signature = '0x${List.generate(130, (i) => ((random + i) % 16).toRadixString(16)).join()}';
-    
-    return signature;
-  }
 }
 
 // Provider

@@ -25,8 +25,8 @@ class ChatMessage {
         senderId: json['senderId'] ?? json['sender_id'] ?? json['sender'] as String,
         senderName: json['senderName'] ?? json['sender_name'] as String?,
         content: json['content'] ?? json['message'] ?? json['text'] as String,
-        createdAt: json['createdAt'] != null || json['created_at'] != null
-            ? DateTime.parse(json['createdAt'] ?? json['created_at'] as String)
+        createdAt: (json['createdAt'] ?? json['created_at'] ?? json['sentAt'] ?? json['sent_at']) != null
+            ? DateTime.parse((json['createdAt'] ?? json['created_at'] ?? json['sentAt'] ?? json['sent_at']) as String)
             : DateTime.now(),
         isRead: json['isRead'] ?? json['is_read'] ?? json['read'] as bool? ?? false,
         avatarEmoji: json['avatarEmoji'] ?? json['avatar_emoji'] as String?,

@@ -283,9 +283,9 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
   void _sendMessage() {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
-    final userId = ref.read(authProvider).user?.id ?? 'me';
+    // The server persists and broadcasts new:message back to this client,
+    // so we don't echo locally — the socket stream appends it once.
     _chatService?.sendMessage(content, widget.matchId);
-    ref.read(chatMessagesProvider(widget.matchId).notifier).addLocal(content, userId);
     _messageController.clear();
   }
 

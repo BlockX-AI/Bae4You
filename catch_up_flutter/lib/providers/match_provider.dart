@@ -45,16 +45,18 @@ class MatchActionNotifier extends StateNotifier<AsyncValue<void>> {
 
   MatchActionNotifier(this._apiService, this._token) : super(const AsyncValue.data(null));
 
-  Future<void> likeUser(String targetUserId) async {
+  Future<MatchResult?> likeUser(String targetUserId) async {
     final token = _token;
-    if (token == null) return;
-    
+    if (token == null) return null;
+
     state = const AsyncValue.loading();
     try {
-      await _apiService.likeUser(targetUserId, token);
+      final result = await _apiService.likeUser(targetUserId, token);
       state = const AsyncValue.data(null);
+      return result;
     } catch (e) {
       state = AsyncValue.error(e, StackTrace.current);
+      return null;
     }
   }
 

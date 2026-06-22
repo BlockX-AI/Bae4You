@@ -1,10 +1,9 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../design/tokens.dart';
-import '../providers/auth_provider.dart';
 import '../providers/match_provider.dart';
 import '../models/user_models.dart';
+import '../widgets/avatar_display.dart';
 import 'chat_screen.dart';
 
 class SwipeScreen extends ConsumerStatefulWidget {
@@ -188,25 +187,17 @@ class _CardStackState extends ConsumerState<_CardStack> with SingleTickerProvide
     if (like) {
       try {
         final result = await ref.read(matchActionProvider.notifier).likeUser(candidate.id);
-        // matchActionProvider returns void; check via provider state
-        if (mounted) {
-          final actionState = ref.read(matchActionProvider);
-          if (actionState is AsyncData) {
-            // Randomly show match popup for demo when backend confirms like
-            // Real: check MatchResult.isNewMatch from API
-          }
+        if (mounted && result?.isNewMatch == true) {
+          _showMatchPopup(candidate);
         }
       } catch (_) {}
-      _maybeShowMatchPopup(candidate);
     } else {
       try { await ref.read(matchActionProvider.notifier).passUser(candidate.id); } catch (_) {}
     }
   }
 
-  void _maybeShowMatchPopup(DiscoverCandidate candidate) {
-    // 30% chance in demo; real: backend returns isNewMatch=true
-    final isMatch = (math.Random().nextInt(10) < 3);
-    if (!isMatch || !mounted) return;
+  void _showMatchPopup(DiscoverCandidate candidate) {
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierColor: Colors.black54,
@@ -269,7 +260,7 @@ class _CardStackState extends ConsumerState<_CardStack> with SingleTickerProvide
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-          _ActionButton(icon: Icons.close_rounded, color: Colors.white, iconColor: const AppTokens.danger, onTap: () { _swipe(false); }, size: 60, borderColor: const Color(0xFFFFCDD2)),
+          _ActionButton(icon: Icons.close_rounded, color: Colors.white, iconColor: AppTokens.danger, onTap: () { _swipe(false); }, size: 60, borderColor: const Color(0xFFFFCDD2)),
           _ActionButton(icon: Icons.star_rounded, color: Colors.white, iconColor: const Color(0xFFFFB300), onTap: () {}, size: 48, borderColor: const Color(0xFFFFF9C4)),
           _ActionButton(icon: Icons.favorite_rounded, gradient: const LinearGradient(colors: [AppTokens.accent, AppTokens.accentMuted]), iconColor: Colors.white, onTap: () { _swipe(true); }, size: 60, borderColor: Colors.transparent),
         ]),
@@ -310,9 +301,16 @@ class _ProfileCard extends StatelessWidget {
             Expanded(
               flex: 3,
               child: Container(
-                decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppTokens.surface2, AppTokens.accent.withOpacity(0.6)] // TODO(design): no accentLight token exists, revisit)),
+                decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppTokens.surface2, AppTokens.accent.withOpacity(0.6)])),
                 child: Stack(children: [
-                  Center(child: Text(emoji, style: const TextStyle(fontSize: 100))),
+                  Center(
+                    child: AvatarDisplay(
+                      cartoonConfig: candidate.cartoonAvatar,
+                      avatarIpfsHash: candidate.avatarIpfsHash,
+                      size: 180,
+                      fallback: Text(emoji, style: const TextStyle(fontSize: 100)),
+                    ),
+                  ),
                   // Compatibility badge
                   Positioned(top: 14, right: 14,
                     child: Container(
@@ -393,7 +391,7 @@ class _ProfileCard extends StatelessWidget {
           child: Transform.rotate(angle: 0.3,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(border: Border.all(color: const AppTokens.danger, width: 3), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(border: Border.all(color: AppTokens.danger, width: 3), borderRadius: BorderRadius.circular(10)),
               child: Text('NOPE', style: AppTokens.textStyles.h2.copyWith(fontSize: 28, color: AppTokens.danger, fontWeight: FontWeight.w700)),
             ),
           ),

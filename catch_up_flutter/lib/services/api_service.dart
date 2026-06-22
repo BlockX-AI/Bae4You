@@ -1,11 +1,9 @@
-import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import '../models/auth_models.dart';
 import '../models/user_models.dart';
 import '../models/pet_models.dart';
-import '../models/avatar_models.dart';
 
 class ApiService {
   late final Dio _dio;
@@ -95,8 +93,64 @@ class ApiService {
     }
   }
   
+  /// POST /auth/team-login - DEV/TEAM ONLY. Issues a real JWT from a shared
+  /// secret so the app can talk to the real backend without wallet signing.
+  Future<String> teamLogin({required String secret, String? name}) async {
+    final response = await _dio.post('/auth/team-login', data: {
+      'secret': secret,
+      if (name != null) 'name': name,
+    });
+    return response.data['token'] as String;
+  }
+
+  /// POST /auth/register - email/password signup. Returns tokens + user.
+  Future<AuthResponse> register({
+    required String email,
+    required String password,
+    String? displayName,
+  }) async {
+    try {
+      final response = await _dio.post('/auth/register', data: {
+        'email': email,
+        'password': password,
+        if (displayName != null && displayName.isNotEmpty) 'displayName': displayName,
+      });
+      return AuthResponse.fromJson(response.data);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// POST /auth/login - email/password login. Returns tokens + user.
+  Future<AuthResponse> login({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await _dio.post('/auth/login', data: {
+        'email': email,
+        'password': password,
+      });
+      return AuthResponse.fromJson(response.data);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// POST /auth/logout - stateless server ack; client drops its tokens.
+  Future<void> logout(String token) async {
+    try {
+      await _dio.post(
+        '/auth/logout',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (_) {
+      // Logout is best-effort; ignore network errors.
+    }
+  }
+
   // ============ USER ENDPOINTS ============
-  
+
   /// GET /users/me - Get current user profile
   Future<User> getCurrentUser(String token) async {
     if (demoMode) {
@@ -145,6 +199,7 @@ class ApiService {
     required String countryCode,
     required List<String> interests,
     String? avatarUrl,
+    Map<String, dynamic>? cartoonAvatar,
   }) async {
     try {
       final response = await _dio.put(
@@ -156,6 +211,7 @@ class ApiService {
           'countryCode': countryCode,
           'interests': interests,
           if (avatarUrl != null) 'avatarUrl': avatarUrl,
+          if (cartoonAvatar != null) 'cartoonAvatar': cartoonAvatar,
         },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
@@ -164,90 +220,45 @@ class ApiService {
       throw _handleError(e);
     }
   }
-  
-  // ============ AVATAR — NOTION BITMOJI ============
 
-  /// GET /users/me/bitmoji — fetch saved bitmoji config + rendered SVG.
-  Future<BitmojiResponse> getBitmoji(String token) async {
+  /// PUT /users/me — persist just the cartoon avatar config (JSON).
+  /// Used by the avatar builder, which doesn't carry the full profile form.
+  Future<void> updateCartoonAvatar({
+    required String token,
+    required Map<String, dynamic> cartoonAvatar,
+  }) async {
     try {
-      final response = await _dio.get(
-        '/users/me/bitmoji',
+      await _dio.put(
+        '/users/me',
+        data: {'cartoonAvatar': cartoonAvatar},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
-      return BitmojiResponse.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
       throw _handleError(e);
     }
   }
 
-  /// POST /users/me/bitmoji/generate — upload photo frame(s), backend extracts
-  /// face traits → builds a Notion config → returns config + SVG.
-  Future<BitmojiResponse> generateBitmoji({
+  /// POST /users/me/avatar — upload a rendered PNG of the avatar to IPFS.
+  /// Returns the gateway URL (and sets the user's avatar_ipfs_hash server-side)
+  /// so non-Flutter consumers can display the avatar as an image.
+  Future<String?> uploadAvatarPng({
     required String token,
-    required Uint8List photoBytes,
-    String filename = 'frame0.jpg',
+    required Uint8List bytes,
   }) async {
     try {
       final form = FormData.fromMap({
-        'frame0': MultipartFile.fromBytes(photoBytes, filename: filename),
-      });
-      final response = await _dio.post(
-        '/users/me/bitmoji/generate',
-        data: form,
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-      return BitmojiResponse.fromJson(response.data as Map<String, dynamic>);
-    } catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  /// PATCH /users/me/bitmoji — override any config field(s), get back the
-  /// merged config + freshly rendered SVG. Used by the live customiser.
-  Future<BitmojiResponse> updateBitmoji({
-    required String token,
-    required Map<String, dynamic> changes,
-  }) async {
-    try {
-      final response = await _dio.patch(
-        '/users/me/bitmoji',
-        data: changes,
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-      return BitmojiResponse.fromJson(response.data as Map<String, dynamic>);
-    } catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  // ============ AVATAR — AI GENERATION ============
-
-  /// POST /users/me/avatar/kyc-frames — upload photo frame(s) + a style,
-  /// backend runs the provider waterfall and returns the generated avatar.
-  Future<AiAvatarResponse> generateAiAvatar({
-    required String token,
-    required Uint8List photoBytes,
-    required String style,
-    String filename = 'frame0.jpg',
-  }) async {
-    try {
-      final form = FormData.fromMap({
-        'frame0': MultipartFile.fromBytes(photoBytes, filename: filename),
-        'style': style,
-      });
-      final response = await _dio.post(
-        '/users/me/avatar/kyc-frames',
-        data: form,
-        options: Options(
-          headers: {'Authorization': 'Bearer $token'},
-          // AI generation can be slow (provider waterfall) — extend timeout.
-          receiveTimeout: const Duration(seconds: 120),
-          sendTimeout: const Duration(seconds: 60),
+        'file': MultipartFile.fromBytes(
+          bytes,
+          filename: 'cartoon-avatar.png',
+          contentType: DioMediaType('image', 'png'),
         ),
+      });
+      final response = await _dio.post(
+        '/users/me/avatar',
+        data: form,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
-      final body = response.data as Map<String, dynamic>;
-      final data = (body['data'] ?? body) as Map<String, dynamic>;
-      return AiAvatarResponse.fromJson(data);
+      return response.data['url'] as String?;
     } catch (e) {
       throw _handleError(e);
     }

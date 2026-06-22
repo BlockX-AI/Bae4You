@@ -49,15 +49,32 @@ class _MyHeroStatsScreenState extends ConsumerState<MyHeroStatsScreen> {
       final token = ref.read(authProvider).token;
       if (token == null) throw Exception('Not authenticated');
 
-      // Try to load from API
-      // final stats = await _apiService.getMyHeroStats(token);
-      
-      // Use mock data for now
-      await Future.delayed(const Duration(milliseconds: 500));
-      
+      // New users have no hero score for the current period yet (backend
+      // 404s); that's expected, so fall back to zeros rather than erroring.
+      try {
+        final stats = await _apiService.getMyHeroStats(token);
+        _stats['score'] = stats.totalScore ?? 0;
+        _stats['rank'] = stats.rank ?? 0;
+        _stats['totalMatches'] = stats.cardsCollected ?? 0;
+        _stats['streak'] = stats.currentStreak ?? 0;
+        if (stats.winRate != null) _stats['winRate'] = stats.winRate!;
+      } catch (_) {
+        _stats['score'] = 0;
+        _stats['rank'] = 0;
+      }
+
+      // Reflect real PCASH balance from the authenticated user.
+      final user = ref.read(currentUserProvider);
+      if (user != null) _stats['totalPetsOwned'] = user.currentValue;
+
+      if (!mounted) return;
       setState(() => _isLoading = false);
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
     }
   }
 
@@ -70,17 +87,29 @@ class _MyHeroStatsScreenState extends ConsumerState<MyHeroStatsScreen> {
       ),
     );
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
-    
-    if (mounted) {
+    try {
+      final token = ref.read(authProvider).token;
+      if (token == null) throw Exception('Not authenticated');
+      final bonus = await _apiService.claimBonus(token);
+      // Pull the freshly-credited PCASH balance into app state.
+      await ref.read(authProvider.notifier).refreshUser();
+
+      if (!mounted) return;
       Navigator.pop(context); // Close loading
-      
       setState(() {
         _stats['bonusClaimed'] = true;
+        _stats['bonusAmount'] = bonus.amount;
       });
-      
       _showBonusClaimedDialog();
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not claim bonus: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -186,6 +215,8 @@ class _MyHeroStatsScreenState extends ConsumerState<MyHeroStatsScreen> {
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6BB0)))
+                    : _error.isNotEmpty
+                    ? _buildErrorWidget()
                     : SingleChildScrollView(
                         padding: const EdgeInsets.all(20),
                         child: Column(
@@ -487,6 +518,27 @@ class _MyHeroStatsScreenState extends ConsumerState<MyHeroStatsScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, color: Colors.white, size: 48),
+          const SizedBox(height: 16),
+          Text(
+            'Could not load your stats',
+            style: GoogleFonts.inter(color: Colors.white, fontSize: 16),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadStats,
+            child: const Text('Retry'),
+          ),
+        ],
       ),
     );
   }

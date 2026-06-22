@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../design/tokens.dart';
-import '../widgets/wallet_modal.dart';
+import 'auth_screen.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -13,12 +13,11 @@ class _LandingScreenState extends State<LandingScreen> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _howItWorksKey = GlobalKey();
 
-  void _openWalletModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const WalletModal(),
+  void _openAuth({bool register = true}) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AuthScreen(startInRegister: register),
+      ),
     );
   }
 
@@ -81,8 +80,17 @@ class _LandingScreenState extends State<LandingScreen> {
                 _buildNavLink('Leaderboard'),
                 _buildNavLink('How it works'),
                 const SizedBox(width: AppTokens.s24),
+                TextButton(
+                  onPressed: () => _openAuth(register: false),
+                  child: Text(
+                    'Log in',
+                    style: AppTokens.textStyles.body
+                        .copyWith(color: AppTokens.textMid),
+                  ),
+                ),
+                const SizedBox(width: AppTokens.s8),
                 ElevatedButton(
-                  onPressed: _openWalletModal,
+                  onPressed: () => _openAuth(register: true),
                   child: const Text('Get started'),
                 ),
               ] else
@@ -182,8 +190,8 @@ class _LandingScreenState extends State<LandingScreen> {
         ),
         const SizedBox(height: AppTokens.s24),
         ElevatedButton(
-          onPressed: _openWalletModal,
-          child: const Text('View collection'),
+          onPressed: () => _openAuth(register: true),
+          child: const Text('Get started'),
         ),
         const SizedBox(height: AppTokens.s12),
         TextButton(

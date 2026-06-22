@@ -16,6 +16,10 @@ class User {
   final String? emoji;
   final List<String>? interests;
   final String? avatarUrl;
+  final Map<String, dynamic>? cartoonAvatar;
+  final int pcashBalance;
+  final int goldBalance;
+  final int currentValue;
 
   User({
     required this.id,
@@ -35,6 +39,10 @@ class User {
     this.emoji,
     this.interests,
     this.avatarUrl,
+    this.cartoonAvatar,
+    this.pcashBalance = 0,
+    this.goldBalance = 0,
+    this.currentValue = 0,
   });
 
   factory User.fromJson(Map<String, dynamic> json) => User(
@@ -61,6 +69,69 @@ class User {
             ? List<String>.from(json['interests'] as List)
             : null,
         avatarUrl: json['avatarUrl'] ?? json['avatar_url'] as String?,
+        cartoonAvatar: (json['cartoonAvatar'] ?? json['cartoon_avatar'])
+            as Map<String, dynamic>?,
+        pcashBalance: (json['pcashBalance'] ?? json['pcash_balance'] ?? 0) as int,
+        goldBalance: (json['goldBalance'] ?? json['gold_balance'] ?? 0) as int,
+        currentValue: (json['currentValue'] ?? json['current_value'] ?? 0) as int,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'walletAddress': walletAddress,
+        'tokenId': tokenId,
+        'username': username,
+        'displayName': displayName,
+        'avatarIpfsHash': avatarIpfsHash,
+        'bio': bio,
+        'countryCode': countryCode,
+        'isVerified': isVerified,
+        'isCreator': isCreator,
+        'status': status,
+        'emoji': emoji,
+        'interests': interests,
+        'avatarUrl': avatarUrl,
+        'cartoonAvatar': cartoonAvatar,
+        'pcashBalance': pcashBalance,
+        'goldBalance': goldBalance,
+        'currentValue': currentValue,
+      };
+
+  User copyWith({
+    String? username,
+    String? displayName,
+    String? bio,
+    String? countryCode,
+    String? emoji,
+    List<String>? interests,
+    String? avatarUrl,
+    Map<String, dynamic>? cartoonAvatar,
+    int? pcashBalance,
+    int? goldBalance,
+    int? currentValue,
+  }) =>
+      User(
+        id: id,
+        walletAddress: walletAddress,
+        tokenId: tokenId,
+        username: username ?? this.username,
+        displayName: displayName ?? this.displayName,
+        avatarIpfsHash: avatarIpfsHash,
+        bio: bio ?? this.bio,
+        countryCode: countryCode ?? this.countryCode,
+        isVerified: isVerified,
+        isCreator: isCreator,
+        status: status,
+        createdAt: createdAt,
+        lastLoginAt: lastLoginAt,
+        personalityVector: personalityVector,
+        emoji: emoji ?? this.emoji,
+        interests: interests ?? this.interests,
+        avatarUrl: avatarUrl ?? this.avatarUrl,
+        cartoonAvatar: cartoonAvatar ?? this.cartoonAvatar,
+        pcashBalance: pcashBalance ?? this.pcashBalance,
+        goldBalance: goldBalance ?? this.goldBalance,
+        currentValue: currentValue ?? this.currentValue,
       );
 }
 
@@ -72,6 +143,7 @@ class Match {
   final String? username;
   final String? displayName;
   final String? avatarIpfsHash;
+  final Map<String, dynamic>? cartoonAvatar;
   final bool? isVerified;
   final String? lastMessage;
   final DateTime? lastMessageAt;
@@ -84,6 +156,7 @@ class Match {
     this.username,
     this.displayName,
     this.avatarIpfsHash,
+    this.cartoonAvatar,
     this.isVerified,
     this.lastMessage,
     this.lastMessageAt,
@@ -99,6 +172,8 @@ class Match {
         username: json['username'] as String?,
         displayName: json['displayName'] ?? json['display_name'] as String?,
         avatarIpfsHash: json['avatarIpfsHash'] ?? json['avatar_ipfs_hash'] as String?,
+        cartoonAvatar: (json['cartoonAvatar'] ?? json['cartoon_avatar'])
+            as Map<String, dynamic>?,
         isVerified: json['isVerified'] ?? json['is_verified'] as bool?,
         lastMessage: json['lastMessage'] ?? json['last_message'] as String?,
         lastMessageAt: json['lastMessageAt'] != null
@@ -135,6 +210,7 @@ class DiscoverCandidate {
   final String? username;
   final String? displayName;
   final String? avatarIpfsHash;
+  final Map<String, dynamic>? cartoonAvatar;
   final String? bio;
   final String? countryCode;
   final bool? isVerified;
@@ -146,6 +222,7 @@ class DiscoverCandidate {
     this.username,
     this.displayName,
     this.avatarIpfsHash,
+    this.cartoonAvatar,
     this.bio,
     this.countryCode,
     this.isVerified,
@@ -159,6 +236,8 @@ class DiscoverCandidate {
         username: json['username'] as String?,
         displayName: json['displayName'] ?? json['display_name'] as String?,
         avatarIpfsHash: json['avatarIpfsHash'] ?? json['avatar_ipfs_hash'] as String?,
+        cartoonAvatar: (json['cartoonAvatar'] ?? json['cartoon_avatar'])
+            as Map<String, dynamic>?,
         bio: json['bio'] as String?,
         countryCode: json['countryCode'] ?? json['country_code'] as String?,
         isVerified: json['isVerified'] ?? json['is_verified'] as bool?,
@@ -242,7 +321,7 @@ class LeaderboardResponse {
 
   factory LeaderboardResponse.fromJson(Map<String, dynamic> json) =>
       LeaderboardResponse(
-        entries: (json['entries'] as List)
+        entries: ((json['entries'] ?? json['heroes'] ?? const []) as List)
             .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
             .toList(),
         pagination: json['pagination'] != null
@@ -270,12 +349,12 @@ class LeaderboardEntry {
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) =>
       LeaderboardEntry(
-        id: json['id'] as String,
-        userId: json['userId'] ?? json['user_id'] as String,
+        id: (json['id'] ?? json['userId'] ?? json['user_id'] ?? '') as String,
+        userId: (json['userId'] ?? json['user_id'] ?? '') as String,
         displayName: json['displayName'] ?? json['display_name'] as String?,
-        avatarIpfsHash: json['avatarIpfsHash'] ?? json['avatar_ipfs_hash'] as String?,
-        score: json['score'] as int,
-        rank: json['rank'] as int,
+        avatarIpfsHash: (json['avatarIpfsHash'] ?? json['avatar_ipfs_hash'] ?? json['avatarHash']) as String?,
+        score: ((json['score'] ?? json['rawScore'] ?? json['raw_score'] ?? 0) as num).round(),
+        rank: (json['rank'] ?? 0) as int,
       );
 }
 

@@ -40,6 +40,12 @@ const env = z.object({
   BONUS_AMOUNT_PCASH:       z.string().default("100000000000000000000"),
   STARTING_PRICE_PCASH:     z.string().default("1000000000000000000000"),
 
+  // Off-chain PCASH game (integer ledger; authoritative). Small ints fit the
+  // INTEGER-based buy_pet() and pcash_balance columns.
+  STARTING_PCASH_GRANT:        z.coerce.number().int().default(10000),
+  STARTING_PRICE_PCASH_OFFCHAIN: z.coerce.number().int().default(1000),
+  BONUS_AMOUNT_PCASH_OFFCHAIN:   z.coerce.number().int().default(500),
+
   WALLET_ENCRYPTION_SECRET: z.string().min(32).default("bae4u_wallet_enc_secret_32_chars_min"),
   PIMLICO_API_KEY:          z.string().optional(),
   GAS_SPONSOR_PRIVATE_KEY:  z.string().optional(),

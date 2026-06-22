@@ -116,3 +116,30 @@ export async function initPetState(
     [tokenId, ownerAddress.toLowerCase(), startingPrice]
   );
 }
+
+/**
+ * Off-chain pet seed for the PCASH game. Allocates a token_id from
+ * offchain_token_id_seq (if not given) and seeds pets_state with a SMALL
+ * INTEGER starting price compatible with the integer-based buy_pet() function.
+ * Returns the token_id used.
+ */
+export async function initPetStateOffchain(
+  ownerAddress: string,
+  startingPrice = 1000,
+  tokenId?: number
+): Promise<number> {
+  let id = tokenId;
+  if (id == null) {
+    const { rows } = await db.query<{ nextval: string }>(
+      "SELECT nextval('offchain_token_id_seq') AS nextval"
+    );
+    id = Number(rows[0].nextval);
+  }
+  await db.query(
+    `INSERT INTO pets_state (token_id, owner_address, user_address, current_price_wei, last_synced_block)
+     VALUES ($1, $2, $2, $3, 0)
+     ON CONFLICT (token_id) DO NOTHING`,
+    [id, ownerAddress.toLowerCase(), startingPrice]
+  );
+  return id;
+}

@@ -47,6 +47,12 @@ class CatchUpApp extends StatelessWidget {
         '/profile-setup': (context) => ProfileSetupScreen(onComplete: () => Navigator.pushReplacementNamed(context, '/home')),
         '/home': (context) => const HomeScreen(),
       },
+      // Safety net: any unregistered route falls back to home instead of
+      // throwing a "route not found" exception.
+      onUnknownRoute: (settings) => MaterialPageRoute(
+        builder: (_) => const HomeScreen(),
+        settings: settings,
+      ),
     );
   }
 }

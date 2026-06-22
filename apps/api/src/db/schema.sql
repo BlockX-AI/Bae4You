@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS users (
   last_login_at       TIMESTAMPTZ,
   bonus_claimed_at    TIMESTAMPTZ,
   personality_vector  JSONB,
+  cartoon_avatar      JSONB,
   pinecone_id         VARCHAR(100),
   wallet_type         wallet_type_t  NOT NULL DEFAULT 'self_custody',
   custodial_key_enc   TEXT,
@@ -289,8 +290,21 @@ END $$;
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS pcash_balance INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS gold_balance INTEGER NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS current_value INTEGER NOT NULL DEFAULT 0,
-  ADD CONSTRAINT chk_pcash_nonnegative CHECK (pcash_balance >= 0);
+  ADD COLUMN IF NOT EXISTS current_value INTEGER NOT NULL DEFAULT 0;
+
+DO $$ BEGIN
+  ALTER TABLE users ADD CONSTRAINT chk_pcash_nonnegative CHECK (pcash_balance >= 0);
+  EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+-- Email/password auth + profile fields
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS password_hash TEXT,
+  ADD COLUMN IF NOT EXISTS interests     JSONB,
+  ADD COLUMN IF NOT EXISTS avatar_url    TEXT;
+
+-- Off-chain token_id allocator (game pets that are not minted on-chain)
+CREATE SEQUENCE IF NOT EXISTS offchain_token_id_seq START 1000000;
 
 -- Pets ownership (tracks who owns which pet)
 CREATE TABLE IF NOT EXISTS pets_ownership (
@@ -366,16 +380,18 @@ DECLARE
   v_new_price INTEGER;
   v_delta INTEGER;
   v_prev_owner_id UUID;
+  v_bought_user_address VARCHAR(42);
   v_bought_user_id UUID;
   v_buyer_pcash INTEGER;
   v_buyer_count INTEGER;
+  v_pet_locked BOOLEAN;
   v_pet_locked_until TIMESTAMPTZ;
   v_transaction_id UUID;
   v_result JSONB;
 BEGIN
   -- Lock pet row first (prevent concurrent buys)
   SELECT current_price_wei, user_address, is_locked, lock_expiry
-  INTO v_current_price, v_bought_user_id, v_pet_locked, v_pet_locked_until
+  INTO v_current_price, v_bought_user_address, v_pet_locked, v_pet_locked_until
   FROM pets_state
   WHERE token_id = p_pet_id
   FOR UPDATE;
@@ -383,6 +399,11 @@ BEGIN
   IF NOT FOUND THEN
     RETURN jsonb_build_object('error', 'Pet not found', 'code', 'ERR_NOT_FOUND');
   END IF;
+
+  -- Resolve the "bought user" (the person represented by this pet) to a UUID.
+  -- pets_state.user_address is a wallet string; the credit goes to that user's row.
+  SELECT id INTO v_bought_user_id
+  FROM users WHERE wallet_address = v_bought_user_address;
 
   -- Check if pet is locked
   IF v_pet_locked AND v_pet_locked_until > NOW() THEN

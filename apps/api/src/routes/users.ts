@@ -33,6 +33,9 @@ const updateSchema = z.object({
   locationCity: z.string().max(100).optional(),
   countryCode: z.string().length(2).optional(),
   personalityVector: z.record(z.unknown()).optional(),
+  cartoonAvatar: z.record(z.unknown()).optional(),
+  interests:   z.array(z.string()).optional(),
+  avatarUrl:   z.string().url().max(500).optional(),
 });
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -144,9 +147,10 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       const payload = req.user as JwtPayload;
       const { rows } = await db.query(
         `SELECT id, wallet_address, token_id, username, display_name, bio,
-                avatar_ipfs_hash, birth_date, location_city, country_code,
+                avatar_ipfs_hash, avatar_url, birth_date, location_city, country_code,
                 is_verified, is_creator, status, last_login_at, bonus_claimed_at,
-                personality_vector, created_at
+                personality_vector, cartoon_avatar, interests,
+                pcash_balance, gold_balance, current_value, created_at
          FROM users WHERE id = $1`,
         [payload.userId]
       );
@@ -164,8 +168,9 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       if (!UUID_RE.test(id)) return reply.code(400).send({ error: "Invalid user id" });
       const { rows } = await db.query(
         `SELECT id, wallet_address, token_id, username, display_name, bio,
-                avatar_ipfs_hash, birth_date, location_city, country_code,
-                is_verified, is_creator, status, created_at
+                avatar_ipfs_hash, avatar_url, birth_date, location_city, country_code,
+                is_verified, is_creator, status, cartoon_avatar, interests,
+                pcash_balance, gold_balance, current_value, created_at
          FROM users WHERE id = $1 AND status != 'suspended'`,
         [id]
       );
@@ -197,6 +202,9 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       if (data.locationCity !== undefined)      { updates.push(`location_city = $${i++}`);      values.push(data.locationCity); }
       if (data.countryCode !== undefined)       { updates.push(`country_code = $${i++}`);       values.push(data.countryCode); }
       if (data.personalityVector !== undefined) { updates.push(`personality_vector = $${i++}`); values.push(JSON.stringify(data.personalityVector)); }
+      if (data.cartoonAvatar !== undefined)     { updates.push(`cartoon_avatar = $${i++}`);     values.push(JSON.stringify(data.cartoonAvatar)); }
+      if (data.interests !== undefined)         { updates.push(`interests = $${i++}`);          values.push(JSON.stringify(data.interests)); }
+      if (data.avatarUrl !== undefined)         { updates.push(`avatar_url = $${i++}`);         values.push(data.avatarUrl); }
 
       if (updates.length === 0) {
         return reply.code(400).send({ error: "Nothing to update" });

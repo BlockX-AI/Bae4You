@@ -29,14 +29,16 @@ const bonusRoutes: FastifyPluginAsync = async (fastify) => {
       const { wallet_address } = userRows[0];
 
       // Atomic: only update if cooldown has elapsed. Prevents race conditions.
+      // Also credits the off-chain PCASH ledger (authoritative for the game).
       const { rows: updated } = await db.query(
         `UPDATE users
-         SET bonus_claimed_at = NOW()
+         SET bonus_claimed_at = NOW(),
+             pcash_balance = pcash_balance + $2
          WHERE id = $1
            AND (bonus_claimed_at IS NULL
                 OR bonus_claimed_at < NOW() - INTERVAL '4 hours')
-         RETURNING bonus_claimed_at`,
-        [payload.userId]
+         RETURNING bonus_claimed_at, pcash_balance`,
+        [payload.userId, config.BONUS_AMOUNT_PCASH_OFFCHAIN]
       );
 
       if (updated.length === 0) {
@@ -54,14 +56,26 @@ const bonusRoutes: FastifyPluginAsync = async (fastify) => {
 
       const amount    = BigInt(config.BONUS_AMOUNT_PCASH);
       const timestamp = Math.floor(Date.now() / 1000);
-      const sig       = await signBonusClaim(wallet_address, amount, timestamp);
+
+      // EIP-712 sig is for the OPTIONAL on-chain path; PCASH is already credited
+      // off-chain (authoritative), so a signer failure must not fail the claim.
+      let sig: string | null = null;
+      try {
+        sig = await signBonusClaim(wallet_address, amount, timestamp);
+      } catch (err) {
+        fastify.log.warn({ err }, "[bonus] EIP-712 sign failed; off-chain credit still applied");
+      }
 
       return {
+        success:        true,
+        pcashCredited:  config.BONUS_AMOUNT_PCASH_OFFCHAIN,
+        pcashBalance:   updated[0].pcash_balance,
+        // Optional on-chain path: submit this sig to PetsCash.claimBonus().
         signature:  sig,
         amount:     amount.toString(),
         timestamp,
         contractAddress: config.PETS_CASH_ADDRESS,
-        message: "Submit this signature to PetsCash.claimBonus() on-chain",
+        message: "Off-chain PCASH credited. Signature is optional for on-chain claim.",
       };
     }
   );
@@ -87,7 +101,7 @@ const bonusRoutes: FastifyPluginAsync = async (fastify) => {
         canClaim,
         lastClaimedAt: claimedAt,
         nextClaimAt:   canClaim ? null : nextClaim.toISOString(),
-        bonusAmount:   config.BONUS_AMOUNT_PCASH,
+        bonusAmount:   config.BONUS_AMOUNT_PCASH_OFFCHAIN,
       };
     }
   );

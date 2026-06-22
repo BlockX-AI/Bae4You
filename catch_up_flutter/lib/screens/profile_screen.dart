@@ -3,6 +3,8 @@ import '../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
+import '../providers/avatar_provider.dart';
+import '../widgets/cartoon_avatar_painter.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -10,7 +12,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final authState = ref.watch(authProvider);
+    final cartoonAvatar = ref.watch(avatarProvider);
 
     return Scaffold(
       body: Container(
@@ -55,34 +57,38 @@ class ProfileScreen extends ConsumerWidget {
 
                 const SizedBox(height: 24),
 
-                // Profile avatar
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        Color(0xFFFF6BB0),
-                        AppColors.primary,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(60),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 4,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      user?.displayName != null
-                          ? user!.displayName![0].toUpperCase()
-                          : '?',
-                      style: GoogleFonts.fredoka(
-                        fontSize: 48,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                // Profile avatar — cartoon avatar if built, else initial
+                GestureDetector(
+                  onTap: () => Navigator.pushNamed(context, '/avatar-studio'),
+                  child: Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      gradient: cartoonAvatar == null
+                          ? const LinearGradient(
+                              colors: [Color(0xFFFF6BB0), AppColors.primary])
+                          : null,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 4,
                       ),
                     ),
+                    clipBehavior: Clip.antiAlias,
+                    child: cartoonAvatar != null
+                        ? CartoonAvatarView(avatar: cartoonAvatar, size: 120)
+                        : Center(
+                            child: Text(
+                              user?.displayName != null
+                                  ? user!.displayName![0].toUpperCase()
+                                  : '?',
+                              style: GoogleFonts.fredoka(
+                                fontSize: 48,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                   ),
                 ),
 
@@ -161,7 +167,7 @@ class ProfileScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildStat('12', 'Matches'),
-                    _buildStat('2.4K', 'PCASH'),
+                    _buildStat(_formatPcash(user?.pcashBalance ?? 0), 'PCASH'),
                     _buildStat('5', 'Pets'),
                   ],
                 ),
@@ -188,11 +194,6 @@ class ProfileScreen extends ConsumerWidget {
                   icon: Icons.emoji_events,
                   title: 'Fantasy Bae League',
                   onTap: () => Navigator.pushNamed(context, '/heroes-leaderboard'),
-                ),
-                _buildMenuItem(
-                  icon: Icons.history,
-                  title: 'Transaction History',
-                  onTap: () => Navigator.pushNamed(context, '/transaction-history'),
                 ),
                 _buildMenuItem(
                   icon: Icons.help_outline,
@@ -246,6 +247,12 @@ class ProfileScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _formatPcash(int amount) {
+    if (amount >= 1000000) return '${(amount / 1000000).toStringAsFixed(1)}M';
+    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K';
+    return '$amount';
   }
 
   Widget _buildStat(String value, String label) {

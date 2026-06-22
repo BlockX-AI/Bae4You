@@ -1,166 +1,123 @@
 import 'dart:async';
-import 'dart:convert';
-import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:web_socket_channel/io.dart';
 import 'package:flutter/foundation.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../models/chat_models.dart';
 
+/// Socket.IO chat client. Talks to the backend's Socket.IO server, which is
+/// attached to the main API HTTP server (shared public port). Events match
+/// `apps/api/src/plugins/socket.ts`:
+///   emit:   join:match, send:message, typing:start, typing:stop, mark:read
+///   listen: joined:match, new:message, peer:typing, peer:stopped-typing,
+///           messages:read, error
 class ChatService {
-  WebSocketChannel? _channel;
+  io.Socket? _socket;
   final _messageController = StreamController<ChatMessage>.broadcast();
   final _connectionController = StreamController<bool>.broadcast();
-  
-  String? _token;
+  final _typingController = StreamController<bool>.broadcast();
+
   String? _currentMatchId;
   bool _isConnected = false;
 
-  // Streams
+  static const String _socketUrl =
+      'https://baebackend-production.up.railway.app';
+
   Stream<ChatMessage> get messageStream => _messageController.stream;
   Stream<bool> get connectionStream => _connectionController.stream;
+  Stream<bool> get typingStream => _typingController.stream;
   bool get isConnected => _isConnected;
 
-  /// Connect to WebSocket
+  /// Connect to the Socket.IO server, authenticating with the JWT.
   void connect(String token) {
-    _token = token;
-    
-    try {
-      // WebSocket URL - replace with your Railway WebSocket endpoint
-      final wsUrl = kIsWeb
-          ? 'wss://baebackend-production.up.railway.app/ws?token=$token'
-          : 'wss://baebackend-production.up.railway.app/ws?token=$token';
-      
-      _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
-      
-      _channel!.stream.listen(
-        (data) => _handleMessage(data),
-        onError: (error) {
-          print('WebSocket error: $error');
-          _isConnected = false;
-          _connectionController.add(false);
-        },
-        onDone: () {
-          print('WebSocket closed');
-          _isConnected = false;
-          _connectionController.add(false);
-        },
-      );
-      
-      _isConnected = true;
-      _connectionController.add(true);
-      
-      // Send authentication
-      _send({
-        'type': 'auth',
-        'token': token,
+    if (_socket != null) return; // already connected/connecting
+
+    _socket = io.io(
+      _socketUrl,
+      io.OptionBuilder()
+          .setTransports(['websocket', 'polling'])
+          .disableAutoConnect()
+          .setAuth({'token': token})
+          .build(),
+    );
+
+    _socket!
+      ..onConnect((_) {
+        _isConnected = true;
+        _connectionController.add(true);
+        // Re-join the active room after a reconnect.
+        if (_currentMatchId != null) {
+          _socket!.emit('join:match', _currentMatchId);
+        }
+      })
+      ..onDisconnect((_) {
+        _isConnected = false;
+        _connectionController.add(false);
+      })
+      ..onConnectError((err) {
+        if (kDebugMode) debugPrint('Socket connect error: $err');
+        _isConnected = false;
+        _connectionController.add(false);
+      })
+      ..on('new:message', (data) {
+        try {
+          _messageController.add(
+            ChatMessage.fromJson(Map<String, dynamic>.from(data as Map)),
+          );
+        } catch (e) {
+          if (kDebugMode) debugPrint('Bad new:message payload: $e');
+        }
+      })
+      ..on('peer:typing', (_) => _typingController.add(true))
+      ..on('peer:stopped-typing', (_) => _typingController.add(false))
+      ..on('error', (data) {
+        if (kDebugMode) debugPrint('Socket error event: $data');
       });
-      
-    } catch (e) {
-      print('WebSocket connection failed: $e');
-      _isConnected = false;
-      _connectionController.add(false);
-    }
+
+    _socket!.connect();
   }
 
-  /// Join a match room
+  /// Join a match room. Server validates membership and replies joined:match.
   void joinMatch(String matchId) {
     _currentMatchId = matchId;
-    _send({
-      'type': 'join',
-      'matchId': matchId,
-    });
+    _socket?.emit('join:match', matchId);
   }
 
-  /// Leave current match room
   void leaveMatch() {
-    if (_currentMatchId != null) {
-      _send({
-        'type': 'leave',
-        'matchId': _currentMatchId,
-      });
-      _currentMatchId = null;
-    }
+    _currentMatchId = null;
   }
 
-  /// Send a message
-  void sendMessage(String content, String matchId) {
-    _send({
-      'type': 'message',
+  /// Send a chat message. The server persists it and broadcasts new:message
+  /// back to the room (including the sender), so we do NOT echo locally here.
+  void sendMessage(String content, String matchId, {String type = 'text'}) {
+    _socket?.emit('send:message', {
       'matchId': matchId,
       'content': content,
-      'timestamp': DateTime.now().toIso8601String(),
+      'type': type,
     });
   }
 
-  /// Mark message as read
   void markAsRead(String messageId, String matchId) {
-    _send({
-      'type': 'read',
-      'matchId': matchId,
-      'messageId': messageId,
-    });
+    _socket?.emit('mark:read', {'matchId': matchId});
   }
 
-  /// Typing indicator
   void sendTyping(String matchId, bool isTyping) {
-    _send({
-      'type': 'typing',
+    _socket?.emit(isTyping ? 'typing:start' : 'typing:stop', {
       'matchId': matchId,
-      'isTyping': isTyping,
     });
   }
 
-  /// Disconnect
   void disconnect() {
     leaveMatch();
-    _channel?.sink.close();
-    _channel = null;
+    _socket?.dispose();
+    _socket = null;
     _isConnected = false;
     _connectionController.add(false);
-  }
-
-  /// Handle incoming message
-  void _handleMessage(dynamic data) {
-    try {
-      final json = jsonDecode(data as String);
-      final type = json['type'] as String?;
-      
-      switch (type) {
-        case 'message':
-          final message = ChatMessage.fromJson(json['data'] as Map<String, dynamic>);
-          _messageController.add(message);
-          break;
-          
-        case 'typing':
-          // Handle typing indicator
-          break;
-          
-        case 'read':
-          // Handle read receipt
-          break;
-          
-        case 'error':
-          print('WebSocket error: ${json['message']}');
-          break;
-          
-        default:
-          print('Unknown message type: $type');
-      }
-    } catch (e) {
-      print('Error parsing WebSocket message: $e');
-    }
-  }
-
-  /// Send data to WebSocket
-  void _send(Map<String, dynamic> data) {
-    if (_channel != null && _isConnected) {
-      _channel!.sink.add(jsonEncode(data));
-    }
   }
 
   void dispose() {
     disconnect();
     _messageController.close();
     _connectionController.close();
+    _typingController.close();
   }
 }
 

@@ -9,6 +9,8 @@
     "start": "node dist/index.js",
     "migrate": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate.ts",
     "migrate:patch": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-patch.ts",
+    "migrate:cartoon-avatar": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-cartoon-avatar.ts",
+    "migrate:pcash-economy": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-pcash-economy.ts",
     "migrate:features": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-features.ts",
     "e2e": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/e2e-test.ts",
     "full-e2e": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/full-stack-e2e.ts",

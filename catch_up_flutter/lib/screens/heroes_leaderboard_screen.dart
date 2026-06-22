@@ -22,19 +22,6 @@ class _HeroesLeaderboardScreenState extends ConsumerState<HeroesLeaderboardScree
   int _currentPage = 1;
   String _timeFilter = 'all_time'; // all_time, monthly, weekly
 
-  final List<Map<String, dynamic>> _mockHeroes = [
-    {'rank': 1, 'username': 'crypto_king', 'displayName': 'Alex', 'score': 15420, 'matches': 342, 'avatar': '👑', 'change': 2},
-    {'rank': 2, 'username': 'web3_queen', 'displayName': 'Sarah', 'score': 14850, 'matches': 318, 'avatar': '💎', 'change': 0},
-    {'rank': 3, 'username': 'nft_collector', 'displayName': 'Mike', 'score': 14200, 'matches': 295, 'avatar': '🎨', 'change': -1},
-    {'rank': 4, 'username': 'defi_master', 'displayName': 'Emma', 'score': 13800, 'matches': 280, 'avatar': '🚀', 'change': 5},
-    {'rank': 5, 'username': 'blockchain_dev', 'displayName': 'David', 'score': 13500, 'matches': 267, 'avatar': '💻', 'change': 3},
-    {'rank': 6, 'username': 'ethereum_maxi', 'displayName': 'Lisa', 'score': 13100, 'matches': 254, 'avatar': 'Ξ', 'change': -2},
-    {'rank': 7, 'username': 'metaverse_pro', 'displayName': 'Tom', 'score': 12800, 'matches': 241, 'avatar': '🌐', 'change': 1},
-    {'rank': 8, 'username': 'dao_builder', 'displayName': 'Anna', 'score': 12500, 'matches': 238, 'avatar': '🏛️', 'change': 4},
-    {'rank': 9, 'username': 'token_trader', 'displayName': 'Chris', 'score': 12200, 'matches': 225, 'avatar': '📈', 'change': -3},
-    {'rank': 10, 'username': 'smart_contract', 'displayName': 'Jenny', 'score': 11900, 'matches': 212, 'avatar': '📜', 'change': 0},
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -51,24 +38,32 @@ class _HeroesLeaderboardScreenState extends ConsumerState<HeroesLeaderboardScree
       final token = ref.read(authProvider).token;
       if (token == null) throw Exception('Not authenticated');
 
-      // Try to load from API
-      // final response = await _apiService.getHeroLeaderboard(
-      //   token: token,
-      //   page: _currentPage.toString(),
-      //   limit: '50',
-      // );
-      // _heroes = response.heroes;
+      final response = await _apiService.getHeroLeaderboard(
+        token: token,
+        page: _currentPage.toString(),
+        limit: '50',
+      );
 
-      // For now, use mock data
-      await Future.delayed(const Duration(milliseconds: 800));
-      
+      final mapped = response.entries.map((e) => {
+            'rank': e.rank,
+            'username': e.displayName ?? 'hero',
+            'displayName': e.displayName ?? 'Hero',
+            'score': e.score,
+            'matches': 0,
+            'avatar': '👤',
+            'change': 0,
+          }).toList();
+
+      if (!mounted) return;
       setState(() {
-        _heroes = _mockHeroes;
+        _heroes = mapped;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _heroes = _mockHeroes;
+        _error = e.toString();
+        _heroes = [];
         _isLoading = false;
       });
     }

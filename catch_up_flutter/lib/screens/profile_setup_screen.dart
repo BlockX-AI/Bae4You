@@ -1,10 +1,11 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../providers/auth_provider.dart';
+import '../providers/avatar_provider.dart';
 import '../services/api_service.dart';
+import '../widgets/cartoon_avatar_painter.dart';
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {
   final VoidCallback onComplete;
@@ -75,6 +76,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
       final token = ref.read(authProvider).token;
       if (token != null) {
         final countryCode = _selectedCountry.split(' ').last.substring(0, 2).toUpperCase();
+        final cartoon = ref.read(avatarProvider);
         await ApiService().updateProfile(
           token: token,
           displayName: _nameController.text.trim().isEmpty ? 'Anonymous' : _nameController.text.trim(),
@@ -84,11 +86,23 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
           bio: _bioController.text.trim(),
           countryCode: countryCode,
           interests: _selectedInterests.toList(),
+          cartoonAvatar: cartoon?.toJson(),
         );
         await ref.read(authProvider.notifier).refreshUser();
       }
-    } catch (_) {
-      // Non-blocking — proceed even if save fails
+    } catch (e) {
+      // Surface the failure and let the user retry instead of silently
+      // advancing with an unsaved profile.
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not save profile: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
     }
     if (mounted) {
       setState(() => _isSaving = false);
@@ -241,6 +255,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
   // ── STEP 2: Avatar ────────────────────────────────────────
   Widget _buildAvatarStep() {
     final emojis = ['😊','😎','🥰','🤩','😏','🌟','🔥','💫','🎯','🎨','🎸','📚','🏔️','☕','🌈','🦋','🐉','🌺','🎭','🚀'];
+    final cartoon = ref.watch(avatarProvider);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(children: [
@@ -249,18 +264,27 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
           animation: _pulseController,
           builder: (_, __) => Transform.scale(
             scale: 1.0 + 0.05 * _pulseController.value,
-            child: Container(
-              width: 120, height: 120,
-              decoration: BoxDecoration(gradient: AppColors.buttonGradient, shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 24, spreadRadius: 4)]),
-              child: Center(child: Text(_selectedEmoji, style: const TextStyle(fontSize: 60))),
-            ),
+            child: cartoon != null
+                ? Container(
+                    width: 130, height: 130,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.primaryDark, width: 3),
+                      boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 24, spreadRadius: 4)],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: CartoonAvatarView(avatar: cartoon, size: 130),
+                  )
+                : Container(
+                    width: 120, height: 120,
+                    decoration: BoxDecoration(gradient: AppColors.buttonGradient, shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 24, spreadRadius: 4)]),
+                    child: Center(child: Text(_selectedEmoji, style: const TextStyle(fontSize: 60))),
+                  ),
           ),
         ),
-        const SizedBox(height: 8),
-        Text('Tap to change', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textHint)),
-        const SizedBox(height: 20),
-        // Create a real avatar (bitmoji / AI) from a photo
+        const SizedBox(height: 12),
+        // Build a cartoon avatar from scratch (offline, Snapchat-style)
         GestureDetector(
           onTap: () => Navigator.pushNamed(context, '/avatar-studio'),
           child: Container(
@@ -271,14 +295,14 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
               boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 3))],
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+              Icon(cartoon != null ? Icons.edit : Icons.auto_awesome, color: Colors.white, size: 18),
               const SizedBox(width: 8),
-              Text('Create bitmoji / AI avatar', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+              Text(cartoon != null ? 'Edit cartoon avatar' : 'Build cartoon avatar', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
             ]),
           ),
         ),
         const SizedBox(height: 24),
-        Text('Or choose your vibe', style: GoogleFonts.fredoka(fontSize: 22, color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+        Text('Or pick an emoji vibe', style: GoogleFonts.fredoka(fontSize: 22, color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
         const SizedBox(height: 16),
         GridView.builder(
           shrinkWrap: true,

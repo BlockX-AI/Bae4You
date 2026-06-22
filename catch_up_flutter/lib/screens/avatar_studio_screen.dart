@@ -1,218 +1,123 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../design/tokens.dart';
+import '../models/cartoon_avatar.dart';
+import '../widgets/cartoon_avatar_painter.dart';
+import '../providers/avatar_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
-import 'bitmoji_creator_screen.dart';
-import 'ai_avatar_screen.dart';
+import 'avatar_builder_screen.dart';
 
-/// Avatar Studio — the hub for creating a profile avatar.
-///
-/// Two paths (both backed by real API endpoints):
-///   • Notion Bitmoji  → POST /users/me/bitmoji/generate  (+ live customiser)
-///   • AI Avatar       → POST /users/me/avatar/kyc-frames
-class AvatarStudioScreen extends ConsumerStatefulWidget {
+/// Avatar Studio — shows the current cartoon avatar and opens the
+/// build-from-scratch (Snapchat-style) builder. Fully offline.
+class AvatarStudioScreen extends ConsumerWidget {
   const AvatarStudioScreen({super.key});
 
-  @override
-  ConsumerState<AvatarStudioScreen> createState() => _AvatarStudioScreenState();
-}
-
-class _AvatarStudioScreenState extends ConsumerState<AvatarStudioScreen> {
-  String? _currentSvg;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCurrent();
+  Future<void> _openBuilder(BuildContext context) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AvatarBuilderScreen()),
+    );
   }
 
-  Future<void> _loadCurrent() async {
-    final token = ref.read(authProvider).token;
-    if (token == null) {
-      setState(() => _loading = false);
-      return;
-    }
+  /// Best-effort backend sync (JSON config + rendered PNG → IPFS). Non-blocking.
+  Future<void> _syncToBackend(
+      WidgetRef ref, String token, CartoonAvatar avatar) async {
+    final api = ApiService();
     try {
-      final res = await ApiService().getBitmoji(token);
-      if (mounted) setState(() => _currentSvg = res.svgString);
-    } catch (_) {
-      // No bitmoji yet — fine, show the empty state.
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+      await api.updateCartoonAvatar(token: token, cartoonAvatar: avatar.toJson());
+    } catch (_) {/* non-blocking */}
+    try {
+      final png = await renderAvatarToPng(avatar);
+      await api.uploadAvatarPng(token: token, bytes: png);
+      await ref.read(authProvider.notifier).refreshUser();
+    } catch (_) {/* non-blocking */}
   }
 
   @override
-  Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
-    final hasNetworkAvatar =
-        user?.avatarIpfsHash != null && user!.avatarIpfsHash!.isNotEmpty;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final avatar = ref.watch(avatarProvider);
+    final hasAvatar = avatar != null;
 
     return Scaffold(
       backgroundColor: AppTokens.bg,
       appBar: AppBar(
         backgroundColor: AppTokens.bg,
         elevation: 0,
-        title: Text('Avatar Studio', style: AppTokens.textStyles.h2),
         iconTheme: const IconThemeData(color: AppTokens.textHi),
+        title: Text('Avatar Studio', style: AppTokens.textStyles.h2),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppTokens.s24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(child: _buildCurrentAvatar(hasNetworkAvatar, user?.avatarIpfsHash)),
-            const SizedBox(height: AppTokens.s8),
-            Center(
-              child: Text(
-                _currentSvg != null || hasNetworkAvatar
-                    ? 'Your current avatar'
-                    : 'No avatar yet — create one below',
-                style: AppTokens.textStyles.bodySm,
+            const SizedBox(height: AppTokens.s16),
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTokens.border, width: 3),
+                boxShadow: AppTokens.md,
               ),
+              clipBehavior: Clip.antiAlias,
+              child: CartoonAvatarView(
+                avatar: avatar ?? CartoonAvatar(),
+                size: 200,
+              ),
+            ),
+            const SizedBox(height: AppTokens.s16),
+            Text(
+              hasAvatar ? 'Your avatar' : 'Create your avatar',
+              style: AppTokens.textStyles.h1,
+            ),
+            const SizedBox(height: AppTokens.s8),
+            Text(
+              'Build a cartoon avatar from scratch — pick your hair, eyes, '
+              'skin tone and more. No photo needed.',
+              textAlign: TextAlign.center,
+              style: AppTokens.textStyles.body.copyWith(color: AppTokens.textMid),
             ),
             const SizedBox(height: AppTokens.s32),
-            Text('CHOOSE A STYLE',
-                style: AppTokens.textStyles.label
-                    .copyWith(color: AppTokens.accent)),
-            const SizedBox(height: AppTokens.s16),
-            _buildOption(
-              emoji: '🧑‍🎨',
-              title: 'Notion Bitmoji',
-              description:
-                  'Cartoon avatar from your photo. Fully customisable — face, hair, glasses & more.',
-              tag: 'POPULAR',
-              onTap: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const BitmojiCreatorScreen()),
-                );
-                _loadCurrent();
-              },
-            ),
-            const SizedBox(height: AppTokens.s16),
-            _buildOption(
-              emoji: '🪄',
-              title: 'AI Avatar',
-              description:
-                  'Photo-realistic, stylised portrait. Pick from 8 art styles — anime, 3D, cyberpunk & more.',
-              onTap: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AiAvatarScreen()),
-                );
-                if (mounted) ref.read(authProvider.notifier).refreshUser();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCurrentAvatar(bool hasNetworkAvatar, String? ipfsHash) {
-    const double size = 140;
-    Widget child;
-    if (_loading) {
-      child = const Center(
-          child: CircularProgressIndicator(color: AppTokens.accent));
-    } else if (_currentSvg != null) {
-      child = SvgPicture.string(_currentSvg!, width: size, height: size);
-    } else if (hasNetworkAvatar) {
-      child = ClipOval(
-        child: Image.network(
-          'https://gateway.pinata.cloud/ipfs/$ipfsHash',
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _placeholder(),
-        ),
-      );
-    } else {
-      child = _placeholder();
-    }
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: AppTokens.surface,
-        shape: BoxShape.circle,
-        border: Border.all(color: AppTokens.border, width: 2),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: child,
-    );
-  }
-
-  Widget _placeholder() => const Center(
-        child: Icon(Icons.person_outline, color: AppTokens.textLow, size: 56),
-      );
-
-  Widget _buildOption({
-    required String emoji,
-    required String title,
-    required String description,
-    String? tag,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(AppTokens.s16),
-        decoration: BoxDecoration(
-          color: AppTokens.surface,
-          borderRadius: BorderRadius.circular(AppTokens.r16),
-          border: Border.all(color: AppTokens.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: AppTokens.surface2,
-                borderRadius: BorderRadius.circular(AppTokens.r12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _openBuilder(context),
+                icon: Icon(hasAvatar ? Icons.edit : Icons.auto_awesome, size: 20),
+                label: Text(hasAvatar ? 'Edit avatar' : 'Start building'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTokens.accent,
+                  foregroundColor: AppTokens.textHi,
+                  padding: const EdgeInsets.symmetric(vertical: AppTokens.s16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTokens.r12)),
+                ),
               ),
-              child: Center(child: Text(emoji, style: const TextStyle(fontSize: 26))),
             ),
-            const SizedBox(width: AppTokens.s16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(title, style: AppTokens.textStyles.h3),
-                      if (tag != null) ...[
-                        const SizedBox(width: AppTokens.s8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: AppTokens.s8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppTokens.accent.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(AppTokens.r8),
-                          ),
-                          child: Text(tag,
-                              style: AppTokens.textStyles.label
-                                  .copyWith(color: AppTokens.accent)),
-                        ),
-                      ],
-                    ],
+            if (hasAvatar) ...[
+              const SizedBox(height: AppTokens.s12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    final surprise =
+                        CartoonAvatar.random(DateTime.now().microsecond);
+                    ref.read(avatarProvider.notifier).save(surprise);
+                    final token = ref.read(authProvider).token;
+                    if (token != null) {
+                      _syncToBackend(ref, token, surprise);
+                    }
+                  },
+                  icon: const Icon(Icons.casino_outlined,
+                      size: 20, color: AppTokens.textHi),
+                  label: Text('Surprise me', style: AppTokens.textStyles.body),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppTokens.border),
+                    padding: const EdgeInsets.symmetric(vertical: AppTokens.s16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTokens.r12)),
                   ),
-                  const SizedBox(height: AppTokens.s4),
-                  Text(description,
-                      style: AppTokens.textStyles.bodySm
-                          .copyWith(color: AppTokens.textMid)),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(width: AppTokens.s8),
-            const Icon(Icons.chevron_right, color: AppTokens.textMid),
+            ],
           ],
         ),
       ),
