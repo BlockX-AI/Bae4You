@@ -74,16 +74,18 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
       final token = ref.read(authProvider).token;
       if (token != null) {
         final countryCode = _selectedCountry.split(' ').last.substring(0, 2).toUpperCase();
+        final displayName = _nameController.text.trim();
+        final bio = _bioController.text.trim();
         // Note: Notion avatar is synced separately via NotionAvatarBuilderScreen
         await ApiService().updateProfile(
           token: token,
-          displayName: _nameController.text.trim().isEmpty ? 'Anonymous' : _nameController.text.trim(),
+          displayName: displayName.isEmpty ? 'Anonymous' : displayName,
           username: _usernameController.text.trim().isEmpty
-              ? _nameController.text.trim().toLowerCase().replaceAll(' ', '_')
+              ? displayName.toLowerCase().replaceAll(' ', '_')
               : _usernameController.text.trim().toLowerCase(),
-          bio: _bioController.text.trim(),
+          bio: bio.isEmpty ? null : bio,
           countryCode: countryCode,
-          interests: _selectedInterests.toList(),
+          interests: _selectedInterests.isEmpty ? null : _selectedInterests.toList(),
         );
         await ref.read(authProvider.notifier).refreshUser();
       }

@@ -108,7 +108,8 @@ async function bootstrap() {
   // Static file serving for Notion avatar parts
   await app.register(fastifyStatic, {
     root: path.resolve(__dirname, "../public"),
-    prefix: "/",
+    prefix: "/public/",
+    decorateReply: false,
   });
 
   // Multipart — used for avatar uploads (10 MB limit, 2 files for couple endpoint)

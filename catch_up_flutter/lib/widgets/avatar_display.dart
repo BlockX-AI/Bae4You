@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
-import '../models/cartoon_avatar.dart';
-import 'cartoon_avatar_painter.dart';
+import '../models/notion_avatar.dart';
+import 'notion_avatar_display.dart';
 
 /// Renders a user's avatar with a clear precedence:
-///   1. cartoon avatar JSON config  → native CustomPainter (crisp at any size)
-///   2. avatar IPFS hash            → network image
-///   3. emoji / initial fallback    → caller-supplied widget
+///   1. Notion avatar config  → composed on-device (crisp at any size, offline)
+///   2. avatar IPFS hash       → network image
+///   3. emoji / initial        → caller-supplied [fallback]
 ///
 /// Used on swipe cards, match rows and anywhere another user's avatar shows.
 class AvatarDisplay extends StatelessWidget {
-  final Map<String, dynamic>? cartoonConfig;
+  /// The user's Notion avatar config (backend `bitmoji_config`).
+  final Map<String, dynamic>? notionConfig;
   final String? avatarIpfsHash;
   final double size;
   final bool showBackground;
 
-  /// Shown when neither a cartoon config nor an IPFS image is available.
+  /// Shown when neither a Notion config nor an IPFS image is available.
   final Widget fallback;
 
   const AvatarDisplay({
     super.key,
-    required this.cartoonConfig,
+    required this.notionConfig,
     required this.avatarIpfsHash,
     required this.fallback,
     this.size = 120,
@@ -30,14 +31,12 @@ class AvatarDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cartoon = CartoonAvatar.tryParse(_encode(cartoonConfig));
-    if (cartoon != null) {
-      return ClipOval(
-        child: CartoonAvatarView(
-          avatar: cartoon,
-          size: size,
-          showBackground: showBackground,
-        ),
+    final config = _tryParse(notionConfig);
+    if (config != null) {
+      return NotionAvatarDisplay(
+        config: config,
+        size: size,
+        fallback: fallback,
       );
     }
 
@@ -57,10 +56,12 @@ class AvatarDisplay extends StatelessWidget {
     return fallback;
   }
 
-  // CartoonAvatar.tryParse takes a JSON string; encode the map (or null).
-  String? _encode(Map<String, dynamic>? m) {
+  NotionAvatarConfig? _tryParse(Map<String, dynamic>? m) {
     if (m == null) return null;
-    final a = CartoonAvatar.fromJson(m);
-    return a.toJsonString();
+    try {
+      return NotionAvatarConfig.fromJson(m);
+    } catch (_) {
+      return null;
+    }
   }
 }

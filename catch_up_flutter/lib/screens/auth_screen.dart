@@ -53,8 +53,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error), backgroundColor: AppTokens.danger),
       );
+    } else if (success && mounted) {
+      // Navigate to home - AuthWrapper will handle routing to profile setup if needed
+      Navigator.of(context).pushReplacementNamed('/');
     }
-    // On success, AuthWrapper rebuilds and routes the user automatically.
   }
 
   @override

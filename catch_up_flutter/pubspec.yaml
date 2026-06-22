@@ -46,3 +46,14 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/notion-avatar-parts/face/
+    - assets/notion-avatar-parts/eyes/
+    - assets/notion-avatar-parts/eyebrows/
+    - assets/notion-avatar-parts/nose/
+    - assets/notion-avatar-parts/mouth/
+    - assets/notion-avatar-parts/beard/
+    - assets/notion-avatar-parts/glasses/
+    - assets/notion-avatar-parts/accessories/
+    - assets/notion-avatar-parts/details/
+    - assets/notion-avatar-parts/hair/

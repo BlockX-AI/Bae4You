@@ -1,82 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../models/notion_avatar.dart';
-import '../services/api_service.dart';
+import '../services/notion_avatar_builder.dart';
 
-/// Displays a Notion avatar from config or fetches SVG from backend
+/// Displays a Notion avatar composed on-device from a [NotionAvatarConfig].
+///
+/// The SVG is assembled from bundled parts via [NotionAvatarBuilder] — no
+/// network call — so it renders instantly and works offline. Pass a [config];
+/// when null a neutral placeholder is shown.
 class NotionAvatarDisplay extends StatelessWidget {
   final NotionAvatarConfig? config;
-  final String? userId;
   final double size;
   final bool showBorder;
   final Color? borderColor;
 
+  /// Optional widget shown when [config] is null (e.g. initial / emoji).
+  final Widget? fallback;
+
   const NotionAvatarDisplay({
     super.key,
     this.config,
-    this.userId,
     this.size = 120,
     this.showBorder = false,
     this.borderColor,
+    this.fallback,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (config == null && userId == null) {
-      return _buildPlaceholder();
+    if (config == null) {
+      return fallback ?? _buildPlaceholder();
     }
 
-    if (userId != null) {
-      // Fetch SVG from backend endpoint
-      return FutureBuilder<String>(
-        future: _fetchSvg(userId!),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            return _buildSvgAvatar(snapshot.data!);
-          }
-          if (snapshot.hasError) {
-            return _buildPlaceholder();
-          }
-          return _buildLoading();
-        },
-      );
-    }
-
-    // For local config, we'd need to render it client-side or fetch from backend
-    // For now, show placeholder - will implement client-side rendering next
-    return _buildPlaceholder();
-  }
-
-  Future<String> _fetchSvg(String userId) async {
-    final baseUrl = ApiService.baseUrl;
-    // Note: This endpoint returns SVG directly
-    // We'll need to fetch it as text
-    return '''<svg viewBox="0 0 1080 1080" fill="none" xmlns="http://www.w3.org/2000/svg" width="1080" height="1080">
-      <circle cx="540" cy="540" r="540" fill="#f3e0c8"/>
-    </svg>'''; // Placeholder - will implement proper fetch
-  }
-
-  Widget _buildSvgAvatar(String svgString) {
-    final avatar = SvgPicture.string(
-      svgString,
-      width: size,
-      height: size,
-      fit: BoxFit.cover,
-    );
-
-    if (!showBorder) return avatar;
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: borderColor ?? Colors.white,
-          width: 3,
-        ),
-      ),
-      child: ClipOval(child: avatar),
+    return FutureBuilder<String>(
+      future: NotionAvatarBuilder.build(config!),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          return NotionAvatarFromSvg(
+            svgString: snapshot.data!,
+            size: size,
+            showBorder: showBorder,
+            borderColor: borderColor,
+          );
+        }
+        if (snapshot.hasError) {
+          return fallback ?? _buildPlaceholder();
+        }
+        return _buildLoading();
+      },
     );
   }
 
@@ -88,17 +59,10 @@ class NotionAvatarDisplay extends StatelessWidget {
         shape: BoxShape.circle,
         color: Colors.grey[300],
         border: showBorder
-            ? Border.all(
-                color: borderColor ?? Colors.white,
-                width: 3,
-              )
+            ? Border.all(color: borderColor ?? Colors.white, width: 3)
             : null,
       ),
-      child: Icon(
-        Icons.person,
-        size: size * 0.5,
-        color: Colors.grey[600],
-      ),
+      child: Icon(Icons.person, size: size * 0.5, color: Colors.grey[600]),
     );
   }
 
@@ -121,7 +85,7 @@ class NotionAvatarDisplay extends StatelessWidget {
   }
 }
 
-/// Simplified version that takes SVG string directly
+/// Renders a ready SVG string (e.g. one already composed or fetched).
 class NotionAvatarFromSvg extends StatelessWidget {
   final String svgString;
   final double size;
@@ -145,17 +109,14 @@ class NotionAvatarFromSvg extends StatelessWidget {
       fit: BoxFit.cover,
     );
 
-    if (!showBorder) return avatar;
+    if (!showBorder) return ClipOval(child: avatar);
 
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(
-          color: borderColor ?? Colors.white,
-          width: 3,
-        ),
+        border: Border.all(color: borderColor ?? Colors.white, width: 3),
       ),
       child: ClipOval(child: avatar),
     );

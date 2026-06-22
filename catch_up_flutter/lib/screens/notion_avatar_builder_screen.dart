@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../models/notion_avatar.dart';
 import '../providers/notion_avatar_provider.dart';
 import '../providers/auth_provider.dart';
@@ -18,7 +19,6 @@ class NotionAvatarBuilderScreen extends ConsumerStatefulWidget {
 class _NotionAvatarBuilderScreenState
     extends ConsumerState<NotionAvatarBuilderScreen> {
   late NotionAvatarConfig _config;
-  String? _svgString;
   bool _isSaving = false;
   String _selectedPart = 'face';
 
@@ -55,27 +55,6 @@ class _NotionAvatarBuilderScreenState
     // Load existing config or create random
     final existing = ref.read(notionAvatarProvider);
     _config = existing ?? NotionAvatarConfig.random();
-    _fetchSvg();
-  }
-
-  Future<void> _fetchSvg() async {
-    final token = ref.read(authProvider).token;
-    if (token == null) return;
-
-    try {
-      // Update backend config first
-      await ApiService().updateBitmoji(
-        token: token,
-        config: _config.toJson(),
-      );
-      // Then fetch the rendered SVG
-      final response = await ApiService().getBitmoji(token: token);
-      if (response.svgString != null && mounted) {
-        setState(() => _svgString = response.svgString);
-      }
-    } catch (e) {
-      debugPrint('Failed to fetch SVG: $e');
-    }
   }
 
   void _updatePart(String part, int value) {
@@ -103,7 +82,6 @@ class _NotionAvatarBuilderScreenState
           _config = _config.copyWith(detail: value);
       }
     });
-    _fetchSvg();
   }
 
   int _getCurrentValue(String part) {
@@ -161,6 +139,45 @@ class _NotionAvatarBuilderScreenState
     }
   }
 
+  Widget _buildPartPreview(String part, int index) {
+    // For "none" options (index 0 for optional parts)
+    if (index == 0 &&
+        (part == 'glass' || part == 'beard' || part == 'accessory')) {
+      return const Icon(Icons.close, color: Colors.white54, size: 32);
+    }
+
+    // Map part names to folder names
+    final partFolder = {
+      'face': 'face',
+      'eye': 'eyes',
+      'eyebrow': 'eyebrows',
+      'glass': 'glasses',
+      'hair': 'hair',
+      'mouth': 'mouth',
+      'nose': 'nose',
+      'accessory': 'accessories',
+      'beard': 'beard',
+      'detail': 'details',
+    }[part] ?? part;
+
+    // Build URL to backend SVG part
+    final baseUrl = ApiService.baseUrl;
+    final svgUrl = '$baseUrl/public/notion-avatar-parts/$partFolder/$index.svg';
+
+    // Use SvgPicture.network to load the part
+    return SvgPicture.network(
+      svgUrl,
+      width: 60,
+      height: 60,
+      fit: BoxFit.contain,
+      placeholderBuilder: (context) => const SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -182,7 +199,6 @@ class _NotionAvatarBuilderScreenState
               setState(() {
                 _config = NotionAvatarConfig.random();
               });
-              _fetchSvg();
             },
           ),
           TextButton(
@@ -214,12 +230,10 @@ class _NotionAvatarBuilderScreenState
             height: 300,
             color: const Color(0xFF1a1a1a),
             child: Center(
-              child: _svgString != null
-                  ? NotionAvatarFromSvg(
-                      svgString: _svgString!,
-                      size: 240,
-                    )
-                  : const CircularProgressIndicator(),
+              child: NotionAvatarDisplay(
+                config: _config,
+                size: 240,
+              ),
             ),
           ),
 
@@ -288,21 +302,36 @@ class _NotionAvatarBuilderScreenState
                           ? Border.all(color: AppColors.primary, width: 3)
                           : Border.all(color: const Color(0xFF2a2a2a)),
                     ),
-                    child: Center(
-                      child: index == 0 &&
-                              (_selectedPart == 'glass' ||
-                                  _selectedPart == 'beard' ||
-                                  _selectedPart == 'accessory')
-                          ? const Icon(Icons.close, color: Colors.white54)
-                          : Text(
+                    child: Stack(
+                      children: [
+                        // Preview of the part
+                        Center(
+                          child: _buildPartPreview(_selectedPart, index),
+                        ),
+                        // Index label in corner
+                        Positioned(
+                          bottom: 4,
+                          right: 4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
                               '$index',
-                              style: TextStyle(
-                                color: isSelected ? AppColors.primary : Colors.white70,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 );
