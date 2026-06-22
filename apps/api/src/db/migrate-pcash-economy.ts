@@ -193,6 +193,81 @@ async function migrate() {
       "CREATE SEQUENCE IF NOT EXISTS offchain_token_id_seq START 1000000;"
     );
 
+    // Trading enums + core tables. buy_pet() and the bids endpoint depend on
+    // these; they live in schema.sql but may be absent on DBs provisioned
+    // before the trading feature landed. All idempotent.
+    console.log("[migrate:pcash-economy] Ensuring trading enums + tables...");
+    await pool.query(`
+      DO $$ BEGIN
+        CREATE TYPE bid_status_t AS ENUM ('active', 'expired', 'accepted', 'withdrawn');
+        EXCEPTION WHEN duplicate_object THEN null;
+      END $$;
+    `);
+    await pool.query(`
+      DO $$ BEGIN
+        CREATE TYPE tx_type_t AS ENUM ('buy', 'bid_place', 'list_for_sale', 'bid_accepted');
+        EXCEPTION WHEN duplicate_object THEN null;
+      END $$;
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pets_ownership (
+        id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+        owner_id        UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        pet_id          BIGINT      NOT NULL REFERENCES pets_state(token_id) ON DELETE CASCADE,
+        purchase_price  INTEGER     NOT NULL,
+        purchased_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        released_at     TIMESTAMPTZ,
+        locked_until    TIMESTAMPTZ
+      );
+    `);
+    await pool.query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_pets_ownership_active
+         ON pets_ownership (pet_id) WHERE released_at IS NULL;`
+    );
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_pets_ownership_owner ON pets_ownership (owner_id);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_pets_ownership_pet ON pets_ownership (pet_id);`);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS value_history (
+        id         UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        old_value  INTEGER     NOT NULL,
+        new_value  INTEGER     NOT NULL,
+        reason     TEXT        NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_value_history_user ON value_history (user_id);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_value_history_created ON value_history (created_at DESC);`);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id            UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+        type          tx_type_t   NOT NULL,
+        buyer_id      UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        pet_id        BIGINT      NOT NULL REFERENCES pets_state(token_id) ON DELETE CASCADE,
+        prev_owner_id UUID        REFERENCES users(id) ON DELETE SET NULL,
+        amount        INTEGER     NOT NULL,
+        value_after   INTEGER     NOT NULL,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_transactions_buyer ON transactions (buyer_id);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_transactions_pet ON transactions (pet_id);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions (type);`);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bids (
+        id         UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+        bidder_id  UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        pet_id     BIGINT       NOT NULL REFERENCES pets_state(token_id) ON DELETE CASCADE,
+        amount     INTEGER      NOT NULL,
+        status     bid_status_t NOT NULL DEFAULT 'active',
+        created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        expires_at TIMESTAMPTZ  NOT NULL DEFAULT (NOW() + INTERVAL '7 days')
+      );
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_bids_bidder ON bids (bidder_id);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_bids_pet ON bids (pet_id);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_bids_active ON bids (pet_id, amount DESC) WHERE status = 'active';`);
+
     // Normalize oversized prices: anything above INTEGER max (~2.1e9) is a
     // legacy wei seed; reset to the off-chain starting price so buy_pet() works.
     console.log("[migrate:pcash-economy] Normalizing oversized pet prices...");
