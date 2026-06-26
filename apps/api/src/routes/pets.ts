@@ -153,6 +153,159 @@ const petsRoutes: FastifyPluginAsync = async (fastify) => {
       return { success: true };
     }
   );
+
+  // ============================================
+  // TRADING CORE ENDPOINTS
+  // ============================================
+
+  const buyBodySchema = z.object({});
+  const bidBodySchema = z.object({ amount: z.string().regex(/^\d+$/) });
+  const listBodySchema = z.object({ price: z.string().regex(/^\d+$/) });
+
+  // POST /pets/:tokenId/buy - Buy a pet at current price
+  fastify.post<{ Params: { tokenId: string } }>(
+    "/:tokenId/buy",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const tokenId = parseInt(req.params.tokenId);
+      if (isNaN(tokenId) || tokenId <= 0) {
+        return reply.code(400).send({ error: "Invalid token ID", code: "ERR_INVALID_TOKEN" });
+      }
+
+      try {
+        const result = await db.query(
+          `SELECT buy_pet($1::bigint, $2::uuid)`,
+          [tokenId, payload.userId]
+        );
+        const outcome = result.rows[0]?.buy_pet;
+        if (outcome?.error) {
+          const code = outcome.code;
+          let status = 400;
+          if (code === "ERR_INSUFFICIENT_FUNDS") status = 402;
+          if (code === "ERR_OWNERSHIP_LIMIT" || code === "ERR_PET_LOCKED" || code === "ERR_ALREADY_OWNED") status = 409;
+          return reply.code(status).send({ error: outcome.error, code });
+        }
+        return reply.code(200).send({
+          success: true,
+          transactionId: outcome.transaction_id,
+          newValue: outcome.new_value,
+          prevOwnerValue: outcome.prev_owner_value,
+          boughtUserValue: outcome.bought_user_value
+        });
+      } catch (err) {
+        console.error("Buy pet error:", err);
+        return reply.code(500).send({ error: "Internal error", code: "ERR_INTERNAL" });
+      }
+    }
+  );
+
+  // POST /pets/:tokenId/bid - Place a bid on a pet
+  fastify.post<{ Params: { tokenId: string } }>(
+    "/:tokenId/bid",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const tokenId = parseInt(req.params.tokenId);
+      if (isNaN(tokenId) || tokenId <= 0) {
+        return reply.code(400).send({ error: "Invalid token ID", code: "ERR_INVALID_TOKEN" });
+      }
+
+      const parsed = bidBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Invalid amount", code: "ERR_INVALID_BID_AMOUNT" });
+      }
+
+      const amount = parseInt(parsed.data.amount);
+      if (isNaN(amount) || amount <= 0) {
+        return reply.code(400).send({ error: "Invalid amount", code: "ERR_INVALID_BID_AMOUNT" });
+      }
+
+      try {
+        const { rows } = await db.query(
+          `INSERT INTO bids (bidder_id, pet_id, amount, status, expires_at)
+           VALUES ($1, $2, $3, 'active', NOW() + INTERVAL '7 days')
+           RETURNING id, amount, created_at, expires_at`,
+          [payload.userId, tokenId, amount]
+        );
+        return reply.code(201).send({
+          success: true,
+          bidId: rows[0].id,
+          amount: rows[0].amount,
+          createdAt: rows[0].created_at,
+          expiresAt: rows[0].expires_at
+        });
+      } catch (err) {
+        console.error("Place bid error:", err);
+        return reply.code(500).send({ error: "Internal error", code: "ERR_INTERNAL" });
+      }
+    }
+  );
+
+  // POST /pets/:tokenId/list - List pet for sale
+  fastify.post<{ Params: { tokenId: string } }>(
+    "/:tokenId/list",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const tokenId = parseInt(req.params.tokenId);
+      if (isNaN(tokenId) || tokenId <= 0) {
+        return reply.code(400).send({ error: "Invalid token ID", code: "ERR_INVALID_TOKEN" });
+      }
+
+      const parsed = listBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Invalid price", code: "ERR_INVALID_PRICE" });
+      }
+
+      const price = parseInt(parsed.data.price);
+      if (isNaN(price) || price <= 0) {
+        return reply.code(400).send({ error: "Invalid price", code: "ERR_INVALID_PRICE" });
+      }
+
+      // Verify ownership
+      const { rows: ownership } = await db.query(
+        `SELECT po.id FROM pets_ownership po
+         WHERE po.pet_id = $1 AND po.owner_id = $2 AND po.released_at IS NULL`,
+        [tokenId, payload.userId]
+      );
+      if (!ownership[0]) {
+        return reply.code(403).send({ error: "Not owner", code: "ERR_UNAUTHORIZED" });
+      }
+
+      // Update pets_state with listed price
+      await db.query(
+        `UPDATE pets_state SET current_price_wei = $1 WHERE token_id = $2`,
+        [price, tokenId]
+      );
+
+      return reply.code(200).send({ success: true });
+    }
+  );
+
+  // GET /pets/:tokenId/bids - Get active bids on a pet
+  fastify.get<{ Params: { tokenId: string } }>(
+    "/:tokenId/bids",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const tokenId = parseInt(req.params.tokenId);
+      if (isNaN(tokenId) || tokenId <= 0) {
+        return reply.code(400).send({ error: "Invalid token ID", code: "ERR_INVALID_TOKEN" });
+      }
+
+      const { rows } = await db.query(
+        `SELECT b.id, b.amount, b.created_at, b.expires_at,
+                u.id as bidder_id, u.username as bidder_name, u.display_name as bidder_display_name
+         FROM bids b
+         JOIN users u ON u.id = b.bidder_id
+         WHERE b.pet_id = $1 AND b.status = 'active' AND b.expires_at > NOW()
+         ORDER BY b.amount DESC`,
+        [tokenId]
+      );
+
+      return { bids: rows };
+    }
+  );
 };
 
 export default petsRoutes;
