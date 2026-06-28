@@ -3,8 +3,8 @@ import '../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
-import '../providers/notion_avatar_provider.dart';
-import '../widgets/notion_avatar_display.dart';
+import '../providers/avataaars_provider.dart';
+import '../widgets/avataaars_display.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -12,7 +12,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final notionAvatar = ref.watch(notionAvatarProvider);
+    final avataaars = ref.watch(avataaarsProvider);
 
     return Scaffold(
       body: Container(
@@ -57,15 +57,15 @@ class ProfileScreen extends ConsumerWidget {
 
                 const SizedBox(height: 24),
 
-                // Profile avatar — Notion avatar if built, else initial
+                // Profile avatar — Avataaars if built, else initial
                 GestureDetector(
                   onTap: () =>
-                      Navigator.pushNamed(context, '/notion-avatar-builder'),
+                      Navigator.pushNamed(context, '/avataaars-builder'),
                   child: Container(
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      gradient: notionAvatar == null
+                      gradient: avataaars == null
                           ? const LinearGradient(
                               colors: [Color(0xFFFF6BB0), AppColors.primary])
                           : null,
@@ -76,8 +76,8 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ),
                     clipBehavior: Clip.antiAlias,
-                    child: notionAvatar != null
-                        ? NotionAvatarDisplay(config: notionAvatar, size: 120)
+                    child: avataaars != null
+                        ? AvataaarsDisplay(config: avataaars, size: 120)
                         : Center(
                             child: Text(
                               user?.displayName != null
@@ -185,7 +185,7 @@ class ProfileScreen extends ConsumerWidget {
                   icon: Icons.face_retouching_natural,
                   title: 'Avatar Studio',
                   onTap: () =>
-                      Navigator.pushNamed(context, '/notion-avatar-builder'),
+                      Navigator.pushNamed(context, '/avataaars-builder'),
                 ),
                 _buildMenuItem(
                   icon: Icons.pets,

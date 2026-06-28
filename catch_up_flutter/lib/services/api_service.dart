@@ -5,6 +5,7 @@ import '../models/auth_models.dart';
 import '../models/user_models.dart';
 import '../models/pet_models.dart';
 import '../models/notion_avatar.dart';
+import '../models/avataaars.dart';
 
 class ApiService {
   late final Dio _dio;
@@ -223,6 +224,22 @@ class ApiService {
     }
   }
 
+  /// PATCH /users/me/avataaars — manual config override (customiser screen)
+  Future<void> updateAvataaars({
+    required String token,
+    required Map<String, dynamic> config,
+  }) async {
+    try {
+      await _dio.patch(
+        '/users/me/avataaars',
+        data: config,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   /// GET /users/me/bitmoji — fetch current Notion avatar config + SVG
   Future<BitmojiResponse> getBitmoji({required String token}) async {
     try {
@@ -272,6 +289,73 @@ class ApiService {
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       return BitmojiResponse.fromJson(response.data);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// GET /users/me/avataaars — fetch current Avataaars config + SVG
+  Future<AvataaarsResponse> getAvataaars({required String token}) async {
+    try {
+      final response = await _dio.get(
+        '/users/me/avataaars',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return AvataaarsResponse.fromJson(response.data);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// PATCH /users/me/avataaars — update Avataaars config (customizer)
+  Future<AvataaarsResponse> updateAvataaars({
+    required String token,
+    required Map<String, dynamic> config,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        '/users/me/avataaars',
+        data: config,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return AvataaarsResponse.fromJson(response.data);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// POST /users/me/avataaars/randomize — server-generated random config
+  Future<AvataaarsResponse> randomizeAvataaars({required String token}) async {
+    try {
+      final response = await _dio.post(
+        '/users/me/avataaars/randomize',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return AvataaarsResponse.fromJson(response.data);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// POST /users/me/avataaars/generate — generate from photo frames
+  Future<AvataaarsResponse> generateAvataaars({
+    required String token,
+    required Uint8List photoBytes,
+  }) async {
+    try {
+      final form = FormData.fromMap({
+        'frame0': MultipartFile.fromBytes(
+          photoBytes,
+          filename: 'frame0.jpg',
+          contentType: DioMediaType('image', 'jpeg'),
+        ),
+      });
+      final response = await _dio.post(
+        '/users/me/avataaars/generate',
+        data: form,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return AvataaarsResponse.fromJson(response.data);
     } catch (e) {
       throw _handleError(e);
     }

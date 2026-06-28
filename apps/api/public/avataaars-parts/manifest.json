@@ -1,0 +1,432 @@
+{
+  "generatedFrom": "@dicebear/avataaars@9.4.2",
+  "license": {
+    "code": "MIT",
+    "art": "Avataaars by Pablo Stanley — free for personal and commercial use",
+    "url": "https://avataaars.com/"
+  },
+  "canvas": {
+    "viewBox": "0 0 280 280",
+    "rootTransform": "translate(8)"
+  },
+  "colorTokens": [
+    "skin",
+    "hair",
+    "facialHair",
+    "clothes",
+    "accessories",
+    "hat",
+    "background"
+  ],
+  "layoutTransforms": {
+    "clothing": "translate(0 170)",
+    "mouth": "translate(78 134)",
+    "nose": "translate(104 122)",
+    "eyes": "translate(76 90)",
+    "eyebrows": "translate(76 82)",
+    "top": "translate(-1)",
+    "facialHair": "translate(49 72)",
+    "accessories": "translate(62 42)",
+    "clothingGraphic": "translate(77 58)"
+  },
+  "drawOrder": [
+    "style(background)",
+    "base(skin)",
+    "clothing",
+    "mouth",
+    "nose",
+    "eyes",
+    "eyebrows",
+    "top",
+    "facialHair",
+    "accessories"
+  ],
+  "categories": [
+    {
+      "category": "top",
+      "count": 34,
+      "variants": [
+        "hat",
+        "hijab",
+        "turban",
+        "winterHat1",
+        "winterHat02",
+        "winterHat03",
+        "winterHat04",
+        "bob",
+        "bun",
+        "curly",
+        "curvy",
+        "dreads",
+        "frida",
+        "fro",
+        "froBand",
+        "longButNotTooLong",
+        "miaWallace",
+        "shavedSides",
+        "straight02",
+        "straight01",
+        "straightAndStrand",
+        "dreads01",
+        "dreads02",
+        "frizzle",
+        "shaggy",
+        "shaggyMullet",
+        "shortCurly",
+        "shortFlat",
+        "shortRound",
+        "shortWaved",
+        "sides",
+        "theCaesar",
+        "theCaesarAndSidePart",
+        "bigHair"
+      ],
+      "colorTokensByVariant": {
+        "hat": [
+          "hat"
+        ],
+        "hijab": [
+          "hat"
+        ],
+        "turban": [
+          "hat"
+        ],
+        "winterHat1": [
+          "hat"
+        ],
+        "winterHat02": [
+          "hat"
+        ],
+        "winterHat03": [
+          "hat"
+        ],
+        "winterHat04": [
+          "hat"
+        ],
+        "bob": [
+          "hair"
+        ],
+        "bun": [
+          "hair"
+        ],
+        "curly": [
+          "hair"
+        ],
+        "curvy": [
+          "hair"
+        ],
+        "dreads": [
+          "hair"
+        ],
+        "frida": [
+          "hair"
+        ],
+        "fro": [
+          "hair"
+        ],
+        "froBand": [
+          "hair"
+        ],
+        "longButNotTooLong": [
+          "hair"
+        ],
+        "miaWallace": [
+          "hair"
+        ],
+        "shavedSides": [
+          "hair"
+        ],
+        "straight02": [
+          "hair"
+        ],
+        "straight01": [
+          "hair"
+        ],
+        "straightAndStrand": [
+          "hair"
+        ],
+        "dreads01": [
+          "hair"
+        ],
+        "dreads02": [
+          "hair"
+        ],
+        "frizzle": [
+          "hair"
+        ],
+        "shaggy": [
+          "hair"
+        ],
+        "shaggyMullet": [
+          "hair"
+        ],
+        "shortCurly": [
+          "hair"
+        ],
+        "shortFlat": [
+          "hair"
+        ],
+        "shortRound": [
+          "hair"
+        ],
+        "shortWaved": [
+          "hair"
+        ],
+        "sides": [
+          "hair"
+        ],
+        "theCaesar": [
+          "hair"
+        ],
+        "theCaesarAndSidePart": [
+          "hair"
+        ],
+        "bigHair": [
+          "hair"
+        ]
+      }
+    },
+    {
+      "category": "eyes",
+      "count": 12,
+      "variants": [
+        "closed",
+        "cry",
+        "default",
+        "eyeRoll",
+        "happy",
+        "hearts",
+        "side",
+        "squint",
+        "surprised",
+        "winkWacky",
+        "wink",
+        "xDizzy"
+      ],
+      "colorTokensByVariant": {
+        "closed": [],
+        "cry": [],
+        "default": [],
+        "eyeRoll": [],
+        "happy": [],
+        "hearts": [],
+        "side": [],
+        "squint": [],
+        "surprised": [],
+        "winkWacky": [],
+        "wink": [],
+        "xDizzy": []
+      }
+    },
+    {
+      "category": "eyebrows",
+      "count": 13,
+      "variants": [
+        "angryNatural",
+        "defaultNatural",
+        "flatNatural",
+        "frownNatural",
+        "raisedExcitedNatural",
+        "sadConcernedNatural",
+        "unibrowNatural",
+        "upDownNatural",
+        "angry",
+        "default",
+        "raisedExcited",
+        "sadConcerned",
+        "upDown"
+      ],
+      "colorTokensByVariant": {
+        "angryNatural": [],
+        "defaultNatural": [],
+        "flatNatural": [],
+        "frownNatural": [],
+        "raisedExcitedNatural": [],
+        "sadConcernedNatural": [],
+        "unibrowNatural": [],
+        "upDownNatural": [],
+        "angry": [],
+        "default": [],
+        "raisedExcited": [],
+        "sadConcerned": [],
+        "upDown": []
+      }
+    },
+    {
+      "category": "mouth",
+      "count": 12,
+      "variants": [
+        "concerned",
+        "default",
+        "disbelief",
+        "eating",
+        "grimace",
+        "sad",
+        "screamOpen",
+        "serious",
+        "smile",
+        "tongue",
+        "twinkle",
+        "vomit"
+      ],
+      "colorTokensByVariant": {
+        "concerned": [],
+        "default": [],
+        "disbelief": [],
+        "eating": [],
+        "grimace": [],
+        "sad": [],
+        "screamOpen": [],
+        "serious": [],
+        "smile": [],
+        "tongue": [],
+        "twinkle": [],
+        "vomit": []
+      }
+    },
+    {
+      "category": "nose",
+      "count": 1,
+      "variants": [
+        "default"
+      ],
+      "colorTokensByVariant": {
+        "default": []
+      }
+    },
+    {
+      "category": "facialHair",
+      "count": 5,
+      "variants": [
+        "beardLight",
+        "beardMajestic",
+        "beardMedium",
+        "moustacheFancy",
+        "moustacheMagnum"
+      ],
+      "colorTokensByVariant": {
+        "beardLight": [
+          "facialHair"
+        ],
+        "beardMajestic": [
+          "facialHair"
+        ],
+        "beardMedium": [
+          "facialHair"
+        ],
+        "moustacheFancy": [
+          "facialHair"
+        ],
+        "moustacheMagnum": [
+          "facialHair"
+        ]
+      }
+    },
+    {
+      "category": "clothing",
+      "count": 9,
+      "variants": [
+        "blazerAndShirt",
+        "blazerAndSweater",
+        "collarAndSweater",
+        "graphicShirt",
+        "hoodie",
+        "overall",
+        "shirtCrewNeck",
+        "shirtScoopNeck",
+        "shirtVNeck"
+      ],
+      "colorTokensByVariant": {
+        "blazerAndShirt": [
+          "clothes"
+        ],
+        "blazerAndSweater": [
+          "clothes"
+        ],
+        "collarAndSweater": [
+          "clothes"
+        ],
+        "graphicShirt": [
+          "clothes"
+        ],
+        "hoodie": [
+          "clothes"
+        ],
+        "overall": [
+          "clothes"
+        ],
+        "shirtCrewNeck": [
+          "clothes"
+        ],
+        "shirtScoopNeck": [
+          "clothes"
+        ],
+        "shirtVNeck": [
+          "clothes"
+        ]
+      }
+    },
+    {
+      "category": "clothingGraphic",
+      "count": 10,
+      "variants": [
+        "bat",
+        "bear",
+        "cumbia",
+        "deer",
+        "diamond",
+        "hola",
+        "pizza",
+        "resist",
+        "skull",
+        "skullOutline"
+      ],
+      "colorTokensByVariant": {
+        "bat": [],
+        "bear": [],
+        "cumbia": [],
+        "deer": [],
+        "diamond": [],
+        "hola": [],
+        "pizza": [],
+        "resist": [],
+        "skull": [],
+        "skullOutline": []
+      }
+    },
+    {
+      "category": "accessories",
+      "count": 7,
+      "variants": [
+        "kurt",
+        "prescription01",
+        "prescription02",
+        "round",
+        "sunglasses",
+        "wayfarers",
+        "eyepatch"
+      ],
+      "colorTokensByVariant": {
+        "kurt": [
+          "accessories"
+        ],
+        "prescription01": [
+          "accessories"
+        ],
+        "prescription02": [
+          "accessories"
+        ],
+        "round": [
+          "accessories"
+        ],
+        "sunglasses": [
+          "accessories"
+        ],
+        "wayfarers": [
+          "accessories"
+        ],
+        "eyepatch": []
+      }
+    }
+  ]
+}

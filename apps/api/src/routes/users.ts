@@ -16,6 +16,14 @@ import {
   rasterizeNotionSVG,
   type NotionAvatarConfig,
 } from "../services/bitmoji-avatar";
+import {
+  traitsToAvataaarsConfig,
+  generateAvataaarsSVG,
+  getRandomAvataaarsConfig,
+  sanitizeConfig as sanitizeAvataaarsConfig,
+  rasterizeAvataaarsSVG,
+  type AvataaarsConfig,
+} from "../services/avataaars-avatar";
 import { config } from "../config";
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -952,6 +960,184 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
 
       const svgString = generateNotionSVG(rows[0].bitmoji_config);
       const pngBuffer = await rasterizeNotionSVG(svgString, Math.min(Math.max(size, 64), 1024));
+
+      return reply
+        .type("image/png")
+        .header("Cache-Control", "private, max-age=300")
+        .send(pngBuffer);
+    }
+  );
+
+  // ── Avataaars (DiceBear-style) avatar routes ──────────────────────────────
+
+  // GET /users/me/avataaars — return saved config + SVG string
+  fastify.get(
+    "/me/avataaars",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const { rows } = await db.query(
+        `SELECT avataaars_config, avataaars_traits FROM users WHERE id = $1`,
+        [payload.userId]
+      );
+      if (!rows[0]) return reply.code(404).send({ error: "User not found" });
+
+      const cfg: AvataaarsConfig | null = rows[0].avataaars_config ?? null;
+      if (!cfg) return reply.send({ config: null, svgString: null });
+
+      const svgString = generateAvataaarsSVG(cfg);
+      return { config: cfg, svgString, traits: rows[0].avataaars_traits ?? null };
+    }
+  );
+
+  // GET /users/:id/avataaars.svg — public SVG endpoint (for cards, profile pages)
+  fastify.get<{ Params: { id: string } }>(
+    "/:id/avataaars.svg",
+    async (req, reply) => {
+      const { id } = req.params;
+      if (!UUID_RE.test(id)) return reply.code(400).send({ error: "Invalid user id" });
+
+      const { rows } = await db.query(
+        `SELECT avataaars_config FROM users WHERE id = $1 AND status != 'suspended'`,
+        [id]
+      );
+      if (!rows[0]) return reply.code(404).send({ error: "User not found" });
+      if (!rows[0].avataaars_config) return reply.code(404).send({ error: "No avataaars for this user" });
+
+      const svgString = generateAvataaarsSVG(rows[0].avataaars_config);
+      return reply
+        .type("image/svg+xml")
+        .header("Cache-Control", "public, max-age=3600")
+        .send(svgString);
+    }
+  );
+
+  // POST /users/me/avataaars/generate — from photo frames, extract traits → build config → save
+  fastify.post(
+    "/me/avataaars/generate",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const { analyzeGenderFromImage, extractVisualTraits } = await import("../services/ai-avatar");
+
+      const parts  = req.parts();
+      const frames: Buffer[] = [];
+
+      for await (const part of parts) {
+        if (part.type === "file" && part.fieldname.startsWith("frame")) {
+          const chunks: Buffer[] = [];
+          for await (const chunk of part.file) chunks.push(chunk as Buffer);
+          const buf = Buffer.concat(chunks);
+          if (buf.length > 0) frames.push(buf);
+        }
+      }
+
+      if (frames.length === 0) {
+        return reply.code(400).send({ error: "Send at least one frame field (frame0…frame4)" });
+      }
+
+      // Pick best frame (largest = least compressed = most detail)
+      const bestFrame = frames.reduce((a, b) => (b.length > a.length ? b : a));
+
+      // Extract traits using the existing pipeline
+      const genderResult = await analyzeGenderFromImage(bestFrame, "image/jpeg", config.HUGGINGFACE_TOKEN).catch(() => ({
+        gender: "other" as const, confidence: 0, provider: "none",
+      }));
+
+      const traits = await extractVisualTraits(bestFrame, genderResult.gender, genderResult.confidence);
+
+      // Map traits → Avataaars config
+      const cfg       = traitsToAvataaarsConfig(traits, payload.userId);
+      const svgString = generateAvataaarsSVG(cfg);
+
+      // Persist to DB
+      await db.query(
+        `UPDATE users SET avataaars_config = $1, avataaars_traits = $2 WHERE id = $3`,
+        [JSON.stringify(cfg), JSON.stringify(traits), payload.userId]
+      );
+
+      return reply.send({
+        success: true,
+        config: cfg,
+        svgString,
+        traits: {
+          gender:      traits.gender,
+          skinTone:    traits.skinTone,
+          hairColour:  traits.hairColour,
+          hasGlasses:  traits.hasGlasses,
+          hasBeard:    traits.hasBeard,
+          expression:  traits.expression,
+          ethnicRegion: traits.ethnicRegion,
+        },
+      });
+    }
+  );
+
+  // POST /users/me/avataaars/randomize — generate a fresh random config & save
+  fastify.post(
+    "/me/avataaars/randomize",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const cfg       = getRandomAvataaarsConfig();
+      const svgString = generateAvataaarsSVG(cfg);
+
+      await db.query(
+        `UPDATE users SET avataaars_config = $1 WHERE id = $2`,
+        [JSON.stringify(cfg), payload.userId]
+      );
+
+      return reply.send({ success: true, config: cfg, svgString });
+    }
+  );
+
+  // PATCH /users/me/avataaars — manual config override (customiser screen)
+  fastify.patch(
+    "/me/avataaars",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const body = req.body as Partial<AvataaarsConfig>;
+
+      // Fetch current config
+      const { rows } = await db.query(
+        `SELECT avataaars_config FROM users WHERE id = $1`,
+        [payload.userId]
+      );
+      if (!rows[0]) return reply.code(404).send({ error: "User not found" });
+
+      const current: AvataaarsConfig = rows[0].avataaars_config ?? getRandomAvataaarsConfig();
+      // Merge incoming partial onto current, then clamp every field to valid variants/colours.
+      const merged = sanitizeAvataaarsConfig({ ...current, ...body });
+
+      await db.query(
+        `UPDATE users SET avataaars_config = $1 WHERE id = $2`,
+        [JSON.stringify(merged), payload.userId]
+      );
+
+      const svgString = generateAvataaarsSVG(merged);
+      return { config: merged, svgString };
+    }
+  );
+
+  // POST /users/me/avataaars/rasterize — returns PNG buffer for hero card compositing
+  fastify.post(
+    "/me/avataaars/rasterize",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+      const { size = 512 } = req.body as { size?: number };
+
+      const { rows } = await db.query(
+        `SELECT avataaars_config FROM users WHERE id = $1`,
+        [payload.userId]
+      );
+      if (!rows[0]?.avataaars_config) {
+        return reply.code(404).send({ error: "No avataaars config found. Generate one first." });
+      }
+
+      const svgString = generateAvataaarsSVG(rows[0].avataaars_config);
+      const pngBuffer = await rasterizeAvataaarsSVG(svgString, Math.min(Math.max(size, 64), 1024));
 
       return reply
         .type("image/png")

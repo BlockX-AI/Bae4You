@@ -219,6 +219,17 @@ async function bootstrap() {
     tlsPins: TLS_PINS,
   }));
 
+  // Auto-migrate avataaars columns if not present
+  try {
+    await db.query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS avataaars_config JSONB,
+        ADD COLUMN IF NOT EXISTS avataaars_traits JSONB
+    `);
+  } catch (e) {
+    app.log.warn("avataaars migration skipped: " + (e as Error).message);
+  }
+
   // Routes
   await app.register(authRoutes,     { prefix: "/auth"     });
   await app.register(usersRoutes,    { prefix: "/users"    });

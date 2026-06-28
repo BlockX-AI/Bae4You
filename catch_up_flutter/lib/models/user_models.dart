@@ -31,6 +31,7 @@ class User {
   final List<String>? interests;
   final String? avatarUrl;
   final Map<String, dynamic>? bitmojiConfig;
+  final Map<String, dynamic>? avataaarsConfig;
   final int pcashBalance;
   final int goldBalance;
   final int currentValue;
@@ -54,6 +55,7 @@ class User {
     this.interests,
     this.avatarUrl,
     this.bitmojiConfig,
+    this.avataaarsConfig,
     this.pcashBalance = 0,
     this.goldBalance = 0,
     this.currentValue = 0,
@@ -85,6 +87,8 @@ class User {
         avatarUrl: json['avatarUrl'] ?? json['avatar_url'] as String?,
         bitmojiConfig: (json['bitmojiConfig'] ?? json['bitmoji_config'])
             as Map<String, dynamic>?,
+        avataaarsConfig: (json['avataaarsConfig'] ?? json['avataaars_config'])
+            as Map<String, dynamic>?,
         pcashBalance: User._parseInt(json['pcashBalance'] ?? json['pcash_balance'], 0),
         goldBalance: User._parseInt(json['goldBalance'] ?? json['gold_balance'], 0),
         currentValue: User._parseInt(json['currentValue'] ?? json['current_value'], 0),
@@ -106,6 +110,7 @@ class User {
         'interests': interests,
         'avatarUrl': avatarUrl,
         'bitmojiConfig': bitmojiConfig,
+        'avataaarsConfig': avataaarsConfig,
         'pcashBalance': pcashBalance,
         'goldBalance': goldBalance,
         'currentValue': currentValue,
@@ -120,6 +125,7 @@ class User {
     List<String>? interests,
     String? avatarUrl,
     Map<String, dynamic>? bitmojiConfig,
+    Map<String, dynamic>? avataaarsConfig,
     int? pcashBalance,
     int? goldBalance,
     int? currentValue,
@@ -143,6 +149,7 @@ class User {
         interests: interests ?? this.interests,
         avatarUrl: avatarUrl ?? this.avatarUrl,
         bitmojiConfig: bitmojiConfig ?? this.bitmojiConfig,
+        avataaarsConfig: avataaarsConfig ?? this.avataaarsConfig,
         pcashBalance: pcashBalance ?? this.pcashBalance,
         goldBalance: goldBalance ?? this.goldBalance,
         currentValue: currentValue ?? this.currentValue,

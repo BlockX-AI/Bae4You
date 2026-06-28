@@ -57,3 +57,13 @@ flutter:
     - assets/notion-avatar-parts/accessories/
     - assets/notion-avatar-parts/details/
     - assets/notion-avatar-parts/hair/
+    - assets/avataaars-parts/_structure/
+    - assets/avataaars-parts/top/
+    - assets/avataaars-parts/eyes/
+    - assets/avataaars-parts/eyebrows/
+    - assets/avataaars-parts/mouth/
+    - assets/avataaars-parts/nose/
+    - assets/avataaars-parts/facialHair/
+    - assets/avataaars-parts/clothing/
+    - assets/avataaars-parts/clothingGraphic/
+    - assets/avataaars-parts/accessories/

@@ -1,0 +1,1 @@
+<circle cx="132" cy="160" r="120" fill="{{background}}"/><mask id="styleCircle-a" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="264" height="280"><path d="M264 0H0v160h12c0 66.27 53.73 120 120 120 66.27 0 120-53.73 120-120h12V0Z" fill="#fff"/></mask><g mask="url(#styleCircle-a)"></g>

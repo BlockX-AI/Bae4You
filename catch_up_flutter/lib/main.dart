@@ -13,6 +13,7 @@ import 'screens/settings_screen.dart';
 import 'screens/profile_setup_screen.dart';
 import 'screens/avatar_studio_screen.dart';
 import 'screens/notion_avatar_builder_screen.dart';
+import 'screens/avataaars_builder_screen.dart';
 import 'providers/auth_provider.dart';
 import 'theme/app_theme.dart';
 
@@ -47,6 +48,7 @@ class CatchUpApp extends StatelessWidget {
         '/avatar-studio': (context) => const AvatarStudioScreen(),
         '/notion-avatar-builder': (context) =>
             const NotionAvatarBuilderScreen(),
+        '/avataaars-builder': (context) => const AvataaarsBuilderScreen(),
         '/profile-setup': (context) => ProfileSetupScreen(onComplete: () => Navigator.pushReplacementNamed(context, '/home')),
         '/home': (context) => const HomeScreen(),
       },

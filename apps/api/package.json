@@ -38,7 +38,9 @@
     "migrate:safety": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-safety.ts",
     "avatar-upgrade-test": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/avatar-upgrade-test.ts",
     "migrate:bitmoji": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-bitmoji.ts",
-    "notion-parts": "tsx scripts/download-notion-parts.ts"
+    "migrate:avataaars": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-avataaars.ts",
+    "notion-parts": "tsx scripts/download-notion-parts.ts",
+    "avataaars:extract": "tsx scripts/extract-avataaars-parts.ts"
   },
   "dependencies": {
     "@coinbase/cdp-sdk": "^1.48.2",
@@ -78,6 +80,8 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@dicebear/avataaars": "^9",
+    "@dicebear/core": "^9",
     "@types/crypto-js": "^4.2.2",
     "@types/node": "^20.11.0",
     "@types/node-cron": "^3.0.11",
