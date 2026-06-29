@@ -6,6 +6,32 @@ import '../providers/auth_provider.dart';
 import '../providers/avataaars_provider.dart';
 import '../widgets/avataaars_display.dart';
 
+/// Real (matches, pets) counts for the signed-in user. Either call failing
+/// degrades to 0 for that stat instead of breaking the whole profile.
+final profileStatsProvider =
+    FutureProvider.autoDispose<({int matches, int pets})>((ref) async {
+  final auth = ref.watch(authProvider);
+  final token = auth.token;
+  if (token == null) return (matches: 0, pets: 0);
+  final api = ref.read(apiServiceProvider);
+
+  Future<int> safeCount(Future<int> Function() f) async {
+    try {
+      return await f();
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  final matches = await safeCount(() async => (await api.getMatches(token)).length);
+  final wallet = auth.user?.walletAddress ?? '';
+  final pets = wallet.isEmpty
+      ? 0
+      : await safeCount(
+          () async => (await api.getPortfolio(wallet, token)).length);
+  return (matches: matches, pets: pets);
+});
+
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -13,6 +39,7 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final avataaars = ref.watch(avataaarsProvider);
+    final stats = ref.watch(profileStatsProvider);
 
     return Scaffold(
       body: Container(
@@ -167,9 +194,15 @@ class ProfileScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildStat('12', 'Matches'),
+                    _buildStat(
+                        stats.maybeWhen(
+                            data: (s) => '${s.matches}', orElse: () => '—'),
+                        'Matches'),
                     _buildStat(_formatPcash(user?.pcashBalance ?? 0), 'PCASH'),
-                    _buildStat('5', 'Pets'),
+                    _buildStat(
+                        stats.maybeWhen(
+                            data: (s) => '${s.pets}', orElse: () => '—'),
+                        'Pets'),
                   ],
                 ),
 

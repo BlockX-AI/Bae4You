@@ -224,22 +224,6 @@ class ApiService {
     }
   }
 
-  /// PATCH /users/me/avataaars — manual config override (customiser screen)
-  Future<void> updateAvataaars({
-    required String token,
-    required Map<String, dynamic> config,
-  }) async {
-    try {
-      await _dio.patch(
-        '/users/me/avataaars',
-        data: config,
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-    } catch (e) {
-      throw _handleError(e);
-    }
-  }
-
   /// GET /users/me/bitmoji — fetch current Notion avatar config + SVG
   Future<BitmojiResponse> getBitmoji({required String token}) async {
     try {

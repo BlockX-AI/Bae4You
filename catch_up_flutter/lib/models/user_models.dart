@@ -63,7 +63,8 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) => User(
         id: json['id'] as String,
-        walletAddress: json['walletAddress'] ?? json['wallet_address'] as String,
+        walletAddress:
+            (json['walletAddress'] ?? json['wallet_address'] ?? '') as String,
         tokenId: _parseTokenId(json['tokenId'] ?? json['token_id']),
         username: json['username'] as String?,
         displayName: json['displayName'] ?? json['display_name'] as String?,

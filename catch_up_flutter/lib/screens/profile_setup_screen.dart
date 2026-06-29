@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 import '../providers/auth_provider.dart';
+import '../providers/avataaars_provider.dart';
+import '../models/avataaars.dart';
+import '../widgets/avataaars_display.dart';
 import '../services/api_service.dart';
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {
@@ -23,8 +26,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
   final _nameController = TextEditingController();
   final _usernameController = TextEditingController();
 
-  // Step 2 - Avatar (emoji picker for now)
-  String _selectedEmoji = '😊';
+  // Step 2 - Avatar is built via the Avataaars studio (avataaarsProvider)
 
   // Step 3 - Bio
   final _bioController = TextEditingController();
@@ -76,7 +78,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
         final countryCode = _selectedCountry.split(' ').last.substring(0, 2).toUpperCase();
         final displayName = _nameController.text.trim();
         final bio = _bioController.text.trim();
-        // Note: Notion avatar is synced separately via NotionAvatarBuilderScreen
         await ApiService().updateProfile(
           token: token,
           displayName: displayName.isEmpty ? 'Anonymous' : displayName,
@@ -87,6 +88,19 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
           countryCode: countryCode,
           interests: _selectedInterests.isEmpty ? null : _selectedInterests.toList(),
         );
+        // Persist the avatar built/randomized during setup. The builder screen
+        // saves on its own Save button, but the "Surprise me" shortcut only
+        // updates local state — sync it here so the backend has it too.
+        final avataaars = ref.read(avataaarsProvider);
+        if (avataaars != null) {
+          try {
+            await ApiService()
+                .updateAvataaars(token: token, config: avataaars.toJson());
+          } catch (_) {
+            // Non-fatal: the avatar is already stored locally and renders
+            // offline; don't block profile completion on this sync.
+          }
+        }
         await ref.read(authProvider.notifier).refreshUser();
       }
     } catch (e) {
@@ -253,54 +267,82 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
 
   // ── STEP 2: Avatar ────────────────────────────────────────
   Widget _buildAvatarStep() {
-    final emojis = ['😊','😎','🥰','🤩','😏','🌟','🔥','💫','🎯','🎨','🎸','📚','🏔️','☕','🌈','🦋','🐉','🌺','🎭','🚀'];
-    // Note: Using emoji for now - Notion avatar builder available separately
+    final avataaars = ref.watch(avataaarsProvider);
+    final hasAvatar = avataaars != null;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(children: [
         const SizedBox(height: 12),
         AnimatedBuilder(
           animation: _pulseController,
-          builder: (_, __) => Transform.scale(
+          builder: (_, child) => Transform.scale(
             scale: 1.0 + 0.05 * _pulseController.value,
-            child: Container(
-              width: 120, height: 120,
-              decoration: BoxDecoration(gradient: AppColors.buttonGradient, shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 24, spreadRadius: 4)]),
-              child: Center(child: Text(_selectedEmoji, style: const TextStyle(fontSize: 60))),
+            child: child,
+          ),
+          child: Container(
+            width: 160,
+            height: 160,
+            decoration: BoxDecoration(
+              gradient: hasAvatar ? null : AppColors.buttonGradient,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                    color: AppColors.primary.withOpacity(0.4),
+                    blurRadius: 24,
+                    spreadRadius: 4)
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: hasAvatar
+                ? AvataaarsDisplay(config: avataaars, size: 160)
+                : const Center(
+                    child: Icon(Icons.face_retouching_natural,
+                        size: 64, color: Colors.white)),
+          ),
+        ),
+        const SizedBox(height: 28),
+        Text(
+          hasAvatar ? 'Looking good!' : 'Build your avatar',
+          style: GoogleFonts.fredoka(
+              fontSize: 24,
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Customize hair, eyes, outfit and more',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 28),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () =>
+                Navigator.pushNamed(context, '/avataaars-builder'),
+            icon: const Icon(Icons.brush),
+            label: Text(hasAvatar ? 'Edit avatar' : 'Open Avatar Studio',
+                style: GoogleFonts.inter(
+                    fontSize: 16, fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryDark,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              elevation: 0,
             ),
           ),
         ),
         const SizedBox(height: 12),
-        // TODO: Add Notion avatar builder integration
-        // GestureDetector(
-        //   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotionAvatarBuilderScreen())),
-        //   child: Container(...),
-        // ),
-        const SizedBox(height: 24),
-        Text('Or pick an emoji vibe', style: GoogleFonts.fredoka(fontSize: 22, color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 16),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 5, mainAxisSpacing: 12, crossAxisSpacing: 12),
-          itemCount: emojis.length,
-          itemBuilder: (_, i) {
-            final selected = emojis[i] == _selectedEmoji;
-            return GestureDetector(
-              onTap: () => setState(() => _selectedEmoji = emojis[i]),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                decoration: BoxDecoration(
-                  color: selected ? AppColors.primaryLight : AppColors.surfaceCard,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: selected ? AppColors.primaryDark : AppColors.divider, width: selected ? 2 : 1),
-                  boxShadow: selected ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8)] : [],
-                ),
-                child: Center(child: Text(emojis[i], style: const TextStyle(fontSize: 28))),
-              ),
-            );
-          },
+        TextButton.icon(
+          onPressed: () => ref
+              .read(avataaarsProvider.notifier)
+              .save(AvataaarsConfig.random()),
+          icon: const Icon(Icons.shuffle, size: 18),
+          label: Text('Surprise me',
+              style: GoogleFonts.inter(
+                  fontSize: 14, color: AppColors.textSecondary)),
         ),
       ]),
     );
@@ -408,13 +450,19 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
             animation: _celebrationController,
             builder: (_, __) {
               final v = _celebrationController.value;
+              final avataaars = ref.watch(avataaarsProvider);
               return Transform.scale(
                 scale: 0.5 + 0.5 * Curves.elasticOut.transform(v.clamp(0.0, 1.0)),
                 child: Container(
                   width: 140, height: 140,
-                  decoration: BoxDecoration(gradient: AppColors.buttonGradient, shape: BoxShape.circle,
+                  decoration: BoxDecoration(
+                    gradient: avataaars == null ? AppColors.buttonGradient : null,
+                    shape: BoxShape.circle,
                     boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 32, spreadRadius: 8)]),
-                  child: Center(child: Text(_selectedEmoji, style: const TextStyle(fontSize: 72))),
+                  clipBehavior: Clip.antiAlias,
+                  child: avataaars != null
+                      ? AvataaarsDisplay(config: avataaars, size: 140)
+                      : const Center(child: Icon(Icons.celebration, size: 72, color: Colors.white)),
                 ),
               );
             },

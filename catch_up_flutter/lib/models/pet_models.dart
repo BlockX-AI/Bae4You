@@ -29,22 +29,46 @@ class Pet {
     this.isVerified,
   });
 
+  // Postgres BIGINT / NUMERIC columns come back from node-postgres as strings,
+  // so coerce rather than hard-cast (`'5' as int` throws).
+  static int _toInt(dynamic v, [int fallback = 0]) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? fallback;
+    return fallback;
+  }
+
+  static String? _toStringOrNull(dynamic v) => v?.toString();
+
+  static bool? _toBool(dynamic v) {
+    if (v is bool) return v;
+    if (v is String) return v.toLowerCase() == 'true' || v == 't';
+    return null;
+  }
+
   factory Pet.fromJson(Map<String, dynamic> json) => Pet(
-        tokenId: json['tokenId'] ?? json['token_id'] as int,
-        ownerAddress: json['ownerAddress'] ?? json['owner_address'] as String,
-        userAddress: json['userAddress'] ?? json['user_address'] as String,
-        currentPriceWei: json['currentPriceWei'] ?? json['current_price_wei'] as String?,
-        totalPurchases: json['totalPurchases'] ?? json['total_purchases'] as int?,
-        isLocked: json['isLocked'] ?? json['is_locked'] as bool?,
-        lockExpiry: json['lockExpiry'] != null || json['lock_expiry'] != null
-            ? DateTime.parse(json['lockExpiry'] ?? json['lock_expiry'] as String)
+        tokenId: _toInt(json['tokenId'] ?? json['token_id']),
+        ownerAddress:
+            (json['ownerAddress'] ?? json['owner_address'] ?? '') as String,
+        userAddress:
+            (json['userAddress'] ?? json['user_address'] ?? '') as String,
+        currentPriceWei:
+            _toStringOrNull(json['currentPriceWei'] ?? json['current_price_wei']),
+        totalPurchases:
+            (json['totalPurchases'] ?? json['total_purchases']) != null
+                ? _toInt(json['totalPurchases'] ?? json['total_purchases'])
+                : null,
+        isLocked: _toBool(json['isLocked'] ?? json['is_locked']),
+        lockExpiry: (json['lockExpiry'] ?? json['lock_expiry']) != null
+            ? DateTime.parse((json['lockExpiry'] ?? json['lock_expiry']) as String)
             : null,
-        petStatus: json['petStatus'] ?? json['pet_status'] as String?,
+        petStatus: (json['petStatus'] ?? json['pet_status']) as String?,
         username: json['username'] as String?,
-        displayName: json['displayName'] ?? json['display_name'] as String?,
-        avatarIpfsHash: json['avatarIpfsHash'] ?? json['avatar_ipfs_hash'] as String?,
-        countryCode: json['countryCode'] ?? json['country_code'] as String?,
-        isVerified: json['isVerified'] ?? json['is_verified'] as bool?,
+        displayName: (json['displayName'] ?? json['display_name']) as String?,
+        avatarIpfsHash:
+            (json['avatarIpfsHash'] ?? json['avatar_ipfs_hash']) as String?,
+        countryCode: (json['countryCode'] ?? json['country_code']) as String?,
+        isVerified: _toBool(json['isVerified'] ?? json['is_verified']),
       );
 }
 
@@ -60,11 +84,11 @@ class PetsResponse {
   });
 
   factory PetsResponse.fromJson(Map<String, dynamic> json) => PetsResponse(
-        pets: (json['pets'] as List)
+        pets: ((json['pets'] ?? const []) as List)
             .map((e) => Pet.fromJson(e as Map<String, dynamic>))
             .toList(),
-        page: json['page'] as int,
-        limit: json['limit'] as int,
+        page: Pet._toInt(json['page'], 1),
+        limit: Pet._toInt(json['limit'], 20),
       );
 }
 
@@ -88,14 +112,18 @@ class PetTransaction {
   });
 
   factory PetTransaction.fromJson(Map<String, dynamic> json) => PetTransaction(
-        txHash: json['txHash'] ?? json['tx_hash'] as String?,
-        fromAddress: json['fromAddress'] ?? json['from_address'] as String?,
-        toAddress: json['toAddress'] ?? json['to_address'] as String?,
-        salePriceWei: json['salePriceWei'] ?? json['sale_price_wei'] as String?,
-        newPriceWei: json['newPriceWei'] ?? json['new_price_wei'] as String?,
-        blockNumber: json['blockNumber'] ?? json['block_number'] as int?,
-        createdAt: json['createdAt'] != null || json['created_at'] != null
-            ? DateTime.parse(json['createdAt'] ?? json['created_at'] as String)
+        txHash: (json['txHash'] ?? json['tx_hash']) as String?,
+        fromAddress: (json['fromAddress'] ?? json['from_address']) as String?,
+        toAddress: (json['toAddress'] ?? json['to_address']) as String?,
+        salePriceWei:
+            Pet._toStringOrNull(json['salePriceWei'] ?? json['sale_price_wei']),
+        newPriceWei:
+            Pet._toStringOrNull(json['newPriceWei'] ?? json['new_price_wei']),
+        blockNumber: (json['blockNumber'] ?? json['block_number']) != null
+            ? Pet._toInt(json['blockNumber'] ?? json['block_number'])
+            : null,
+        createdAt: (json['createdAt'] ?? json['created_at']) != null
+            ? DateTime.parse((json['createdAt'] ?? json['created_at']) as String)
             : null,
       );
 }
@@ -122,16 +150,19 @@ class WishlistItem {
   });
 
   factory WishlistItem.fromJson(Map<String, dynamic> json) => WishlistItem(
-        id: json['id'] as String,
-        targetTokenId: json['targetTokenId'] ?? json['target_token_id'] as int,
+        id: json['id'].toString(),
+        targetTokenId:
+            Pet._toInt(json['targetTokenId'] ?? json['target_token_id']),
         note: json['note'] as String?,
-        addedAt: json['addedAt'] != null || json['added_at'] != null
-            ? DateTime.parse(json['addedAt'] ?? json['added_at'] as String)
+        addedAt: (json['addedAt'] ?? json['added_at']) != null
+            ? DateTime.parse((json['addedAt'] ?? json['added_at']) as String)
             : null,
-        currentPriceWei: json['currentPriceWei'] ?? json['current_price_wei'] as String?,
+        currentPriceWei: Pet._toStringOrNull(
+            json['currentPriceWei'] ?? json['current_price_wei']),
         username: json['username'] as String?,
-        displayName: json['displayName'] ?? json['display_name'] as String?,
-        avatarIpfsHash: json['avatarIpfsHash'] ?? json['avatar_ipfs_hash'] as String?,
+        displayName: (json['displayName'] ?? json['display_name']) as String?,
+        avatarIpfsHash:
+            (json['avatarIpfsHash'] ?? json['avatar_ipfs_hash']) as String?,
       );
 }
 
@@ -155,14 +186,17 @@ class Bid {
   });
 
   factory Bid.fromJson(Map<String, dynamic> json) => Bid(
-        id: json['id'] as String,
-        tokenId: json['tokenId'] ?? json['token_id'] as String,
-        bidderAddress: json['bidderAddress'] ?? json['bidder_address'] as String,
-        amountWei: json['amountWei'] ?? json['amount_wei'] as String,
-        createdAt: json['createdAt'] != null || json['created_at'] != null
-            ? DateTime.parse(json['createdAt'] ?? json['created_at'] as String)
+        id: json['id'].toString(),
+        tokenId: (json['tokenId'] ?? json['token_id']).toString(),
+        bidderAddress:
+            (json['bidderAddress'] ?? json['bidder_address'] ?? '') as String,
+        amountWei: (json['amountWei'] ?? json['amount_wei'] ?? '0').toString(),
+        createdAt: (json['createdAt'] ?? json['created_at']) != null
+            ? DateTime.parse((json['createdAt'] ?? json['created_at']) as String)
             : null,
-        bidderUsername: json['bidderUsername'] ?? json['bidder_username'] as String?,
-        bidderDisplayName: json['bidderDisplayName'] ?? json['bidder_display_name'] as String?,
+        bidderUsername:
+            (json['bidderUsername'] ?? json['bidder_username']) as String?,
+        bidderDisplayName: (json['bidderDisplayName'] ??
+            json['bidder_display_name']) as String?,
       );
 }
