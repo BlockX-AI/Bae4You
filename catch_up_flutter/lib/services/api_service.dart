@@ -613,13 +613,13 @@ class ApiService {
   // ============ TRADING / PETS ============
 
   /// POST /pets/:tokenId/buy - Buy a pet at current price
-  Future<PetTransaction> buyPet(int tokenId, String token) async {
+  Future<Map<String, dynamic>> buyPet(int tokenId, String token) async {
     try {
       final response = await _dio.post(
         '/pets/$tokenId/buy',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
-      return PetTransaction.fromJson(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       throw _handleError(e);
     }
