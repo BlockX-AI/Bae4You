@@ -648,6 +648,9 @@ class ApiService {
     try {
       final response = await _dio.post(
         '/pets/$tokenId/buy',
+        // Send an empty JSON object: Fastify rejects an empty body when the
+        // Content-Type is application/json (FST_ERR_CTP_EMPTY_JSON_BODY → 400).
+        data: const <String, dynamic>{},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       return response.data as Map<String, dynamic>;

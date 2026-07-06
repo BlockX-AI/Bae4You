@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
-import '../models/user_models.dart';
 
 /// Edit Profile Screen - Manage user profile settings
 
@@ -23,12 +22,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late TextEditingController _usernameController;
   late TextEditingController _bioController;
   
-  File? _newProfileImage;
-  String? _currentAvatarUrl;
   String? _selectedCountry;
   List<String> _selectedInterests = [];
   bool _isLoading = false;
   bool _hasChanges = false;
+
+  // Profile photos (up to 6). Existing photos are URLs already on the server;
+  // newly picked photos are held as bytes and uploaded on save.
+  List<String> _existingPhotos = [];
+  final List<Uint8List> _newPhotoBytes = [];
+  final ImagePicker _imagePicker = ImagePicker();
+
+  int get _photoCount => _existingPhotos.length + _newPhotoBytes.length;
   
   final List<String> _availableInterests = [
     'Travel', 'Music', 'Gaming', 'Crypto', 'Art', 'Fitness',
@@ -65,7 +70,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _usernameController = TextEditingController(text: user?.username ?? '');
     _bioController = TextEditingController(text: user?.bio ?? '');
     _selectedCountry = user?.countryCode;
-    _currentAvatarUrl = user?.avatarUrl;
+    _existingPhotos = List<String>.from(user?.photos ?? const []);
     _selectedInterests = List<String>.from(user?.interests ?? []);
   }
 
@@ -81,83 +86,55 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _hasChanges = true);
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: source,
-      maxWidth: 800,
-      maxHeight: 800,
-      imageQuality: 85,
-    );
-    
-    if (pickedFile != null) {
+  Future<void> _addPhoto() async {
+    if (_photoCount >= 6) return;
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
       setState(() {
-        _newProfileImage = File(pickedFile.path);
+        _newPhotoBytes.add(bytes);
         _hasChanges = true;
       });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not pick photo: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
-  void _showImageSourceDialog() {
-    showModalBottomSheet(
+  void _removeExistingPhoto(int index) {
+    setState(() {
+      _existingPhotos.removeAt(index);
+      _hasChanges = true;
+    });
+  }
+
+  void _removeNewPhoto(int index) {
+    setState(() {
+      _newPhotoBytes.removeAt(index);
+      _hasChanges = true;
+    });
+  }
+
+  void _previewPhotoNetwork(String url) {
+    showDialog(
       context: context,
-      backgroundColor: AppColors.textPrimary,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Update Photo',
-                style: GoogleFonts.fredoka(
-                  fontSize: 20,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: const Icon(Icons.camera_alt, color: Color(0xFFFF6BB0)),
-                title: Text('Take Photo', style: GoogleFonts.inter(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColors.primary),
-                title: Text('Choose from Gallery', style: GoogleFonts.inter(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.gallery);
-                },
-              ),
-              if (_currentAvatarUrl != null || _newProfileImage != null)
-                ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
-                  title: Text('Remove Photo', style: GoogleFonts.inter(color: Colors.red)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    setState(() {
-                      _newProfileImage = null;
-                      _currentAvatarUrl = null;
-                      _hasChanges = true;
-                    });
-                  },
-                ),
-              const SizedBox(height: 10),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Cancel', style: GoogleFonts.inter(color: Colors.white70)),
-              ),
-            ],
-          ),
-        ),
-      ),
+      builder: (_) => _PhotoPreviewDialog(child: Image.network(url, fit: BoxFit.contain)),
+    );
+  }
+
+  void _previewPhotoBytes(Uint8List bytes) {
+    showDialog(
+      context: context,
+      builder: (_) => _PhotoPreviewDialog(child: Image.memory(bytes, fit: BoxFit.contain)),
     );
   }
 
@@ -184,17 +161,32 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     try {
       final apiService = ApiService();
       final token = ref.read(authProvider).token;
-      
+
       if (token == null) throw Exception('Not authenticated');
 
-      // Upload new profile image if selected
-      String? avatarUrl = _currentAvatarUrl;
-      if (_newProfileImage != null) {
-        // TODO: Implement image upload to IPFS or storage
-        avatarUrl = 'new_placeholder_url';
+      // Build the final ordered photo list: kept existing URLs first, then
+      // upload any newly-picked photos to IPFS and append their URLs.
+      // POST /users/me/photos replaces the whole array, so send everything.
+      final List<Uint8List> allBytes = List.of(_newPhotoBytes);
+      List<String> finalPhotos = List.of(_existingPhotos);
+      if (allBytes.isNotEmpty || _existingPhotos.isNotEmpty) {
+        try {
+          if (allBytes.isNotEmpty) {
+            final uploaded = await apiService.uploadPhotos(token: token, photos: allBytes);
+            // uploadPhotos replaces the server array with just the new uploads,
+            // so re-persist the full ordered list via updateProfile below.
+            finalPhotos = [..._existingPhotos, ...uploaded];
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Photo upload failed: $e'), backgroundColor: Colors.red),
+            );
+          }
+        }
       }
 
-      // Update user profile via API
+      // Update user profile via API (photos sent as the desired ordered list)
       await apiService.updateProfile(
         token: token,
         displayName: _displayNameController.text.trim(),
@@ -202,7 +194,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         bio: _bioController.text.trim(),
         countryCode: _selectedCountry ?? 'IN',
         interests: _selectedInterests,
-        avatarUrl: avatarUrl,
+        photos: finalPhotos,
       );
 
       // Refresh user data
@@ -308,77 +300,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Profile Photo
-                        Center(
-                          child: GestureDetector(
-                            onTap: _showImageSourceDialog,
-                            child: Stack(
-                              children: [
-                                Container(
-                                  width: 120,
-                                  height: 120,
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFFFF6BB0), AppColors.primary],
-                                    ),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.3),
-                                      width: 3,
-                                    ),
-                                  ),
-                                  child: ClipOval(
-                                    child: _newProfileImage != null
-                                        ? Image.file(
-                                            _newProfileImage!,
-                                            fit: BoxFit.cover,
-                                            width: 120,
-                                            height: 120,
-                                          )
-                                        : _currentAvatarUrl != null
-                                            ? Image.network(
-                                                _currentAvatarUrl!,
-                                                fit: BoxFit.cover,
-                                                width: 120,
-                                                height: 120,
-                                              )
-                                            : user?.emoji != null
-                                                ? Center(
-                                                    child: Text(
-                                                      user!.emoji!,
-                                                      style: const TextStyle(fontSize: 60),
-                                                    ),
-                                                  )
-                                                : const Center(
-                                                    child: Icon(
-                                                      Icons.person,
-                                                      color: Colors.white,
-                                                      size: 50,
-                                                    ),
-                                                  ),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFFF6BB0),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.camera_alt,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                        // Profile Photos (up to 6, first shows on swipe card)
+                        _buildSectionTitle('Photos ($_photoCount/6)'),
+                        const SizedBox(height: 4),
+                        Text(
+                          'The first photo shows on your card. Tap to preview, tap ✕ to remove.',
+                          style: GoogleFonts.inter(fontSize: 12, color: Colors.white70),
                         ),
-                        
+                        const SizedBox(height: 12),
+                        _buildPhotoGrid(),
+
                         const SizedBox(height: 24),
                         
                         // Wallet Address (Read only)
@@ -601,6 +532,105 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
   }
 
+  Widget _buildPhotoGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 6,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.78,
+      ),
+      itemBuilder: (_, i) => _buildPhotoTile(i),
+    );
+  }
+
+  Widget _buildPhotoTile(int index) {
+    final existingCount = _existingPhotos.length;
+    // Existing photos occupy the first slots, then newly-picked bytes.
+    if (index < existingCount) {
+      final url = _existingPhotos[index];
+      return _photoTileFrame(
+        index: index,
+        onPreview: () => _previewPhotoNetwork(url),
+        onRemove: () => _removeExistingPhoto(index),
+        image: Image.network(url, fit: BoxFit.cover),
+      );
+    }
+    final newIdx = index - existingCount;
+    if (newIdx < _newPhotoBytes.length) {
+      final bytes = _newPhotoBytes[newIdx];
+      return _photoTileFrame(
+        index: index,
+        onPreview: () => _previewPhotoBytes(bytes),
+        onRemove: () => _removeNewPhoto(newIdx),
+        image: Image.memory(bytes, fit: BoxFit.cover),
+      );
+    }
+    // Empty add-slot (only the next empty one is tappable)
+    final isNext = index == _photoCount;
+    return GestureDetector(
+      onTap: isNext ? _addPhoto : null,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isNext ? const Color(0xFFFF6BB0) : Colors.white24,
+            width: 1.5,
+          ),
+        ),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(isNext ? Icons.add_a_photo_outlined : Icons.image_outlined,
+              color: isNext ? const Color(0xFFFF6BB0) : Colors.white38, size: 24),
+          const SizedBox(height: 4),
+          Text(isNext ? 'Add' : '',
+              style: GoogleFonts.inter(fontSize: 11, color: Colors.white54)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _photoTileFrame({
+    required int index,
+    required VoidCallback onPreview,
+    required VoidCallback onRemove,
+    required Widget image,
+  }) {
+    return GestureDetector(
+      onTap: onPreview,
+      child: Stack(fit: StackFit.expand, children: [
+        ClipRRect(borderRadius: BorderRadius.circular(14), child: image),
+        if (index == 0)
+          Positioned(
+            left: 6, top: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6BB0),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text('Main',
+                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
+            ),
+          ),
+        Positioned(
+          right: 6, top: 6,
+          child: GestureDetector(
+            onTap: onRemove,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+              child: const Icon(Icons.close, size: 14, color: Colors.white),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
   Widget _buildInfoCard({required String title, required Widget child}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -764,6 +794,33 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PhotoPreviewDialog extends StatelessWidget {
+  final Widget child;
+  const _PhotoPreviewDialog({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(16),
+      child: Stack(children: [
+        ClipRRect(borderRadius: BorderRadius.circular(16), child: child),
+        Positioned(
+          right: 8, top: 8,
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+              child: const Icon(Icons.close, color: Colors.white, size: 22),
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }
