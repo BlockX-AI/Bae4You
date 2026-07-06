@@ -16,6 +16,14 @@ class User {
     if (value is String) return int.tryParse(value) ?? defaultValue;
     return defaultValue;
   }
+
+  static List<String>? _parsePhotos(dynamic value) {
+    if (value == null) return null;
+    if (value is List) {
+      return value.map((e) => e.toString()).toList();
+    }
+    return null;
+  }
   final String? username;
   final String? displayName;
   final String? avatarIpfsHash;
@@ -32,6 +40,7 @@ class User {
   final String? avatarUrl;
   final Map<String, dynamic>? bitmojiConfig;
   final Map<String, dynamic>? avataaarsConfig;
+  final List<String>? photos;
   final int pcashBalance;
   final int goldBalance;
   final int currentValue;
@@ -56,6 +65,7 @@ class User {
     this.avatarUrl,
     this.bitmojiConfig,
     this.avataaarsConfig,
+    this.photos,
     this.pcashBalance = 0,
     this.goldBalance = 0,
     this.currentValue = 0,
@@ -90,6 +100,7 @@ class User {
             as Map<String, dynamic>?,
         avataaarsConfig: (json['avataaarsConfig'] ?? json['avataaars_config'])
             as Map<String, dynamic>?,
+        photos: User._parsePhotos(json['photos']),
         pcashBalance: User._parseInt(json['pcashBalance'] ?? json['pcash_balance'], 0),
         goldBalance: User._parseInt(json['goldBalance'] ?? json['gold_balance'], 0),
         currentValue: User._parseInt(json['currentValue'] ?? json['current_value'], 0),
@@ -112,6 +123,7 @@ class User {
         'avatarUrl': avatarUrl,
         'bitmojiConfig': bitmojiConfig,
         'avataaarsConfig': avataaarsConfig,
+        'photos': photos,
         'pcashBalance': pcashBalance,
         'goldBalance': goldBalance,
         'currentValue': currentValue,
@@ -127,6 +139,7 @@ class User {
     String? avatarUrl,
     Map<String, dynamic>? bitmojiConfig,
     Map<String, dynamic>? avataaarsConfig,
+    List<String>? photos,
     int? pcashBalance,
     int? goldBalance,
     int? currentValue,
@@ -151,6 +164,7 @@ class User {
         avatarUrl: avatarUrl ?? this.avatarUrl,
         bitmojiConfig: bitmojiConfig ?? this.bitmojiConfig,
         avataaarsConfig: avataaarsConfig ?? this.avataaarsConfig,
+        photos: photos ?? this.photos,
         pcashBalance: pcashBalance ?? this.pcashBalance,
         goldBalance: goldBalance ?? this.goldBalance,
         currentValue: currentValue ?? this.currentValue,
@@ -237,6 +251,7 @@ class DiscoverCandidate {
   final String? countryCode;
   final bool? isVerified;
   final int? tokenId;
+  final List<String>? photos;
   final DateTime? createdAt;
 
   DiscoverCandidate({
@@ -249,6 +264,7 @@ class DiscoverCandidate {
     this.countryCode,
     this.isVerified,
     this.tokenId,
+    this.photos,
     this.createdAt,
   });
 
@@ -264,6 +280,7 @@ class DiscoverCandidate {
         countryCode: json['countryCode'] ?? json['country_code'] as String?,
         isVerified: json['isVerified'] ?? json['is_verified'] as bool?,
         tokenId: User._parseTokenId(json['tokenId'] ?? json['token_id']),
+        photos: User._parsePhotos(json['photos']),
         createdAt: json['createdAt'] != null
             ? DateTime.parse(json['createdAt'] as String)
             : null,

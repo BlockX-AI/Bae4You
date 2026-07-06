@@ -305,7 +305,8 @@ END $$;
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS password_hash TEXT,
   ADD COLUMN IF NOT EXISTS interests     JSONB,
-  ADD COLUMN IF NOT EXISTS avatar_url    TEXT;
+  ADD COLUMN IF NOT EXISTS avatar_url    TEXT,
+  ADD COLUMN IF NOT EXISTS photos        JSONB DEFAULT '[]'::jsonb;
 
 -- Off-chain token_id allocator (game pets that are not minted on-chain)
 CREATE SEQUENCE IF NOT EXISTS offchain_token_id_seq START 1000000;

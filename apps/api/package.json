@@ -39,6 +39,7 @@
     "avatar-upgrade-test": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config scripts/avatar-upgrade-test.ts",
     "migrate:bitmoji": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-bitmoji.ts",
     "migrate:avataaars": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-avataaars.ts",
+    "migrate:photos": "DOTENV_CONFIG_PATH=../../.env tsx --require dotenv/config src/db/migrate-photos.ts",
     "notion-parts": "tsx scripts/download-notion-parts.ts",
     "avataaars:extract": "tsx scripts/extract-avataaars-parts.ts"
   },

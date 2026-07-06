@@ -202,6 +202,7 @@ class ApiService {
     List<String>? interests,
     String? avatarUrl,
     Map<String, dynamic>? cartoonAvatar,
+    List<String>? photos,
   }) async {
     try {
       final data = <String, dynamic>{};
@@ -212,6 +213,7 @@ class ApiService {
       if (interests != null && interests.isNotEmpty) data['interests'] = interests;
       if (avatarUrl != null && avatarUrl.isNotEmpty) data['avatarUrl'] = avatarUrl;
       if (cartoonAvatar != null) data['cartoonAvatar'] = cartoonAvatar;
+      if (photos != null) data['photos'] = photos;
 
       final response = await _dio.put(
         '/users/me',
@@ -366,6 +368,35 @@ class ApiService {
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
       return response.data['url'] as String?;
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  /// POST /users/me/photos — upload up to 6 profile photos to IPFS.
+  /// Sends one multipart field per photo (photo0…photo5). Returns the server's
+  /// ordered list of IPFS gateway URLs (which replaces the user's photo array).
+  Future<List<String>> uploadPhotos({
+    required String token,
+    required List<Uint8List> photos,
+  }) async {
+    try {
+      final map = <String, dynamic>{};
+      for (var i = 0; i < photos.length; i++) {
+        map['photo$i'] = MultipartFile.fromBytes(
+          photos[i],
+          filename: 'photo$i.jpg',
+          contentType: DioMediaType('image', 'jpeg'),
+        );
+      }
+      final form = FormData.fromMap(map);
+      final response = await _dio.post(
+        '/users/me/photos',
+        data: form,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final list = (response.data['photos'] as List?) ?? const [];
+      return list.map((e) => e.toString()).toList();
     } catch (e) {
       throw _handleError(e);
     }

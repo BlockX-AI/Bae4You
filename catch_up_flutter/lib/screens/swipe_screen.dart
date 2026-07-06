@@ -205,6 +205,15 @@ class _CardStackState extends ConsumerState<_CardStack> with SingleTickerProvide
     );
   }
 
+  void _showDetail(DiscoverCandidate candidate) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _ProfileDetailSheet(candidate: candidate),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_currentIndex >= widget.candidates.length) {
@@ -237,6 +246,7 @@ class _CardStackState extends ConsumerState<_CardStack> with SingleTickerProvide
             ),
           // Top draggable card
           GestureDetector(
+            onTap: () => _showDetail(widget.candidates[_currentIndex]),
             onPanUpdate: (details) => setState(() {
               _dragOffset += details.delta;
               _dragAngle = (_dragOffset.dx / screenW) * 0.4;
@@ -302,15 +312,45 @@ class _ProfileCard extends StatelessWidget {
               flex: 3,
               child: Container(
                 decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppTokens.surface2, AppTokens.accent.withOpacity(0.6)])),
-                child: Stack(children: [
-                  Center(
-                    child: AvatarDisplay(
-                      notionConfig: candidate.bitmojiConfig,
-                      avatarIpfsHash: candidate.avatarIpfsHash,
-                      size: 180,
-                      fallback: Text(emoji, style: const TextStyle(fontSize: 100)),
+                child: Stack(fit: StackFit.expand, children: [
+                  // Show the first uploaded photo when available; otherwise fall
+                  // back to the avatar/emoji so existing users still render.
+                  if (candidate.photos != null && candidate.photos!.isNotEmpty)
+                    Image.network(
+                      candidate.photos!.first,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: AvatarDisplay(
+                          notionConfig: candidate.bitmojiConfig,
+                          avatarIpfsHash: candidate.avatarIpfsHash,
+                          size: 180,
+                          fallback: Text(emoji, style: const TextStyle(fontSize: 100)),
+                        ),
+                      ),
+                    )
+                  else
+                    Center(
+                      child: AvatarDisplay(
+                        notionConfig: candidate.bitmojiConfig,
+                        avatarIpfsHash: candidate.avatarIpfsHash,
+                        size: 180,
+                        fallback: Text(emoji, style: const TextStyle(fontSize: 100)),
+                      ),
                     ),
-                  ),
+                  if (candidate.photos != null && candidate.photos!.length > 1)
+                    Positioned(bottom: 10, left: 0, right: 0,
+                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        for (var i = 0; i < candidate.photos!.length; i++)
+                          Container(
+                            width: 6, height: 6,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              color: i == 0 ? Colors.white : Colors.white.withOpacity(0.5),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ]),
+                    ),
                   // Compatibility badge
                   Positioned(top: 14, right: 14,
                     child: Container(
@@ -425,6 +465,142 @@ class _ActionButton extends StatelessWidget {
           boxShadow: [BoxShadow(color: AppTokens.accent.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4))],
         ),
         child: Icon(icon, color: iconColor, size: size * 0.42),
+      ),
+    );
+  }
+}
+
+// ── Profile Detail Sheet ───────────────────────────────────────
+class _ProfileDetailSheet extends StatefulWidget {
+  final DiscoverCandidate candidate;
+  const _ProfileDetailSheet({required this.candidate});
+
+  @override
+  State<_ProfileDetailSheet> createState() => _ProfileDetailSheetState();
+}
+
+class _ProfileDetailSheetState extends State<_ProfileDetailSheet> {
+  final PageController _pageController = PageController();
+  int _photoIndex = 0;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final candidate = widget.candidate;
+    final name = candidate.displayName ?? candidate.username ?? 'Anonymous';
+    final emoji = ['😊','🎨','🎸','📚','🏔️','☕','🌟','🎯','🔥','💫'][name.length % 10];
+    final compat = 72 + (name.length * 3 % 25);
+    final photos = candidate.photos ?? const [];
+    final hasPhotos = photos.isNotEmpty;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) => Container(
+        decoration: const BoxDecoration(
+          color: AppTokens.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: ListView(
+          controller: scrollController,
+          padding: EdgeInsets.zero,
+          children: [
+            // Gallery
+            SizedBox(
+              height: 420,
+              child: Stack(children: [
+                if (hasPhotos)
+                  PageView.builder(
+                    controller: _pageController,
+                    itemCount: photos.length,
+                    onPageChanged: (i) => setState(() => _photoIndex = i),
+                    itemBuilder: (_, i) => Image.network(
+                      photos[i],
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: AppTokens.surface2,
+                        child: Center(child: Text(emoji, style: const TextStyle(fontSize: 100))),
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppTokens.surface2, AppTokens.accent.withOpacity(0.6)])),
+                    child: Center(
+                      child: AvatarDisplay(
+                        notionConfig: candidate.bitmojiConfig,
+                        avatarIpfsHash: candidate.avatarIpfsHash,
+                        size: 220,
+                        fallback: Text(emoji, style: const TextStyle(fontSize: 120)),
+                      ),
+                    ),
+                  ),
+                // Page indicators
+                if (photos.length > 1)
+                  Positioned(top: 12, left: 0, right: 0,
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      for (var i = 0; i < photos.length; i++)
+                        Expanded(
+                          child: Container(
+                            height: 3,
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            decoration: BoxDecoration(
+                              color: i == _photoIndex ? Colors.white : Colors.white.withOpacity(0.4),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                    ]),
+                  ),
+                // Close handle
+                Positioned(top: 12, right: 12,
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
+                      child: const Icon(Icons.close, color: Colors.white, size: 20),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(child: Text(name, style: AppTokens.textStyles.h1.copyWith(fontSize: 28, fontWeight: FontWeight.w700, color: AppTokens.textHi))),
+                  if (candidate.isVerified == true)
+                    const Icon(Icons.verified, color: Color(0xFF00C853), size: 22),
+                ]),
+                const SizedBox(height: 8),
+                Row(children: [
+                  if (candidate.countryCode != null) ...[
+                    Text('📍 ${candidate.countryCode}', style: AppTokens.textStyles.body.copyWith(fontSize: 14, color: AppTokens.textMid)),
+                    const SizedBox(width: 16),
+                  ],
+                  Icon(Icons.favorite, size: 14, color: AppTokens.accent),
+                  const SizedBox(width: 4),
+                  Text('$compat% match', style: AppTokens.textStyles.body.copyWith(fontSize: 14, fontWeight: FontWeight.w600, color: AppTokens.accentMuted)),
+                ]),
+                const SizedBox(height: 20),
+                if (candidate.bio != null && candidate.bio!.trim().isNotEmpty) ...[
+                  Text('About', style: AppTokens.textStyles.body.copyWith(fontSize: 14, fontWeight: FontWeight.w700, color: AppTokens.textHi)),
+                  const SizedBox(height: 8),
+                  Text(candidate.bio!, style: AppTokens.textStyles.body.copyWith(fontSize: 15, color: AppTokens.textMid, height: 1.5)),
+                ],
+                const SizedBox(height: 24),
+              ]),
+            ),
+          ],
+        ),
       ),
     );
   }

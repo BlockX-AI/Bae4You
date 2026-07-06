@@ -44,6 +44,7 @@ const updateSchema = z.object({
   cartoonAvatar: z.record(z.unknown()).optional(),
   interests:   z.array(z.string()).optional(),
   avatarUrl:   z.string().url().max(500).optional(),
+  photos:      z.array(z.string().url().max(500)).max(6).optional(),
 });
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -157,7 +158,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
         `SELECT id, wallet_address, token_id, username, display_name, bio,
                 avatar_ipfs_hash, avatar_url, birth_date, location_city, country_code,
                 is_verified, is_creator, status, last_login_at, bonus_claimed_at,
-                personality_vector, cartoon_avatar, interests,
+                personality_vector, cartoon_avatar, interests, photos,
                 pcash_balance, gold_balance, current_value, created_at
          FROM users WHERE id = $1`,
         [payload.userId]
@@ -177,7 +178,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       const { rows } = await db.query(
         `SELECT id, wallet_address, token_id, username, display_name, bio,
                 avatar_ipfs_hash, avatar_url, birth_date, location_city, country_code,
-                is_verified, is_creator, status, cartoon_avatar, interests,
+                is_verified, is_creator, status, cartoon_avatar, interests, photos,
                 pcash_balance, gold_balance, current_value, created_at
          FROM users WHERE id = $1 AND status != 'suspended'`,
         [id]
@@ -213,6 +214,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       if (data.cartoonAvatar !== undefined)     { updates.push(`cartoon_avatar = $${i++}`);     values.push(JSON.stringify(data.cartoonAvatar)); }
       if (data.interests !== undefined)         { updates.push(`interests = $${i++}`);          values.push(JSON.stringify(data.interests)); }
       if (data.avatarUrl !== undefined)         { updates.push(`avatar_url = $${i++}`);         values.push(data.avatarUrl); }
+      if (data.photos !== undefined)            { updates.push(`photos = $${i++}`);            values.push(JSON.stringify(data.photos)); }
 
       if (updates.length === 0) {
         return reply.code(400).send({ error: "Nothing to update" });
@@ -289,6 +291,61 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       );
 
       return { cid, url: ipfsGatewayUrl(cid) };
+    }
+  );
+
+  // POST /users/me/photos — multipart profile photos (up to 6) → Pinata IPFS
+  // Fields photo0…photo5, each JPEG/PNG/WebP ≤ 5 MB. Replaces the photos array.
+  fastify.post(
+    "/me/photos",
+    { preHandler: fastify.authenticate },
+    async (req, reply) => {
+      const payload = req.user as JwtPayload;
+
+      const parts = req.parts();
+      const buffers: { buf: Buffer; mime: string }[] = [];
+
+      for await (const part of parts) {
+        if (part.type === "file" && part.fieldname.startsWith("photo")) {
+          if (!ALLOWED_MIME.has(part.mimetype)) {
+            return reply.code(415).send({ error: "Only JPEG, PNG, and WebP images are accepted" });
+          }
+          const chunks: Buffer[] = [];
+          for await (const chunk of part.file) chunks.push(chunk as Buffer);
+          const buf = Buffer.concat(chunks);
+          if (buf.length > 5 * 1024 * 1024) {
+            return reply.code(413).send({ error: "Each photo must be under 5 MB" });
+          }
+          if (buf.length > 0) buffers.push({ buf, mime: part.mimetype });
+        }
+      }
+
+      if (buffers.length === 0) {
+        return reply.code(400).send({ error: "Send at least one photo field (photo0…photo5)" });
+      }
+      if (buffers.length > 6) {
+        return reply.code(400).send({ error: "A maximum of 6 photos is allowed" });
+      }
+
+      const urls: string[] = [];
+      for (const [idx, { buf, mime }] of buffers.entries()) {
+        const ext  = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
+        const name = `photo-${payload.userId}-${idx}-${Date.now()}.${ext}`;
+        try {
+          const cid = await uploadToIPFS(buf, name, mime);
+          urls.push(ipfsGatewayUrl(cid));
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Upload failed";
+          return reply.code(502).send({ error: msg });
+        }
+      }
+
+      await db.query(
+        "UPDATE users SET photos = $1 WHERE id = $2",
+        [JSON.stringify(urls), payload.userId]
+      );
+
+      return { photos: urls };
     }
   );
 

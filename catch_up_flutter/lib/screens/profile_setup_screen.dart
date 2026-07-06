@@ -1,6 +1,8 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/avataaars_provider.dart';
@@ -20,19 +22,24 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
     with TickerProviderStateMixin {
   final PageController _pageController = PageController();
   int _step = 0;
-  final int _totalSteps = 5;
+  final int _totalSteps = 6;
 
   // Step 1 - Name
   final _nameController = TextEditingController();
   final _usernameController = TextEditingController();
 
-  // Step 2 - Avatar is built via the Avataaars studio (avataaarsProvider)
+  // Step 2 - Photos (up to 6, first 3 mandatory). Holds picked image bytes;
+  // uploaded to IPFS at save time.
+  final ImagePicker _imagePicker = ImagePicker();
+  final List<Uint8List> _photoBytes = [];
 
-  // Step 3 - Bio
+  // Step 3 - Avatar is built via the Avataaars studio (avataaarsProvider)
+
+  // Step 4 - Bio
   final _bioController = TextEditingController();
   String _selectedCountry = '🇮🇳 India';
 
-  // Step 4 - Interests
+  // Step 5 - Interests
   final List<String> _allInterests = [
     '🎵 Music', '🎮 Gaming', '🏋️ Fitness', '✈️ Travel', '📚 Reading',
     '🍕 Foodie', '🎨 Art', '💻 Tech', '🌿 Nature', '📸 Photography',
@@ -78,6 +85,17 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
         final countryCode = _selectedCountry.split(' ').last.substring(0, 2).toUpperCase();
         final displayName = _nameController.text.trim();
         final bio = _bioController.text.trim();
+        // Upload photos to IPFS first so the returned URLs can be saved with
+        // the rest of the profile. Non-fatal on failure — don't block setup.
+        List<String>? photoUrls;
+        if (_photoBytes.isNotEmpty) {
+          try {
+            photoUrls = await ApiService()
+                .uploadPhotos(token: token, photos: _photoBytes);
+          } catch (_) {
+            // Backend photo endpoint may not be deployed yet; continue without.
+          }
+        }
         await ApiService().updateProfile(
           token: token,
           displayName: displayName.isEmpty ? 'Anonymous' : displayName,
@@ -87,6 +105,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
           bio: bio.isEmpty ? null : bio,
           countryCode: countryCode,
           interests: _selectedInterests.isEmpty ? null : _selectedInterests.toList(),
+          photos: photoUrls,
         );
         // Persist the avatar built/randomized during setup. The builder screen
         // saves on its own Save button, but the "Surprise me" shortcut only
@@ -143,10 +162,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
   bool get _canProceed {
     switch (_step) {
       case 0: return _nameController.text.trim().isNotEmpty;
-      case 1: return true;
-      case 2: return _bioController.text.trim().isNotEmpty;
-      case 3: return _selectedInterests.length >= 3;
-      case 4: return true;
+      case 1: return _photoBytes.length >= 3;
+      case 2: return true;
+      case 3: return _bioController.text.trim().isNotEmpty;
+      case 4: return _selectedInterests.length >= 3;
+      case 5: return true;
       default: return false;
     }
   }
@@ -166,6 +186,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
                   _buildNameStep(),
+                  _buildPhotosStep(),
                   _buildAvatarStep(),
                   _buildBioStep(),
                   _buildInterestsStep(),
@@ -199,7 +220,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
               style: GoogleFonts.fredoka(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
             ),
           ),
-          if (_step < _totalSteps - 1)
+          // Skip is hidden on required steps (Name, Photos) and the final step.
+          if (_step >= 2 && _step < _totalSteps - 1)
             TextButton(
               onPressed: _next,
               child: Text('Skip', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textHint)),
@@ -214,10 +236,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
   String get _stepTitle {
     switch (_step) {
       case 0: return 'Your Name';
-      case 1: return 'Pick Avatar';
-      case 2: return 'About You';
-      case 3: return 'Your Interests';
-      case 4: return 'All Set!';
+      case 1: return 'Your Photos';
+      case 2: return 'Pick Avatar';
+      case 3: return 'About You';
+      case 4: return 'Your Interests';
+      case 5: return 'All Set!';
       default: return '';
     }
   }
@@ -265,7 +288,111 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
     );
   }
 
-  // ── STEP 2: Avatar ────────────────────────────────────────
+  // ── STEP 2: Photos ────────────────────────────────────────
+  Future<void> _pickPhoto() async {
+    if (_photoBytes.length >= 6) return;
+    try {
+      final XFile? picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
+      setState(() => _photoBytes.add(bytes));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not pick photo: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _removePhoto(int index) {
+    setState(() => _photoBytes.removeAt(index));
+  }
+
+  Widget _buildPhotosStep() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const SizedBox(height: 12),
+        Text('Add your photos', style: GoogleFonts.fredoka(fontSize: 28, color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        Text('Add up to 6 photos — the first 3 are required', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary)),
+        const SizedBox(height: 6),
+        Row(children: [
+          Text('${_photoBytes.length} added', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
+          Text(' / 3 minimum', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textHint)),
+        ]),
+        const SizedBox(height: 20),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: 6,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.75,
+          ),
+          itemBuilder: (_, i) => _buildPhotoSlot(i),
+        ),
+        const SizedBox(height: 16),
+        Row(children: [
+          const Icon(Icons.lock_outline, size: 14, color: AppColors.textHint),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text('The first photo shows on your swipe card. Tap a photo to remove it.',
+                style: GoogleFonts.inter(fontSize: 12, color: AppColors.textHint)),
+          ),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _buildPhotoSlot(int index) {
+    final hasPhoto = index < _photoBytes.length;
+    final required = index < 3;
+    if (hasPhoto) {
+      return GestureDetector(
+        onTap: () => _removePhoto(index),
+        child: Stack(fit: StackFit.expand, children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Image.memory(_photoBytes[index], fit: BoxFit.cover),
+          ),
+          if (index == 0)
+            Positioned(
+              left: 6, top: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(gradient: AppColors.buttonGradient, borderRadius: BorderRadius.circular(10)),
+                child: Text('Main', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
+              ),
+            ),
+          Positioned(
+            right: 6, top: 6,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+              child: const Icon(Icons.close, size: 14, color: Colors.white),
+            ),
+          ),
+        ]),
+      );
+    }
+    // Only allow adding into the next empty slot.
+    final isNextSlot = index == _photoBytes.length;
+    return GestureDetector(
+      onTap: isNextSlot ? _pickPhoto : null,
+      child: DottedSlot(required: required, enabled: isNextSlot),
+    );
+  }
+
+  // ── STEP 3: Avatar ────────────────────────────────────────
   Widget _buildAvatarStep() {
     final avataaars = ref.watch(avataaarsProvider);
     final hasAvatar = avataaars != null;
@@ -548,6 +675,42 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
           ),
         ),
       ),
+    );
+  }
+}
+
+class DottedSlot extends StatelessWidget {
+  final bool required;
+  final bool enabled;
+  const DottedSlot({super.key, required this.required, required this.enabled});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: enabled ? AppColors.primary.withOpacity(0.5) : AppColors.border,
+          width: 1.5,
+        ),
+      ),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(
+          enabled ? Icons.add_a_photo_outlined : Icons.image_outlined,
+          size: 26,
+          color: enabled ? AppColors.primaryDark : AppColors.textHint,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          required ? 'Required' : 'Optional',
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: required ? AppColors.primaryDark : AppColors.textHint,
+          ),
+        ),
+      ]),
     );
   }
 }

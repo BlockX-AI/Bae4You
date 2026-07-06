@@ -160,12 +160,12 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
     return filtered;
   }
 
-  String _formatPrice(String? priceWei) {
-    if (priceWei == null) return 'Free';
-    final price = int.tryParse(priceWei) ?? 0;
-    final eth = price / 1e18;
-    if (eth < 0.001) return '${(eth * 1000).toStringAsFixed(2)} Gwei';
-    return '${eth.toStringAsFixed(4)} ETH';
+  String _formatPrice(String? price) {
+    // Off-chain PCASH prices are plain integers (the source of truth), not wei.
+    final value = int.tryParse(price ?? '') ?? 0;
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M PCASH';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K PCASH';
+    return '$value PCASH';
   }
 
   @override

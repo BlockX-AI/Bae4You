@@ -40,10 +40,19 @@ class UserAuth {
     this.bonusClaimedAt,
   });
 
+  // token_id is a Postgres BIGINT: node-pg serializes it as a string on some
+  // paths (login) and a number on others (register). Accept both.
+  static int? _parseTokenId(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
   factory UserAuth.fromJson(Map<String, dynamic> json) => UserAuth(
         id: json['id'] as String,
         wallet: json['wallet'] as String,
-        tokenId: json['tokenId'] as int?,
+        tokenId: _parseTokenId(json['tokenId']),
         username: json['username'] as String?,
         displayName: json['displayName'] as String?,
         isCreator: json['isCreator'] as bool?,
