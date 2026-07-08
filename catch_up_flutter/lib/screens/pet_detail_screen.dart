@@ -78,7 +78,10 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
       if (authState.token == null) throw Exception('Not authenticated');
       
       await _apiService.buyPet(pet.tokenId, authState.token!);
-      
+
+      // Refresh the buyer's balance so PCASH reflects the debit immediately.
+      await ref.read(authProvider.notifier).refreshUser();
+
       if (mounted) {
         setState(() => _isProcessing = false);
         _showSuccessDialog('Purchase Successful', 'You now own this pet.');

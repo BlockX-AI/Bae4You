@@ -4,6 +4,7 @@ import '../design/tokens.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../models/pet_models.dart';
+import '../widgets/avatar_display.dart';
 
 /// Pet Marketplace Screen - Browse and buy NFT pets
 
@@ -471,17 +472,13 @@ class _PetsMarketplaceScreenState extends ConsumerState<PetsMarketplaceScreen> {
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                 ),
                 child: Center(
-                  child: pet.avatarIpfsHash != null
-                      ? ClipOval(
-                          child: Image.network(
-                            'https://ipfs.io/ipfs/${pet.avatarIpfsHash}',
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _buildAvatarPlaceholder(pet),
-                          ),
-                        )
-                      : _buildAvatarPlaceholder(pet),
+                  child: AvatarDisplay(
+                    avataaarsConfig: pet.avataaarsConfig,
+                    notionConfig: pet.bitmojiConfig,
+                    avatarIpfsHash: pet.avatarIpfsHash,
+                    size: 80,
+                    fallback: _buildAvatarPlaceholder(pet),
+                  ),
                 ),
               ),
             ),

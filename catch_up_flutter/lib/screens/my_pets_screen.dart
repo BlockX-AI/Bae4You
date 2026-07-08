@@ -4,6 +4,7 @@ import '../design/tokens.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../models/pet_models.dart';
+import '../widgets/avatar_display.dart';
 
 /// My Pets Screen - View user's owned pet portfolio
 
@@ -249,29 +250,26 @@ class _MyPetsScreenState extends ConsumerState<MyPetsScreen> {
         child: Row(
           children: [
             // Avatar
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppTokens.accent, AppTokens.accentMuted],
+            AvatarDisplay(
+              avataaarsConfig: pet.avataaarsConfig,
+              notionConfig: pet.bitmojiConfig,
+              avatarIpfsHash: pet.avatarIpfsHash,
+              size: 60,
+              fallback: Container(
+                width: 60,
+                height: 60,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppTokens.accent, AppTokens.accentMuted],
+                  ),
+                  shape: BoxShape.circle,
                 ),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: pet.avatarIpfsHash != null
-                    ? ClipOval(
-                        child: Image.network(
-                          'https://ipfs.io/ipfs/${pet.avatarIpfsHash}',
-                          width: 56,
-                          height: 56,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Text(
-                        pet.displayName?.substring(0, 1).toUpperCase() ?? '?',
-                        style: AppTokens.textStyles.h2,
-                      ),
+                child: Center(
+                  child: Text(
+                    pet.displayName?.substring(0, 1).toUpperCase() ?? '?',
+                    style: AppTokens.textStyles.h2,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 16),

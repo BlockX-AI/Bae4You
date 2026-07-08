@@ -595,6 +595,23 @@ class _ProfileDetailSheetState extends State<_ProfileDetailSheet> {
                   Text('About', style: AppTokens.textStyles.body.copyWith(fontSize: 14, fontWeight: FontWeight.w700, color: AppTokens.textHi)),
                   const SizedBox(height: 8),
                   Text(candidate.bio!, style: AppTokens.textStyles.body.copyWith(fontSize: 15, color: AppTokens.textMid, height: 1.5)),
+                  const SizedBox(height: 20),
+                ],
+                if (candidate.interests != null && candidate.interests!.isNotEmpty) ...[
+                  Text('Interests', style: AppTokens.textStyles.body.copyWith(fontSize: 14, fontWeight: FontWeight.w700, color: AppTokens.textHi)),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: candidate.interests!.map((interest) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [AppTokens.accent, AppTokens.accentMuted]),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(interest, style: AppTokens.textStyles.body.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                    )).toList(),
+                  ),
                 ],
                 const SizedBox(height: 24),
               ]),

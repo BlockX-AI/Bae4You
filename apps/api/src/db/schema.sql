@@ -481,9 +481,13 @@ BEGIN
   INSERT INTO pets_ownership (owner_id, pet_id, purchase_price, purchased_at)
   VALUES (p_buyer_id, p_pet_id, v_new_price, NOW());
 
-  -- Update pet price
-  UPDATE pets_state 
-  SET current_price_wei = v_new_price, total_purchases = total_purchases + 1
+  -- Update pet price and transfer ownership. owner_address is the source of
+  -- truth for the portfolio / lock auth / rankings, so it MUST move to the
+  -- buyer's wallet or bought pets never appear in "My Pets".
+  UPDATE pets_state
+  SET current_price_wei = v_new_price,
+      total_purchases = total_purchases + 1,
+      owner_address = (SELECT LOWER(wallet_address) FROM users WHERE id = p_buyer_id)
   WHERE token_id = p_pet_id;
 
   -- Record transaction

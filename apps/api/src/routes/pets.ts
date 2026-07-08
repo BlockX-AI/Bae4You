@@ -23,7 +23,8 @@ const petsRoutes: FastifyPluginAsync = async (fastify) => {
         SELECT
           p.token_id, p.owner_address, p.user_address, p.current_price_wei,
           p.total_purchases, p.is_locked, p.lock_expiry, p.pet_status,
-          u.username, u.display_name, u.avatar_ipfs_hash, u.country_code, u.is_verified
+          u.username, u.display_name, u.avatar_ipfs_hash, u.country_code, u.is_verified,
+          u.bitmoji_config, u.avataaars_config
         FROM pets_state p
         JOIN users u ON u.wallet_address = p.user_address
         WHERE p.pet_status = 'active'
@@ -70,7 +71,8 @@ const petsRoutes: FastifyPluginAsync = async (fastify) => {
     async (req, reply) => {
       const { rows } = await db.query(
         `SELECT p.token_id, p.current_price_wei, p.total_purchases, p.is_locked, p.lock_expiry,
-                u.username, u.display_name, u.avatar_ipfs_hash, u.country_code
+                u.username, u.display_name, u.avatar_ipfs_hash, u.country_code, u.is_verified,
+                u.bitmoji_config, u.avataaars_config
          FROM pets_state p
          JOIN users u ON u.wallet_address = p.user_address
          WHERE p.owner_address = $1 AND p.pet_status = 'active'

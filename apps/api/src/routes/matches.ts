@@ -272,7 +272,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
         const params: unknown[] = [orderedIds];
         let q = `
           SELECT id, username, display_name, avatar_ipfs_hash, cartoon_avatar, bio,
-                 country_code, is_verified, token_id, photos, created_at
+                 country_code, is_verified, token_id, photos, interests, created_at
           FROM users
           WHERE id = ANY($1::uuid[]) AND status = 'active'
         `;
@@ -289,7 +289,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
         const params: unknown[] = [excludeArr, limitNum, offsetNum];
         let q = `
           SELECT id, username, display_name, avatar_ipfs_hash, cartoon_avatar, bio,
-                 country_code, is_verified, token_id, photos, created_at
+                 country_code, is_verified, token_id, photos, interests, created_at
           FROM users
           WHERE id != ALL($1::uuid[]) AND status = 'active'
         `;

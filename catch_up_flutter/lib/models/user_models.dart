@@ -252,6 +252,7 @@ class DiscoverCandidate {
   final bool? isVerified;
   final int? tokenId;
   final List<String>? photos;
+  final List<String>? interests;
   final DateTime? createdAt;
 
   DiscoverCandidate({
@@ -265,6 +266,7 @@ class DiscoverCandidate {
     this.isVerified,
     this.tokenId,
     this.photos,
+    this.interests,
     this.createdAt,
   });
 
@@ -281,6 +283,9 @@ class DiscoverCandidate {
         isVerified: json['isVerified'] ?? json['is_verified'] as bool?,
         tokenId: User._parseTokenId(json['tokenId'] ?? json['token_id']),
         photos: User._parsePhotos(json['photos']),
+        interests: json['interests'] != null
+            ? List<String>.from(json['interests'] as List)
+            : null,
         createdAt: json['createdAt'] != null
             ? DateTime.parse(json['createdAt'] as String)
             : null,

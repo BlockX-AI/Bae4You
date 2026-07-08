@@ -10,6 +10,8 @@ class Pet {
   final String? username;
   final String? displayName;
   final String? avatarIpfsHash;
+  final Map<String, dynamic>? bitmojiConfig;
+  final Map<String, dynamic>? avataaarsConfig;
   final String? countryCode;
   final bool? isVerified;
 
@@ -25,6 +27,8 @@ class Pet {
     this.username,
     this.displayName,
     this.avatarIpfsHash,
+    this.bitmojiConfig,
+    this.avataaarsConfig,
     this.countryCode,
     this.isVerified,
   });
@@ -67,6 +71,10 @@ class Pet {
         displayName: (json['displayName'] ?? json['display_name']) as String?,
         avatarIpfsHash:
             (json['avatarIpfsHash'] ?? json['avatar_ipfs_hash']) as String?,
+        bitmojiConfig: (json['bitmojiConfig'] ?? json['bitmoji_config'])
+            as Map<String, dynamic>?,
+        avataaarsConfig: (json['avataaarsConfig'] ?? json['avataaars_config'])
+            as Map<String, dynamic>?,
         countryCode: (json['countryCode'] ?? json['country_code']) as String?,
         isVerified: _toBool(json['isVerified'] ?? json['is_verified']),
       );

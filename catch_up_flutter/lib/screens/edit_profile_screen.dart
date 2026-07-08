@@ -169,20 +169,22 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       // POST /users/me/photos replaces the whole array, so send everything.
       final List<Uint8List> allBytes = List.of(_newPhotoBytes);
       List<String> finalPhotos = List.of(_existingPhotos);
-      if (allBytes.isNotEmpty || _existingPhotos.isNotEmpty) {
+      if (allBytes.isNotEmpty) {
         try {
-          if (allBytes.isNotEmpty) {
-            final uploaded = await apiService.uploadPhotos(token: token, photos: allBytes);
-            // uploadPhotos replaces the server array with just the new uploads,
-            // so re-persist the full ordered list via updateProfile below.
-            finalPhotos = [..._existingPhotos, ...uploaded];
-          }
+          final uploaded = await apiService.uploadPhotos(token: token, photos: allBytes);
+          // uploadPhotos replaces the server array with just the new uploads,
+          // so re-persist the full ordered list via updateProfile below.
+          finalPhotos = [..._existingPhotos, ...uploaded];
         } catch (e) {
+          // Abort the whole save — do NOT report success or we'd silently
+          // drop the photos the user just picked.
           if (mounted) {
+            setState(() => _isLoading = false);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Photo upload failed: $e'), backgroundColor: Colors.red),
             );
           }
+          return;
         }
       }
 
