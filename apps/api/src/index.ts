@@ -224,7 +224,8 @@ async function bootstrap() {
     await db.query(`
       ALTER TABLE users
         ADD COLUMN IF NOT EXISTS avataaars_config JSONB,
-        ADD COLUMN IF NOT EXISTS avataaars_traits JSONB
+        ADD COLUMN IF NOT EXISTS avataaars_traits JSONB,
+        ADD COLUMN IF NOT EXISTS photos JSONB
     `);
   } catch (e) {
     app.log.warn("avataaars migration skipped: " + (e as Error).message);
