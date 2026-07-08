@@ -230,6 +230,13 @@ async function bootstrap() {
     app.log.warn("avataaars migration skipped: " + (e as Error).message);
   }
 
+  // Auto-migrate offchain token sequence for pet registration
+  try {
+    await db.query(`CREATE SEQUENCE IF NOT EXISTS offchain_token_id_seq START 1000000`);
+  } catch (e) {
+    app.log.warn("offchain_token_id_seq migration skipped: " + (e as Error).message);
+  }
+
   // Routes
   await app.register(authRoutes,     { prefix: "/auth"     });
   await app.register(usersRoutes,    { prefix: "/users"    });
