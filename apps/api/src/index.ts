@@ -249,6 +249,26 @@ async function bootstrap() {
     app.log.warn("gender/interested_in migration skipped: " + (e as Error).message);
   }
 
+  // Auto-migrate moderation reports table
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS reports (
+        id           UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+        reporter_id  UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        reported_id  UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        reason       VARCHAR(50) NOT NULL,
+        details      TEXT,
+        status       VARCHAR(20) NOT NULL DEFAULT 'open',
+        created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        reviewed_at  TIMESTAMPTZ
+      );
+      CREATE INDEX IF NOT EXISTS idx_reports_reported ON reports (reported_id);
+      CREATE INDEX IF NOT EXISTS idx_reports_status   ON reports (status);
+    `);
+  } catch (e) {
+    app.log.warn("reports migration skipped: " + (e as Error).message);
+  }
+
   // Routes
   await app.register(authRoutes,     { prefix: "/auth"     });
   await app.register(usersRoutes,    { prefix: "/users"    });

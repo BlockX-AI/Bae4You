@@ -581,6 +581,28 @@ class ApiService {
       throw _handleError(e);
     }
   }
+
+  /// POST /matches/report/:targetUserId - Report a user (also blocks & unmatches).
+  /// reason: 'spam'|'harassment'|'fake'|'inappropriate'|'other'
+  Future<void> reportUser({
+    required String targetUserId,
+    required String reason,
+    String? details,
+    required String token,
+  }) async {
+    try {
+      await _dio.post(
+        '/matches/report/$targetUserId',
+        data: {
+          'reason': reason,
+          if (details != null && details.isNotEmpty) 'details': details,
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
   
   // ============ MESSAGES ENDPOINTS ============
 

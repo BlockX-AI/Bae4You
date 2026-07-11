@@ -145,6 +145,79 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       };
     }
   );
+
+  // GET /admin/reports — moderation queue (defaults to open reports)
+  fastify.get(
+    "/reports",
+    async (req, reply) => {
+      const { status = "open", page = "1", limit = "50" } = req.query as Record<string, string>;
+      const pageNum  = Math.max(1, parseInt(page)  || 1);
+      const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+      const offset   = (pageNum - 1) * limitNum;
+
+      const params: unknown[] = [];
+      let where = "WHERE 1=1";
+      let i = 1;
+      // status=all disables the filter; otherwise filter by the given status
+      if (status && status !== "all") {
+        where += ` AND r.status = $${i++}`;
+        params.push(status);
+      }
+
+      const listQuery = `
+        SELECT r.id, r.reason, r.details, r.status, r.created_at, r.reviewed_at,
+               r.reporter_id, r.reported_id,
+               rep.username  AS reporter_username, rep.display_name AS reporter_name,
+               tgt.username  AS reported_username, tgt.display_name AS reported_name,
+               tgt.status    AS reported_status,
+               (SELECT COUNT(*) FROM reports r2 WHERE r2.reported_id = r.reported_id) AS reported_total
+        FROM reports r
+        JOIN users rep ON rep.id = r.reporter_id
+        JOIN users tgt ON tgt.id = r.reported_id
+        ${where}
+        ORDER BY r.created_at DESC
+        LIMIT $${i++} OFFSET $${i++}`;
+      params.push(limitNum, offset);
+
+      const countParams = params.slice(0, status && status !== "all" ? 1 : 0);
+      const countQuery = `SELECT COUNT(*) FROM reports r ${where}`;
+
+      const [{ rows }, { rows: countRows }] = await Promise.all([
+        db.query(listQuery, params),
+        db.query(countQuery, countParams),
+      ]);
+      return { reports: rows, total: parseInt(countRows[0].count), page: pageNum };
+    }
+  );
+
+  // PUT /admin/reports/:id — action a report.
+  // body: { status: 'reviewed'|'actioned'|'dismissed', suspendUser?: boolean }
+  fastify.put<{ Params: { id: string } }>(
+    "/reports/:id",
+    async (req, reply) => {
+      if (!UUID_RE.test(req.params.id)) return reply.code(400).send({ error: "Invalid report id" });
+      const { status, suspendUser } = (req.body ?? {}) as { status?: string; suspendUser?: boolean };
+
+      const ALLOWED = new Set(["reviewed", "actioned", "dismissed"]);
+      if (!status || !ALLOWED.has(status)) {
+        return reply.code(400).send({ error: "status must be reviewed, actioned, or dismissed" });
+      }
+
+      const { rows } = await db.query(
+        `UPDATE reports SET status = $1, reviewed_at = NOW() WHERE id = $2
+         RETURNING id, reported_id`,
+        [status, req.params.id]
+      );
+      if (!rows[0]) return reply.code(404).send({ error: "Report not found" });
+
+      // Optionally suspend the reported user in the same action
+      if (suspendUser) {
+        await db.query("UPDATE users SET status = 'suspended' WHERE id = $1", [rows[0].reported_id]);
+      }
+
+      return { success: true, suspended: !!suspendUser };
+    }
+  );
 };
 
 export default adminRoutes;

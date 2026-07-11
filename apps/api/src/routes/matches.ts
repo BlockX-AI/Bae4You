@@ -383,7 +383,12 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // POST /matches/report/:targetUserId — report a user (creates block + admin flag)
+  // POST /matches/report/:targetUserId — report a user.
+  // Records a moderation report AND blocks the target (also removes any match).
+  const REPORT_REASONS = new Set([
+    "spam", "harassment", "fake", "inappropriate", "other",
+  ]);
+
   fastify.post<{ Params: { targetUserId: string } }>(
     "/report/:targetUserId",
     { preHandler: fastify.authenticate },
@@ -393,14 +398,30 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
       if (!UUID_RE.test(targetId)) return reply.code(400).send({ error: "Invalid targetUserId" });
       if (payload.userId === targetId) return reply.code(400).send({ error: "Cannot report yourself" });
 
-      const { reason } = (req.body ?? {}) as { reason?: string };
+      const body    = (req.body ?? {}) as { reason?: string; details?: string };
+      const reason  = REPORT_REASONS.has(body.reason ?? "") ? body.reason! : "other";
+      const details = typeof body.details === "string" ? body.details.slice(0, 1000) : null;
+
+      // Ensure the reported user exists
+      const { rows: targetRows } = await db.query(
+        "SELECT id FROM users WHERE id = $1",
+        [targetId]
+      );
+      if (!targetRows[0]) return reply.code(404).send({ error: "User not found" });
+
+      // Record the moderation report (queue admins review)
+      await db.query(
+        `INSERT INTO reports (reporter_id, reported_id, reason, details)
+         VALUES ($1, $2, $3, $4)`,
+        [payload.userId, targetId, reason, details]
+      );
 
       // Block them (also removes active match)
       await db.query(
         `INSERT INTO blocked_users (blocker_id, blocked_id, reason)
          VALUES ($1, $2, $3)
          ON CONFLICT (blocker_id, blocked_id) DO UPDATE SET reason = EXCLUDED.reason`,
-        [payload.userId, targetId, reason ?? null]
+        [payload.userId, targetId, reason]
       );
 
       await db.query(

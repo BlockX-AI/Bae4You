@@ -4,6 +4,7 @@ import '../design/tokens.dart';
 import '../providers/match_provider.dart';
 import '../models/user_models.dart';
 import '../widgets/avatar_display.dart';
+import '../widgets/report_sheet.dart';
 import 'chat_screen.dart';
 
 class SwipeScreen extends ConsumerStatefulWidget {
@@ -653,7 +654,26 @@ class _ProfileDetailSheetState extends State<_ProfileDetailSheet> {
                       child: Text(interest, style: AppTokens.textStyles.body.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
                     )).toList(),
                   ),
+                  const SizedBox(height: 20),
                 ],
+                // Report action — blocks + unmatches + files a moderation report.
+                Consumer(builder: (context, ref, _) {
+                  return TextButton.icon(
+                    onPressed: () async {
+                      final reported = await showReportSheet(context, ref, userId: candidate.id, name: name);
+                      if (reported && context.mounted) {
+                        Navigator.pop(context); // close the detail sheet
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Reported $name'), backgroundColor: AppTokens.surface2),
+                        );
+                        ref.invalidate(discoverCandidatesProvider);
+                      }
+                    },
+                    icon: const Icon(Icons.flag_outlined, size: 18, color: AppTokens.danger),
+                    label: Text('Report ${name.split(' ').first}',
+                        style: AppTokens.textStyles.body.copyWith(fontSize: 13, color: AppTokens.danger)),
+                  );
+                }),
                 const SizedBox(height: 24),
               ]),
             ),

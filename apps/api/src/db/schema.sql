@@ -315,6 +315,21 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS gender        VARCHAR(20),
   ADD COLUMN IF NOT EXISTS interested_in VARCHAR(20);
 
+-- Moderation reports queue
+CREATE TABLE IF NOT EXISTS reports (
+  id           UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  reporter_id  UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reported_id  UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reason       VARCHAR(50) NOT NULL,   -- 'spam'|'harassment'|'fake'|'inappropriate'|'other'
+  details      TEXT,
+  status       VARCHAR(20) NOT NULL DEFAULT 'open',  -- 'open'|'reviewed'|'actioned'|'dismissed'
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  reviewed_at  TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_reports_reported ON reports (reported_id);
+CREATE INDEX IF NOT EXISTS idx_reports_status   ON reports (status);
+
 -- Off-chain token_id allocator (game pets that are not minted on-chain)
 CREATE SEQUENCE IF NOT EXISTS offchain_token_id_seq START 1000000;
 

@@ -7,7 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../models/user_models.dart';
 import '../services/chat_service.dart';
-import '../models/chat_models.dart';
+import '../widgets/report_sheet.dart';
 
 class ChatScreen extends ConsumerWidget {
   const ChatScreen({super.key});
@@ -345,6 +345,34 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                           ),
                         ],
                       ),
+                    ),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, color: AppColors.textPrimary),
+                      color: AppColors.surface,
+                      onSelected: (value) async {
+                        if (value == 'report') {
+                          if (widget.partnerId.isEmpty) return;
+                          final reported = await showReportSheet(
+                            context, ref,
+                            userId: widget.partnerId,
+                            name: widget.displayName,
+                          );
+                          if (reported && context.mounted) {
+                            ref.invalidate(matchesProvider);
+                            Navigator.pop(context); // leave the conversation
+                          }
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: 'report',
+                          child: Row(children: [
+                            const Icon(Icons.flag_outlined, size: 18, color: Colors.red),
+                            const SizedBox(width: 10),
+                            Text('Report & block', style: GoogleFonts.inter(color: AppColors.textPrimary)),
+                          ]),
+                        ),
+                      ],
                     ),
                   ],
                 ),
