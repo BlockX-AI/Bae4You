@@ -3,22 +3,54 @@ import '../models/user_models.dart';
 import '../services/api_service.dart';
 import 'auth_provider.dart';
 
-// Discover candidates provider
+/// Active discovery filters. Null fields mean "no constraint".
+class DiscoverFilters {
+  final int minAge;
+  final int maxAge;
+  final String? gender; // 'male' | 'female' | 'nonbinary' | 'other' | null (any)
+
+  const DiscoverFilters({
+    this.minAge = 18,
+    this.maxAge = 60,
+    this.gender,
+  });
+
+  DiscoverFilters copyWith({int? minAge, int? maxAge, String? gender, bool clearGender = false}) {
+    return DiscoverFilters(
+      minAge: minAge ?? this.minAge,
+      maxAge: maxAge ?? this.maxAge,
+      gender: clearGender ? null : (gender ?? this.gender),
+    );
+  }
+
+  /// Only send age bounds to the backend when narrowed from the full range.
+  int? get minAgeParam => minAge > 18 ? minAge : null;
+  int? get maxAgeParam => maxAge < 60 ? maxAge : null;
+}
+
+final discoverFiltersProvider =
+    StateProvider<DiscoverFilters>((ref) => const DiscoverFilters());
+
+// Discover candidates provider — refetches when filters change.
 final discoverCandidatesProvider = FutureProvider<List<DiscoverCandidate>>((ref) async {
   final apiService = ref.read(apiServiceProvider);
   final token = ref.read(authProvider).token;
-  
+  final filters = ref.watch(discoverFiltersProvider);
+
   if (token == null) {
     throw Exception('Not authenticated');
   }
-  
-  try {
-    final response = await apiService.getDiscoverCandidates(token);
-    return response.candidates;
-  } catch (e) {
-    // Return mock data for demo if API fails
-    return _mockCandidates;
-  }
+
+  // Let errors propagate so the swipe screen can show a real error state
+  // instead of silently masking failures with mock profiles.
+  final response = await apiService.discoverMatches(
+    token: token,
+    limit: '20',
+    minAge: filters.minAgeParam,
+    maxAge: filters.maxAgeParam,
+    gender: filters.gender,
+  );
+  return response.candidates;
 });
 
 // Matches provider
@@ -81,54 +113,6 @@ final matchActionProvider = StateNotifierProvider<MatchActionNotifier, AsyncValu
 });
 
 // Mock data for demo
-final _mockCandidates = [
-  DiscoverCandidate(
-    id: '1',
-    displayName: 'Priya',
-    username: 'priya_26',
-    countryCode: 'IN',
-    isVerified: true,
-    bio: 'Love traveling and coffee. Looking for someone to explore the world with.',
-    tokenId: 101,
-  ),
-  DiscoverCandidate(
-    id: '2',
-    displayName: 'Arjun',
-    username: 'arjun_dev',
-    countryCode: 'IN',
-    isVerified: true,
-    bio: 'Blockchain developer by day, musician by night.',
-    tokenId: 102,
-  ),
-  DiscoverCandidate(
-    id: '3',
-    displayName: 'Maya',
-    username: 'maya_art',
-    countryCode: 'IN',
-    isVerified: false,
-    bio: 'Digital artist and crypto enthusiast.',
-    tokenId: 103,
-  ),
-  DiscoverCandidate(
-    id: '4',
-    displayName: 'Rahul',
-    username: 'rahul_gym',
-    countryCode: 'IN',
-    isVerified: true,
-    bio: 'Fitness coach and NFT collector.',
-    tokenId: 104,
-  ),
-  DiscoverCandidate(
-    id: '5',
-    displayName: 'Ananya',
-    username: 'ananya_writes',
-    countryCode: 'IN',
-    isVerified: false,
-    bio: 'Writer, reader, dreamer.',
-    tokenId: 105,
-  ),
-];
-
 final _mockMatches = [
   Match(
     id: 'match1',

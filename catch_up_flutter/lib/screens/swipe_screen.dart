@@ -14,7 +14,7 @@ class SwipeScreen extends ConsumerStatefulWidget {
 
 class _SwipeScreenState extends ConsumerState<SwipeScreen> {
   String _activeFilter = 'All';
-  final List<String> _filters = ['All', 'Near Me', 'Verified', 'New'];
+  final List<String> _filters = ['All', 'Verified', 'New'];
 
   @override
   Widget build(BuildContext context) {
@@ -114,41 +114,82 @@ class _SwipeScreenState extends ConsumerState<SwipeScreen> {
   }
 
   void _showFilterSheet() {
+    // Draft state, seeded from the current filters. Committed only on "Apply".
+    final current = ref.read(discoverFiltersProvider);
+    var ageRange = RangeValues(current.minAge.toDouble(), current.maxAge.toDouble());
+    String? gender = current.gender;
+
+    const genderOptions = [
+      {'value': null, 'label': 'Everyone'},
+      {'value': 'male', 'label': 'Men'},
+      {'value': 'female', 'label': 'Women'},
+      {'value': 'nonbinary', 'label': 'Non-binary'},
+    ];
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(color: AppTokens.surface, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Filters', style: AppTokens.textStyles.h2.copyWith(fontSize: 24, color: AppTokens.textHi, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 20),
-          Text('Distance', style: AppTokens.textStyles.body.copyWith(fontSize: 14, fontWeight: FontWeight.w600, color: AppTokens.textMid)),
-          const SizedBox(height: 8),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(activeTrackColor: AppTokens.accent, thumbColor: AppTokens.accentMuted, inactiveTrackColor: AppTokens.border),
-            child: Slider(value: 50, min: 5, max: 200, onChanged: (_) {}),
-          ),
-          const SizedBox(height: 16),
-          Text('Age Range', style: AppTokens.textStyles.body.copyWith(fontSize: 14, fontWeight: FontWeight.w600, color: AppTokens.textMid)),
-          const SizedBox(height: 8),
-          RangeSlider(
-            values: const RangeValues(20, 35),
-            min: 18, max: 60,
-            activeColor: AppTokens.accent,
-            inactiveColor: AppTokens.border,
-            onChanged: (_) {},
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(backgroundColor: AppTokens.accentMuted, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), padding: const EdgeInsets.symmetric(vertical: 14)),
-              child: Text('Apply Filters', style: AppTokens.textStyles.body.copyWith(fontWeight: FontWeight.w600)),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setSheetState) => Container(
+          decoration: const BoxDecoration(color: AppTokens.surface, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Filters', style: AppTokens.textStyles.h2.copyWith(fontSize: 24, color: AppTokens.textHi, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 20),
+            Text('Show me', style: AppTokens.textStyles.body.copyWith(fontSize: 14, fontWeight: FontWeight.w600, color: AppTokens.textMid)),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8, runSpacing: 8,
+              children: genderOptions.map((opt) {
+                final selected = gender == opt['value'];
+                return GestureDetector(
+                  onTap: () => setSheetState(() => gender = opt['value']),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: selected ? const LinearGradient(colors: [AppTokens.accent, AppTokens.accentMuted]) : null,
+                      color: selected ? null : AppTokens.bg,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: selected ? Colors.transparent : AppTokens.border),
+                    ),
+                    child: Text(opt['label'] as String, style: AppTokens.textStyles.body.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: selected ? Colors.white : AppTokens.textMid)),
+                  ),
+                );
+              }).toList(),
             ),
-          ),
-        ]),
+            const SizedBox(height: 20),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text('Age Range', style: AppTokens.textStyles.body.copyWith(fontSize: 14, fontWeight: FontWeight.w600, color: AppTokens.textMid)),
+              Text('${ageRange.start.round()} – ${ageRange.end.round()}', style: AppTokens.textStyles.body.copyWith(fontSize: 13, color: AppTokens.textHi, fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 8),
+            RangeSlider(
+              values: ageRange,
+              min: 18, max: 60,
+              divisions: 42,
+              labels: RangeLabels('${ageRange.start.round()}', '${ageRange.end.round()}'),
+              activeColor: AppTokens.accent,
+              inactiveColor: AppTokens.border,
+              onChanged: (v) => setSheetState(() => ageRange = v),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  ref.read(discoverFiltersProvider.notifier).state = DiscoverFilters(
+                    minAge: ageRange.start.round(),
+                    maxAge: ageRange.end.round(),
+                    gender: gender,
+                  );
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: AppTokens.accentMuted, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), padding: const EdgeInsets.symmetric(vertical: 14)),
+                child: Text('Apply Filters', style: AppTokens.textStyles.body.copyWith(fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ]),
+        ),
       ),
     );
   }

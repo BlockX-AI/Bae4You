@@ -468,6 +468,9 @@ class ApiService {
     String? limit,
     String? offset,
     String? country,
+    int? minAge,
+    int? maxAge,
+    String? gender,
     required String token,
   }) async {
     if (demoMode) {
@@ -497,8 +500,11 @@ class ApiService {
         if (limit != null) 'limit': limit,
         if (offset != null) 'offset': offset,
         if (country != null) 'country': country,
+        if (minAge != null) 'minAge': '$minAge',
+        if (maxAge != null) 'maxAge': '$maxAge',
+        if (gender != null) 'gender': gender,
       };
-      
+
       final response = await _dio.get(
         '/matches/discover',
         queryParameters: queryParams,

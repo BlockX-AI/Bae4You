@@ -261,6 +261,8 @@ class DiscoverCandidate {
   final Map<String, dynamic>? bitmojiConfig;
   final String? bio;
   final String? countryCode;
+  final String? gender;
+  final DateTime? birthDate;
   final bool? isVerified;
   final int? tokenId;
   final List<String>? photos;
@@ -275,12 +277,24 @@ class DiscoverCandidate {
     this.bitmojiConfig,
     this.bio,
     this.countryCode,
+    this.gender,
+    this.birthDate,
     this.isVerified,
     this.tokenId,
     this.photos,
     this.interests,
     this.createdAt,
   });
+
+  /// Age in years derived from birthDate, or null if unknown.
+  int? get age {
+    final b = birthDate;
+    if (b == null) return null;
+    final now = DateTime.now();
+    var years = now.year - b.year;
+    if (now.month < b.month || (now.month == b.month && now.day < b.day)) years--;
+    return years >= 0 && years < 130 ? years : null;
+  }
 
   factory DiscoverCandidate.fromJson(Map<String, dynamic> json) =>
       DiscoverCandidate(
@@ -292,6 +306,10 @@ class DiscoverCandidate {
             as Map<String, dynamic>?,
         bio: json['bio'] as String?,
         countryCode: json['countryCode'] ?? json['country_code'] as String?,
+        gender: json['gender'] as String?,
+        birthDate: (json['birthDate'] ?? json['birth_date']) != null
+            ? DateTime.tryParse((json['birthDate'] ?? json['birth_date']).toString())
+            : null,
         isVerified: json['isVerified'] ?? json['is_verified'] as bool?,
         tokenId: User._parseTokenId(json['tokenId'] ?? json['token_id']),
         photos: User._parsePhotos(json['photos']),

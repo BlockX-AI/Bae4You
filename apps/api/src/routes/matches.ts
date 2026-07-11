@@ -223,9 +223,17 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (req, reply) => {
       const payload = req.user as JwtPayload;
-      const { limit = "10", offset = "0", country } = req.query as Record<string, string>;
+      const { limit = "10", offset = "0", country, minAge, maxAge, gender } =
+        req.query as Record<string, string>;
       const limitNum  = Math.min(Math.max(1, parseInt(limit)  || 10), 100);
       const offsetNum = Math.max(0, parseInt(offset) || 0);
+
+      // Optional age-range filter (clamped to 18..99; ignored if unset/invalid).
+      const minAgeNum = minAge ? Math.min(Math.max(18, parseInt(minAge) || 18), 99) : null;
+      const maxAgeNum = maxAge ? Math.min(Math.max(18, parseInt(maxAge) || 99), 99) : null;
+      // Optional explicit gender filter (overrides stored preference for this query).
+      const GENDERS = new Set(["male", "female", "nonbinary", "other"]);
+      const genderFilter = gender && GENDERS.has(gender) ? gender : null;
 
       // Collect already-interacted + already-passed + blocked user IDs to exclude
       const [{ rows: interacted }, { rows: passed }, { rows: blockedBy }, { rows: blockedMe }] = await Promise.all([
@@ -280,6 +288,28 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
         return parts.length ? ` AND ${parts.join(" AND ")}` : "";
       };
 
+      // Build the optional age-range + explicit-gender filter fragment.
+      // Age is derived from birth_date; rows with a null birth_date are excluded
+      // only when an age bound is actually set.
+      const filterClause = (params: unknown[]): string => {
+        const parts: string[] = [];
+        // age >= minAge  ⇔  born on/before (now - minAge years)
+        if (minAgeNum !== null) {
+          params.push(minAgeNum);
+          parts.push(`birth_date <= (NOW() - ($${params.length} || ' years')::interval)`);
+        }
+        // age <= maxAge  ⇔  born on/after (now - (maxAge + 1) years)
+        if (maxAgeNum !== null) {
+          params.push(maxAgeNum);
+          parts.push(`birth_date >= (NOW() - (($${params.length} + 1) || ' years')::interval)`);
+        }
+        if (genderFilter) {
+          params.push(genderFilter);
+          parts.push(`gender = $${params.length}`);
+        }
+        return parts.length ? ` AND ${parts.join(" AND ")}` : "";
+      };
+
       let orderedIds: string[] | null = null;
       if (myVector) {
         try {
@@ -296,7 +326,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
         const params: unknown[] = [orderedIds];
         let q = `
           SELECT id, username, display_name, avatar_ipfs_hash, cartoon_avatar, bio,
-                 country_code, is_verified, token_id, photos, interests, created_at
+                 country_code, gender, birth_date, is_verified, token_id, photos, interests, created_at
           FROM users
           WHERE id = ANY($1::uuid[]) AND status = 'active'
         `;
@@ -305,6 +335,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
           params.push(country.toUpperCase());
         }
         q += orientationClause(params);
+        q += filterClause(params);
         const { rows: fetched } = await db.query(q, params);
         // Re-sort by Pinecone rank order
         const byId = new Map((fetched as Array<{ id: string }>).map((u) => [u.id, u]));
@@ -314,7 +345,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
         const params: unknown[] = [excludeArr, limitNum, offsetNum];
         let q = `
           SELECT id, username, display_name, avatar_ipfs_hash, cartoon_avatar, bio,
-                 country_code, is_verified, token_id, photos, interests, created_at
+                 country_code, gender, birth_date, is_verified, token_id, photos, interests, created_at
           FROM users
           WHERE id != ALL($1::uuid[]) AND status = 'active'
         `;
@@ -323,6 +354,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
           params.push(country.toUpperCase());
         }
         q += orientationClause(params);
+        q += filterClause(params);
         q += ` ORDER BY RANDOM() LIMIT $2 OFFSET $3`;
         const { rows: fetched } = await db.query(q, params);
         rows = fetched;
