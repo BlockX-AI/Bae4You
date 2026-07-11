@@ -22,11 +22,18 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
     with TickerProviderStateMixin {
   final PageController _pageController = PageController();
   int _step = 0;
-  final int _totalSteps = 6;
+  final int _totalSteps = 7;
+
+  // Steps on which the "Skip" action is offered (optional steps only).
+  static const Set<int> _skippableSteps = {3, 4, 5};
 
   // Step 1 - Name
   final _nameController = TextEditingController();
   final _usernameController = TextEditingController();
+
+  // Step 2 - Gender & orientation (required for matching)
+  String? _gender;        // 'male' | 'female' | 'nonbinary' | 'other'
+  String? _interestedIn;  // 'male' | 'female' | 'everyone'
 
   // Step 2 - Photos (up to 6, first 3 mandatory). Holds picked image bytes;
   // uploaded to IPFS at save time.
@@ -104,6 +111,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
               : _usernameController.text.trim().toLowerCase(),
           bio: bio.isEmpty ? null : bio,
           countryCode: countryCode,
+          gender: _gender,
+          interestedIn: _interestedIn,
           interests: _selectedInterests.isEmpty ? null : _selectedInterests.toList(),
           photos: photoUrls,
         );
@@ -162,11 +171,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
   bool get _canProceed {
     switch (_step) {
       case 0: return _nameController.text.trim().isNotEmpty;
-      case 1: return _photoBytes.length >= 3;
-      case 2: return true;
-      case 3: return _bioController.text.trim().isNotEmpty;
-      case 4: return _selectedInterests.length >= 3;
-      case 5: return true;
+      case 1: return _gender != null && _interestedIn != null;
+      case 2: return _photoBytes.length >= 3;
+      case 3: return true;
+      case 4: return _bioController.text.trim().isNotEmpty;
+      case 5: return _selectedInterests.length >= 3;
+      case 6: return true;
       default: return false;
     }
   }
@@ -186,6 +196,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
                   _buildNameStep(),
+                  _buildAboutYouStep(),
                   _buildPhotosStep(),
                   _buildAvatarStep(),
                   _buildBioStep(),
@@ -220,8 +231,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
               style: GoogleFonts.fredoka(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
             ),
           ),
-          // Skip is hidden on required steps (Name, Photos) and the final step.
-          if (_step >= 2 && _step < _totalSteps - 1)
+          // Skip is offered only on optional steps (Avatar, Bio, Interests).
+          if (_skippableSteps.contains(_step))
             TextButton(
               onPressed: _next,
               child: Text('Skip', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textHint)),
@@ -236,11 +247,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
   String get _stepTitle {
     switch (_step) {
       case 0: return 'Your Name';
-      case 1: return 'Your Photos';
-      case 2: return 'Pick Avatar';
-      case 3: return 'About You';
-      case 4: return 'Your Interests';
-      case 5: return 'All Set!';
+      case 1: return 'About You';
+      case 2: return 'Your Photos';
+      case 3: return 'Pick Avatar';
+      case 4: return 'Your Story';
+      case 5: return 'Your Interests';
+      case 6: return 'All Set!';
       default: return '';
     }
   }
@@ -288,7 +300,74 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen>
     );
   }
 
-  // ── STEP 2: Photos ────────────────────────────────────────
+  // ── STEP 2: About You (gender + orientation) ──────────────
+  Widget _buildAboutYouStep() {
+    const genders = [
+      {'value': 'male', 'label': 'Man'},
+      {'value': 'female', 'label': 'Woman'},
+      {'value': 'nonbinary', 'label': 'Non-binary'},
+      {'value': 'other', 'label': 'Other'},
+    ];
+    const preferences = [
+      {'value': 'male', 'label': 'Men'},
+      {'value': 'female', 'label': 'Women'},
+      {'value': 'everyone', 'label': 'Everyone'},
+    ];
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const SizedBox(height: 12),
+        Text('A bit about you', style: GoogleFonts.fredoka(fontSize: 28, color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        Text('This helps us show you the right people.', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary)),
+        const SizedBox(height: 32),
+        Text('I am a', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10, runSpacing: 10,
+          children: genders.map((g) => _choiceChip(
+            label: g['label']!,
+            selected: _gender == g['value'],
+            onTap: () => setState(() => _gender = g['value']),
+          )).toList(),
+        ),
+        const SizedBox(height: 28),
+        Text('Show me', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10, runSpacing: 10,
+          children: preferences.map((p) => _choiceChip(
+            label: p['label']!,
+            selected: _interestedIn == p['value'],
+            onTap: () => setState(() => _interestedIn = p['value']),
+          )).toList(),
+        ),
+      ]),
+    );
+  }
+
+  Widget _choiceChip({required String label, required bool selected, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: () {
+        onTap();
+        setState(() {}); // refresh _canProceed on the bottom bar
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: selected ? AppColors.buttonGradient : null,
+          color: selected ? null : AppColors.surfaceCard,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: selected ? Colors.transparent : AppColors.border),
+          boxShadow: selected ? [BoxShadow(color: AppColors.primary.withOpacity(0.25), blurRadius: 8, offset: const Offset(0, 2))] : [],
+        ),
+        child: Text(label, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: selected ? Colors.white : AppColors.textSecondary)),
+      ),
+    );
+  }
+
+  // ── STEP 3: Photos ────────────────────────────────────────
   Future<void> _pickPhoto() async {
     if (_photoBytes.length >= 6) return;
     try {

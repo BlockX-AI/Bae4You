@@ -308,6 +308,13 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS avatar_url    TEXT,
   ADD COLUMN IF NOT EXISTS photos        JSONB DEFAULT '[]'::jsonb;
 
+-- Dating orientation fields (nullable = treated as 'everyone' in discovery)
+--   gender:        'male' | 'female' | 'nonbinary' | 'other'
+--   interested_in: 'male' | 'female' | 'everyone'
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS gender        VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS interested_in VARCHAR(20);
+
 -- Off-chain token_id allocator (game pets that are not minted on-chain)
 CREATE SEQUENCE IF NOT EXISTS offchain_token_id_seq START 1000000;
 

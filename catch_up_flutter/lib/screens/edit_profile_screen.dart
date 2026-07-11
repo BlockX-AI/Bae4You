@@ -23,6 +23,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late TextEditingController _bioController;
   
   String? _selectedCountry;
+  String? _gender;
+  String? _interestedIn;
   List<String> _selectedInterests = [];
   bool _isLoading = false;
   bool _hasChanges = false;
@@ -70,6 +72,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _usernameController = TextEditingController(text: user?.username ?? '');
     _bioController = TextEditingController(text: user?.bio ?? '');
     _selectedCountry = user?.countryCode;
+    _gender = user?.gender;
+    _interestedIn = user?.interestedIn;
     _existingPhotos = List<String>.from(user?.photos ?? const []);
     _selectedInterests = List<String>.from(user?.interests ?? []);
   }
@@ -195,6 +199,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         username: _usernameController.text.trim().toLowerCase(),
         bio: _bioController.text.trim(),
         countryCode: _selectedCountry ?? 'IN',
+        gender: _gender,
+        interestedIn: _interestedIn,
         interests: _selectedInterests,
         photos: finalPhotos,
       );
@@ -456,7 +462,51 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         ),
                         
                         const SizedBox(height: 24),
-                        
+
+                        // Gender & orientation
+                        _buildSectionTitle('I am'),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: const [
+                            {'value': 'male', 'label': 'Man'},
+                            {'value': 'female', 'label': 'Woman'},
+                            {'value': 'nonbinary', 'label': 'Non-binary'},
+                            {'value': 'other', 'label': 'Other'},
+                          ].map((g) => _buildChoiceChip(
+                                label: g['label']!,
+                                selected: _gender == g['value'],
+                                onTap: () => setState(() {
+                                  _gender = g['value'];
+                                  _hasChanges = true;
+                                }),
+                              )).toList(),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        _buildSectionTitle('Show me'),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: const [
+                            {'value': 'male', 'label': 'Men'},
+                            {'value': 'female', 'label': 'Women'},
+                            {'value': 'everyone', 'label': 'Everyone'},
+                          ].map((p) => _buildChoiceChip(
+                                label: p['label']!,
+                                selected: _interestedIn == p['value'],
+                                onTap: () => setState(() {
+                                  _interestedIn = p['value'];
+                                  _hasChanges = true;
+                                }),
+                              )).toList(),
+                        ),
+
+                        const SizedBox(height: 24),
+
                         // Interests Section
                         _buildSectionTitle('Interests (${_selectedInterests.length}/5)'),
                         const SizedBox(height: 12),
@@ -648,6 +698,39 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         const SizedBox(height: 8),
         child,
       ],
+    );
+  }
+
+  Widget _buildChoiceChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          gradient: selected
+              ? const LinearGradient(colors: [Color(0xFFFF6BB0), AppColors.primary])
+              : null,
+          color: selected ? null : Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? Colors.white.withOpacity(0.3)
+                : Colors.white.withOpacity(0.2),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ),
     );
   }
 

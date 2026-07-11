@@ -238,6 +238,17 @@ async function bootstrap() {
     app.log.warn("offchain_token_id_seq migration skipped: " + (e as Error).message);
   }
 
+  // Auto-migrate dating orientation columns (gender + interested_in)
+  try {
+    await db.query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS gender        VARCHAR(20),
+        ADD COLUMN IF NOT EXISTS interested_in VARCHAR(20)
+    `);
+  } catch (e) {
+    app.log.warn("gender/interested_in migration skipped: " + (e as Error).message);
+  }
+
   // Routes
   await app.register(authRoutes,     { prefix: "/auth"     });
   await app.register(usersRoutes,    { prefix: "/users"    });

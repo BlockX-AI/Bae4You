@@ -251,10 +251,34 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Try Pinecone vector matching first
       const { rows: meRows } = await db.query(
-        "SELECT personality_vector FROM users WHERE id = $1",
+        "SELECT personality_vector, gender, interested_in FROM users WHERE id = $1",
         [payload.userId]
       );
-      const myVector = meRows[0]?.personality_vector;
+      const myVector       = meRows[0]?.personality_vector;
+      const myGender       = meRows[0]?.gender ?? null;
+      const myInterestedIn = meRows[0]?.interested_in ?? null;
+
+      // Build a mutual-orientation SQL fragment. Appends its params to `params`
+      // and returns the clause (or "" if no constraint applies). Null-safe:
+      // a null gender/preference on either side is treated as "everyone", so
+      // users who haven't set orientation yet stay discoverable.
+      const orientationClause = (params: unknown[]): string => {
+        const parts: string[] = [];
+        // Direction 1: candidate's gender must satisfy MY preference.
+        if (myInterestedIn && myInterestedIn !== "everyone") {
+          params.push(myInterestedIn);
+          parts.push(`(gender IS NULL OR gender = $${params.length})`);
+        }
+        // Direction 2: MY gender must satisfy the candidate's preference.
+        // If I haven't set a gender, skip (stay non-strict / discoverable).
+        if (myGender) {
+          params.push(myGender);
+          parts.push(
+            `(interested_in IS NULL OR interested_in = 'everyone' OR interested_in = $${params.length})`
+          );
+        }
+        return parts.length ? ` AND ${parts.join(" AND ")}` : "";
+      };
 
       let orderedIds: string[] | null = null;
       if (myVector) {
@@ -280,6 +304,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
           q += ` AND country_code = $2`;
           params.push(country.toUpperCase());
         }
+        q += orientationClause(params);
         const { rows: fetched } = await db.query(q, params);
         // Re-sort by Pinecone rank order
         const byId = new Map((fetched as Array<{ id: string }>).map((u) => [u.id, u]));
@@ -297,6 +322,7 @@ const matchesRoutes: FastifyPluginAsync = async (fastify) => {
           q += ` AND country_code = $4`;
           params.push(country.toUpperCase());
         }
+        q += orientationClause(params);
         q += ` ORDER BY RANDOM() LIMIT $2 OFFSET $3`;
         const { rows: fetched } = await db.query(q, params);
         rows = fetched;

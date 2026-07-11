@@ -29,6 +29,8 @@ class User {
   final String? avatarIpfsHash;
   final String? bio;
   final String? countryCode;
+  final String? gender;
+  final String? interestedIn;
   final bool? isVerified;
   final bool? isCreator;
   final String? status;
@@ -54,6 +56,8 @@ class User {
     this.avatarIpfsHash,
     this.bio,
     this.countryCode,
+    this.gender,
+    this.interestedIn,
     this.isVerified,
     this.isCreator,
     this.status,
@@ -81,6 +85,8 @@ class User {
         avatarIpfsHash: json['avatarIpfsHash'] ?? json['avatar_ipfs_hash'] as String?,
         bio: json['bio'] as String?,
         countryCode: json['countryCode'] ?? json['country_code'] as String?,
+        gender: json['gender'] as String?,
+        interestedIn: json['interestedIn'] ?? json['interested_in'] as String?,
         isVerified: json['isVerified'] ?? json['is_verified'] as bool?,
         isCreator: json['isCreator'] ?? json['is_creator'] as bool?,
         status: json['status'] as String?,
@@ -115,6 +121,8 @@ class User {
         'avatarIpfsHash': avatarIpfsHash,
         'bio': bio,
         'countryCode': countryCode,
+        'gender': gender,
+        'interestedIn': interestedIn,
         'isVerified': isVerified,
         'isCreator': isCreator,
         'status': status,
@@ -134,6 +142,8 @@ class User {
     String? displayName,
     String? bio,
     String? countryCode,
+    String? gender,
+    String? interestedIn,
     String? emoji,
     List<String>? interests,
     String? avatarUrl,
@@ -153,6 +163,8 @@ class User {
         avatarIpfsHash: avatarIpfsHash,
         bio: bio ?? this.bio,
         countryCode: countryCode ?? this.countryCode,
+        gender: gender ?? this.gender,
+        interestedIn: interestedIn ?? this.interestedIn,
         isVerified: isVerified,
         isCreator: isCreator,
         status: status,

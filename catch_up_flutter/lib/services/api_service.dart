@@ -199,6 +199,8 @@ class ApiService {
     String? username,
     String? bio,
     String? countryCode,
+    String? gender,
+    String? interestedIn,
     List<String>? interests,
     String? avatarUrl,
     Map<String, dynamic>? cartoonAvatar,
@@ -210,6 +212,8 @@ class ApiService {
       if (username != null && username.isNotEmpty) data['username'] = username;
       if (bio != null && bio.isNotEmpty) data['bio'] = bio;
       if (countryCode != null && countryCode.isNotEmpty) data['countryCode'] = countryCode;
+      if (gender != null && gender.isNotEmpty) data['gender'] = gender;
+      if (interestedIn != null && interestedIn.isNotEmpty) data['interestedIn'] = interestedIn;
       if (interests != null && interests.isNotEmpty) data['interests'] = interests;
       if (avatarUrl != null && avatarUrl.isNotEmpty) data['avatarUrl'] = avatarUrl;
       if (cartoonAvatar != null) data['cartoonAvatar'] = cartoonAvatar;

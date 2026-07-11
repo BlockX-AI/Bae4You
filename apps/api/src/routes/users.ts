@@ -40,6 +40,8 @@ const updateSchema = z.object({
   birthDate:   z.string().optional(),
   locationCity: z.string().max(100).optional(),
   countryCode: z.string().length(2).optional(),
+  gender:       z.enum(["male", "female", "nonbinary", "other"]).optional(),
+  interestedIn: z.enum(["male", "female", "everyone"]).optional(),
   personalityVector: z.record(z.unknown()).optional(),
   cartoonAvatar: z.record(z.unknown()).optional(),
   interests:   z.array(z.string()).optional(),
@@ -157,6 +159,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       const { rows } = await db.query(
         `SELECT id, wallet_address, token_id, username, display_name, bio,
                 avatar_ipfs_hash, avatar_url, birth_date, location_city, country_code,
+                gender, interested_in,
                 is_verified, is_creator, status, last_login_at, bonus_claimed_at,
                 personality_vector, cartoon_avatar, interests, photos,
                 pcash_balance, gold_balance, current_value, created_at
@@ -178,6 +181,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       const { rows } = await db.query(
         `SELECT id, wallet_address, token_id, username, display_name, bio,
                 avatar_ipfs_hash, avatar_url, birth_date, location_city, country_code,
+                gender, interested_in,
                 is_verified, is_creator, status, cartoon_avatar, interests, photos,
                 pcash_balance, gold_balance, current_value, created_at
          FROM users WHERE id = $1 AND status != 'suspended'`,
@@ -210,6 +214,8 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
       if (data.birthDate !== undefined)         { updates.push(`birth_date = $${i++}`);         values.push(data.birthDate); }
       if (data.locationCity !== undefined)      { updates.push(`location_city = $${i++}`);      values.push(data.locationCity); }
       if (data.countryCode !== undefined)       { updates.push(`country_code = $${i++}`);       values.push(data.countryCode); }
+      if (data.gender !== undefined)            { updates.push(`gender = $${i++}`);             values.push(data.gender); }
+      if (data.interestedIn !== undefined)      { updates.push(`interested_in = $${i++}`);      values.push(data.interestedIn); }
       if (data.personalityVector !== undefined) { updates.push(`personality_vector = $${i++}`); values.push(JSON.stringify(data.personalityVector)); }
       if (data.cartoonAvatar !== undefined)     { updates.push(`cartoon_avatar = $${i++}`);     values.push(JSON.stringify(data.cartoonAvatar)); }
       if (data.interests !== undefined)         { updates.push(`interests = $${i++}`);          values.push(JSON.stringify(data.interests)); }
